@@ -1,0 +1,9 @@
+# tarjetas de nota
+background="#1b1f2a"
+backgroundHover="#222839"
+text="#e8eaf0"
+border="1px solid #2a3040"
+radius="10px"
+blur="0px"
+shadow="0 4px 16px rgba(0,0,0,0.40)"
+accent="#4ade80"

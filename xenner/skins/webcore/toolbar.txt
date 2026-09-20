@@ -1,0 +1,9 @@
+# barra superior
+background="#171b25"
+text="#e8eaf0"
+textDim="#8b93a7"
+border="1px solid #232936"
+radius="10px"
+blur="0px"
+shadow="0 2px 12px rgba(0,0,0,0.40)"
+accent="#4ade80"

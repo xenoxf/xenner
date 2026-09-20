@@ -1,0 +1,11 @@
+# fondo del desktop / ventana (webcore: oscuro sólido, sin blur)
+background="#14161c"
+overlay="linear-gradient(180deg, #14161c, #0d0f14)"
+blur="0px"
+border="1px solid #262b36"
+radius="12px"
+shadow="0 8px 32px rgba(0,0,0,0.50)"
+text="#e8eaf0"
+textDim="#8b93a7"
+accent="#4ade80"
+font="Inter, Avenir, Helvetica, Arial, sans-serif"

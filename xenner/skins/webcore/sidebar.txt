@@ -1,0 +1,11 @@
+# barra lateral (lista de notas)
+background="#10131a"
+text="#e8eaf0"
+textDim="#8b93a7"
+itemHover="#1c2230"
+itemActive="rgba(74,222,128,0.15)"
+border="1px solid #232936"
+radius="10px"
+blur="0px"
+shadow="none"
+accent="#4ade80"

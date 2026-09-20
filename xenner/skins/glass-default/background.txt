@@ -1,0 +1,11 @@
+# fondo del desktop / ventana (glassmorphism sobre ventana transparente)
+background="rgba(255,255,255,0.06)"
+overlay="linear-gradient(135deg, rgba(125,211,252,0.12), rgba(167,139,250,0.12))"
+blur="24px"
+border="1px solid rgba(255,255,255,0.18)"
+radius="20px"
+shadow="0 8px 32px rgba(0,0,0,0.30)"
+text="#ffffff"
+textDim="rgba(255,255,255,0.65)"
+accent="#7dd3fc"
+font="Inter, Avenir, Helvetica, Arial, sans-serif"

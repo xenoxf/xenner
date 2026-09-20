@@ -1,0 +1,11 @@
+# botones
+background="#1e2330"
+backgroundHover="#2a3042"
+text="#e8eaf0"
+textHover="#ffffff"
+border="1px solid #2e3547"
+borderHover="1px solid #4ade80"
+radius="8px"
+blur="0px"
+shadow="0 2px 8px rgba(0,0,0,0.40)"
+accent="#4ade80"

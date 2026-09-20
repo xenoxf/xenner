@@ -1,0 +1,3 @@
+# xenner skins config
+# skinPath = carpeta dentro de skins/. Vacío o inexistente = default embebida.
+skinPath="glass-default"

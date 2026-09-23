@@ -102,3 +102,38 @@ para ver lo que hay detrás del desktop.
 - Recarga de skins con reinicio (hot-reload en fase futura).
 - Skins de usuario fuera del bundle (AppData) → fase futura (Rust ya expone
   `scan_skins`/`read_skin_file` preparado para ello).
+
+## 8. Transparencia de ventana y alcance del glass
+
+Para que la skin glassmorphism muestre el escritorio hacen falta **dos**
+cosas (ambas presentes):
+
+1. `xenner/src-tauri/tauri.conf.json` → `"transparent": true` (ventana ARGB).
+2. `xenner/src/skin/skin.css` → `html, body { background: transparent; }`.
+
+**Qué blurea qué:**
+
+- `backdrop-filter` del CSS **solo blurea el DOM** (lo que hay detrás del
+  elemento dentro de la página). No blurea el escritorio de detrás de la
+  ventana.
+- El blur nativo de lo que hay detrás de la ventana lo pone el
+  **compositor/SO** (Linux) o el crate **`window-vibrancy`**
+  (Windows/macOS — fase futura). Sin eso, el escritorio se ve **a través**
+  de la ventana pero **sin difuminar** (borde del fondo nítido): es el
+  comportamiento esperado, no un bug.
+
+**Riesgo conocido:** `transparent: true` + Nvidia en Linux puede fallar
+([tauri-apps/tauri#14924](https://github.com/tauri-apps/tauri/issues/14924)).
+Mitigación prevista: conmutador `transparent: false` en `tauri.conf.json`
+(la app pierde el efecto de escritorio pero sigue funcionando).
+
+**Estado de verificación (2026-09-23):**
+
+- Verificado en desktop real X11 + xfwm4 con compositor activo
+  (`use_compositing=true`): patrón de prueba verde|azul detrás de la
+  ventana **se ve a través** de toolbar, sidebar y editor (muestra de
+  padding: G=244 con verde detrás, vs G=10 del fondo plano sin ventana).
+- Blur del escritorio detrás de la ventana: **no activo** en xfwm4
+  (coherente con el alcance de `backdrop-filter` descrito arriba) ?;
+  `window-vibrancy` en Windows/macOS sin verificar aún.
+

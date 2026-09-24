@@ -102,6 +102,10 @@ para ver lo que hay detrás del desktop.
 
 - Sin imágenes ni recursos externos. `url(...)` se rechaza en el parser y la CSP
   de Tauri bloquea orígenes remotos. Una imagen local es trabajo futuro.
+- Lecturas Rust limitadas a 4 KiB (`config.txt`), 16 KiB (`skin.txt`) y 64 KiB
+  por componente; el scan inspecciona como máximo 512 entradas y lista 256 skins.
+- El I/O de skins se ejecuta fuera del hilo principal. Se rechazan symlinks y
+  rutas canonizadas que salgan de la carpeta `skins/`.
 - Sin expresiones ni `calc()` con variables ajenas: el valor se inyecta tal cual.
 - Recarga de skins con reinicio (hot-reload en fase futura).
 - Skins de usuario fuera del bundle (AppData) → fase futura (Rust ya expone

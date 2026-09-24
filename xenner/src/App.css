@@ -42,6 +42,20 @@
   color: var(--skin-toolbar-accent);
 }
 
+.save-status {
+  color: var(--skin-toolbar-textDim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.save-status[data-status="saving"] {
+  color: var(--skin-toolbar-accent);
+}
+
+.save-status[data-status="error"] {
+  color: var(--skin-note-accent);
+}
+
 .toolbar-spacer {
   flex: 1;
 }
@@ -49,6 +63,11 @@
 .skin-select {
   max-width: 220px;
   color: var(--skin-toolbar-textDim);
+}
+
+.skin-select:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 /* ---------- workspace ---------- */
@@ -159,6 +178,11 @@
   border-radius: var(--skin-note-radius);
   backdrop-filter: blur(var(--skin-note-blur));
   box-shadow: var(--skin-note-shadow);
+  transition: background-color 0.15s ease;
+}
+
+.editor:hover {
+  background-color: var(--skin-note-backgroundHover);
 }
 
 .editor-empty {
@@ -249,7 +273,6 @@
   border-radius: var(--skin-input-radius);
   box-shadow: var(--skin-input-shadow);
   backdrop-filter: blur(var(--skin-input-blur));
-  outline: none;
   transition: border-color 0.15s ease;
 }
 
@@ -257,6 +280,38 @@
   border-color: var(--skin-input-focus);
 }
 
+.btn:focus-visible,
+.input:focus-visible,
+.note-item:focus-visible,
+.skin-select:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.note-item:focus-visible {
+  outline-color: var(--skin-sidebar-accent);
+}
+
 .input::placeholder {
   color: var(--skin-input-placeholder);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,46 +1,128 @@
 // CRUD de notas — fase 1: localStorage (clave xenner:notes:v1).
-// Puro SolidJS, sin backend. Nunca lanza: storage roto → lista vacía.
+// SolidJS solo para el estado; las validaciones viven en model.ts.
 
 import { createSignal } from "solid-js";
+import {
+  isNote,
+  MAX_NOTE_BODY_LENGTH,
+  MAX_NOTE_TITLE_LENGTH,
+  sanitizeNotes,
+  type Note,
+} from "./model";
 
-export interface Note {
-  id: string;
-  title: string;
-  body: string;
-  updatedAt: number;
-}
+export type { Note } from "./model";
+
+export type StorageStatus = "saved" | "saving" | "error";
 
 const STORAGE_KEY = "xenner:notes:v1";
+const SAVE_DELAY_MS = 300;
 
-function isNote(v: unknown): v is Note {
-  if (!v || typeof v !== "object") return false;
-  const n = v as Record<string, unknown>;
-  return (
-    typeof n.id === "string" &&
-    typeof n.title === "string" &&
-    typeof n.body === "string" &&
-    typeof n.updatedAt === "number"
-  );
+interface ReadResult {
+  notes: Note[];
+  issue: string | null;
+  corruptRaw: string | null;
 }
 
-function readAll(): Note[] {
+let pendingNotes: Note[] | null = null;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let unrecoverableCorruptRaw: string | null = null;
+
+function readAll(): ReadResult {
+  let raw: string | null = null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isNote);
-  } catch {
-    return [];
+    raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { notes: [], issue: null, corruptRaw: null };
+
+    const sanitized = sanitizeNotes(JSON.parse(raw) as unknown);
+    if (sanitized.rejected === 0) {
+      return { notes: sanitized.notes, issue: null, corruptRaw: null };
+    }
+
+    return {
+      notes: sanitized.notes,
+      issue: `Se omitieron ${sanitized.rejected} entradas inválidas al abrir el almacenamiento.`,
+      corruptRaw: raw,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "error desconocido";
+    return {
+      notes: [],
+      issue: `No se pudo leer el almacenamiento local: ${message}`,
+      corruptRaw: raw,
+    };
   }
 }
 
-function persist(notes: Note[]): void {
+const initial = readAll();
+const [notes, setNotes] = createSignal<Note[]>(initial.notes);
+const [storageStatus, setStorageStatus] = createSignal<StorageStatus>(
+  initial.issue ? "error" : "saved",
+);
+const [storageError, setStorageError] = createSignal<string | null>(initial.issue);
+
+function backupCorruptData(raw: string): boolean {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    localStorage.setItem(`${STORAGE_KEY}:corrupt:${Date.now()}`, raw);
+    return true;
   } catch {
-    /* cuota llena o storage bloqueado: la app sigue con la señal en memoria */
+    return false;
   }
+}
+
+if (initial.corruptRaw) {
+  if (backupCorruptData(initial.corruptRaw)) {
+    setStorageError(`${initial.issue} Se conservó una copia de recuperación.`);
+  } else {
+    unrecoverableCorruptRaw = initial.corruptRaw;
+    setStorageError(
+      `${initial.issue} No se pudo crear la copia; se bloqueó la sobrescritura para proteger los datos.`,
+    );
+  }
+}
+
+function setWriteError(error: unknown): void {
+  const message = error instanceof Error ? error.message : "error desconocido";
+  setStorageStatus("error");
+  setStorageError(`No se pudo guardar; los cambios siguen solo en memoria. ${message}`);
+}
+
+function writeNow(next: Note[]): boolean {
+  if (unrecoverableCorruptRaw) {
+    setStorageStatus("error");
+    setStorageError(
+      "No se puede guardar hasta que se libere el almacenamiento corrupto. Tus cambios siguen solo en memoria.",
+    );
+    return false;
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setStorageStatus("saved");
+    setStorageError(null);
+    return true;
+  } catch (error) {
+    setWriteError(error);
+    return false;
+  }
+}
+
+function scheduleWrite(next: Note[]): void {
+  pendingNotes = next;
+  setStorageStatus("saving");
+  setStorageError(null);
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushPending, SAVE_DELAY_MS);
+}
+
+export function flushPending(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  if (!pendingNotes) return;
+  const next = pendingNotes;
+  pendingNotes = null;
+  writeNow(next);
 }
 
 function newId(): string {
@@ -49,15 +131,21 @@ function newId(): string {
       return crypto.randomUUID();
     }
   } catch {
-    /* fallback abajo */
+    // Fallback local al bloque siguiente.
   }
   return `n_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-const [notes, setNotes] = createSignal<Note[]>(readAll());
-
 export function listNotes(): Note[] {
   return notes();
+}
+
+export function getStorageStatus(): StorageStatus {
+  return storageStatus();
+}
+
+export function getStorageError(): string | null {
+  return storageError();
 }
 
 export function createNote(): Note {
@@ -67,9 +155,9 @@ export function createNote(): Note {
     body: "",
     updatedAt: Date.now(),
   };
-  setNotes((prev) => {
-    const next = [note, ...prev];
-    persist(next);
+  setNotes((previous) => {
+    const next = [note, ...previous];
+    scheduleWrite(next);
     return next;
   });
   return note;
@@ -78,23 +166,43 @@ export function createNote(): Note {
 export function updateNote(
   id: string,
   patch: Partial<Pick<Note, "title" | "body">>,
-): void {
-  setNotes((prev) => {
-    let touched = false;
-    const next = prev.map((n) => {
-      if (n.id !== id) return n;
-      touched = true;
-      return { ...n, ...patch, updatedAt: Date.now() };
+): boolean {
+  if (patch.title !== undefined && patch.title.length > MAX_NOTE_TITLE_LENGTH) {
+    setStorageStatus("error");
+    setStorageError(`El título supera el límite de ${MAX_NOTE_TITLE_LENGTH} caracteres.`);
+    return false;
+  }
+  if (patch.body !== undefined && patch.body.length > MAX_NOTE_BODY_LENGTH) {
+    setStorageStatus("error");
+    setStorageError(`La nota supera el límite de ${MAX_NOTE_BODY_LENGTH} caracteres.`);
+    return false;
+  }
+
+  let changed = false;
+  setNotes((previous) => {
+    const next = previous.map((note) => {
+      if (note.id !== id) return note;
+      changed = true;
+      const candidate = { ...note, ...patch, updatedAt: Date.now() };
+      return isNote(candidate) ? candidate : note;
     });
-    if (touched) persist(next);
+    if (changed) scheduleWrite(next);
+    return next;
+  });
+  return changed;
+}
+
+export function deleteNote(id: string): void {
+  setNotes((previous) => {
+    const next = previous.filter((note) => note.id !== id);
+    if (next.length !== previous.length) scheduleWrite(next);
     return next;
   });
 }
 
-export function deleteNote(id: string): void {
-  setNotes((prev) => {
-    const next = prev.filter((n) => n.id !== id);
-    if (next.length !== prev.length) persist(next);
-    return next;
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushPending);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushPending();
   });
 }

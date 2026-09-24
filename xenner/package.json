@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "pnpm check && vite build",
     "check": "pnpm test && pnpm typecheck",
-    "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test src/skin/parse.test.ts",
+    "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test src/notes/model.test.ts src/skin/parse.test.ts",
     "typecheck": "tsc --noEmit",
     "serve": "vite preview",
     "tauri": "tauri"

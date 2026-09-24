@@ -102,6 +102,7 @@ async function readComponentText(
   return BUNDLE[`../../skins/${activeId}/${component}.txt`] ?? null;
 }
 
+let latestLoad = 0;
 const appliedVars = new Set<string>();
 
 function applyVars(vars: Record<string, SkinVars>): void {
@@ -123,34 +124,46 @@ function applyVars(vars: Record<string, SkinVars>): void {
  * Cualquier fallo en cualquier nivel cae al siguiente; jamás propaga error.
  */
 export async function loadSkin(preferredId?: string): Promise<LoadedSkin> {
-  try {
-    let skins = await tauriScan();
-    if (!skins || skins.length === 0) skins = bundleSkins();
+  const request = ++latestLoad;
 
-    let cfg = await tauriReadConfig();
-    if (cfg === null) cfg = bundleConfig();
-    const configId = parseSkinConfig(cfg).skinPath ?? "";
+  try {
+    const [scannedSkins, tauriConfig] = await Promise.all([
+      tauriScan(),
+      tauriReadConfig(),
+    ]);
+    if (request !== latestLoad) return { activeId: preferredId ?? "", skins: [] };
+
+    const skins = scannedSkins?.length ? scannedSkins : bundleSkins();
+    const config = tauriConfig ?? bundleConfig();
+    const configId = parseSkinConfig(config).skinPath ?? "";
     const activeId = preferredId ?? configId;
 
+    const texts = await Promise.all(
+      SKIN_COMPONENTS.map((component) => readComponentText(activeId, component)),
+    );
+    if (request !== latestLoad) return { activeId, skins };
+
     const vars: Record<string, SkinVars> = {};
-    for (const component of SKIN_COMPONENTS) {
-      // Empezamos SIEMPRE por la default: así una skin parcial (o rota)
-      // solo sobreescribe lo que define y el resto queda en default.
+    SKIN_COMPONENTS.forEach((component, index) => {
+      // Empezamos SIEMPRE por la default: una skin parcial solo sobreescribe
+      // las claves que define y el resto queda embebido.
       const merged: SkinVars = { ...DEFAULT_SKIN[component] };
-      const text = await readComponentText(activeId, component);
+      const text = texts[index];
       if (text !== null) Object.assign(merged, parseSkinComponent(component, text));
       vars[component] = merged;
-    }
+    });
     applyVars(vars);
 
-    if (activeId && !skins.some((s) => s.id === activeId)) {
+    if (activeId && !skins.some((skin) => skin.id === activeId)) {
       console.warn(
         `[xenner] skin "${activeId}" no encontrada en scan: usando default embebida para claves ausentes`,
       );
     }
     return { activeId, skins };
-  } catch (err) {
-    console.warn("[xenner] loadSkin falló, se aplica default embebida:", err);
+  } catch (error) {
+    if (request !== latestLoad) return { activeId: preferredId ?? "", skins: [] };
+
+    console.warn("[xenner] loadSkin falló, se aplica default embebida:", error);
     try {
       const vars: Record<string, SkinVars> = {};
       for (const component of SKIN_COMPONENTS) {
@@ -158,7 +171,7 @@ export async function loadSkin(preferredId?: string): Promise<LoadedSkin> {
       }
       applyVars(vars);
     } catch {
-      /* nunca propagar */
+      // Nunca propaga un error de skins al usuario.
     }
     return { activeId: "", skins: [] };
   }

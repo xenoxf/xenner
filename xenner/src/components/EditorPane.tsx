@@ -1,4 +1,5 @@
-import { createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import type { JSX } from "solid-js";
 
 import { DrawingModal } from "./DrawingModal";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./MarkdownEditor";
@@ -9,13 +10,18 @@ import {
   type SelectedEditorAsset,
 } from "../editor/assets";
 import {
+  ArrowIcon,
+  CheckIcon,
+  CircleIcon,
   ImageIcon,
+  LineIcon,
   MarkdownIcon,
   NoteIcon,
   PencilIcon,
   PlusIcon,
   RefreshIcon,
   ShapesIcon,
+  SquareIcon,
   TextIcon,
 } from "./Icons";
 import { NOTE_TITLE_MAX_LENGTH } from "../workspace/note";
@@ -52,6 +58,58 @@ function statusLabel(status: SaveStatus): string {
   }
 }
 
+type ShapeTool = "pen" | "rect" | "ellipse" | "line" | "arrow" | "text";
+type ShapeColor = "#5b9bd5" | "#e7e7e4" | "#e05d5d" | "#5ac47a" | "#f0b35c";
+
+const shapeTools: { id: ShapeTool; label: string }[] = [
+  { id: "pen", label: "Trazo" },
+  { id: "rect", label: "Rectángulo" },
+  { id: "ellipse", label: "Elipse" },
+  { id: "line", label: "Línea" },
+  { id: "arrow", label: "Flecha" },
+  { id: "text", label: "Texto" },
+];
+const shapeColors: ShapeColor[] = ["#5b9bd5", "#e7e7e4", "#e05d5d", "#5ac47a", "#f0b35c"];
+
+function ShapeToolIcon(props: { tool: ShapeTool }): JSX.Element {
+  switch (props.tool) {
+    case "pen":
+      return <PencilIcon />;
+    case "rect":
+      return <SquareIcon />;
+    case "ellipse":
+      return <CircleIcon />;
+    case "line":
+      return <LineIcon />;
+    case "arrow":
+      return <ArrowIcon />;
+    case "text":
+      return <TextIcon />;
+  }
+}
+
+function createShapeSvg(tool: ShapeTool, color: ShapeColor): string {
+  const common = `fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"`;
+  const body = (() => {
+    switch (tool) {
+      case "pen":
+        return `<path d="M180 360 C300 120 470 440 700 180" ${common} />`;
+      case "rect":
+        return `<rect x="190" y="120" width="500" height="300" rx="28" ${common} />`;
+      case "ellipse":
+        return `<ellipse cx="440" cy="270" rx="250" ry="150" ${common} />`;
+      case "line":
+        return `<line x1="190" y1="370" x2="690" y2="170" ${common} />`;
+      case "arrow":
+        return `<line x1="190" y1="370" x2="690" y2="170" ${common} marker-end="url(#shape-arrow)" />`;
+      case "text":
+        return `<text x="440" y="300" fill="${color}" font-family="sans-serif" font-size="72" text-anchor="middle">Texto</text>`;
+    }
+  })();
+  const marker = tool === "arrow" ? `<marker id="shape-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10Z" fill="${color}" /></marker>` : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 540" data-xenner-asset="safe"><defs>${marker}</defs>${body}</svg>`;
+}
+
 function displayName(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
@@ -59,6 +117,10 @@ function displayName(path: string): string {
 export function EditorPane(props: EditorPaneProps) {
   const [drawingOpen, setDrawingOpen] = createSignal(false);
   const [drawingTool, setDrawingTool] = createSignal<"select" | "pen">("select");
+  const [shapePopoverOpen, setShapePopoverOpen] = createSignal(false);
+  const [shapeTool, setShapeTool] = createSignal<ShapeTool>("rect");
+  const [shapeColor, setShapeColor] = createSignal<ShapeColor>("#5b9bd5");
+  const [shapeBusy, setShapeBusy] = createSignal(false);
   const [editingDrawing, setEditingDrawing] = createSignal<SelectedEditorAsset | null>(null);
   const [drawingInitialSvg, setDrawingInitialSvg] = createSignal<string | undefined>(undefined);
   const [drawingBusy, setDrawingBusy] = createSignal(false);
@@ -71,6 +133,7 @@ export function EditorPane(props: EditorPaneProps) {
   let imageInput: HTMLInputElement | undefined;
   let insertMenu: HTMLDivElement | undefined;
   let insertTrigger: HTMLButtonElement | undefined;
+  let shapePopover: HTMLDivElement | undefined;
 
   onMount(() => {
     const closeMenuOutside = (event: PointerEvent): void => {
@@ -79,9 +142,13 @@ export function EditorPane(props: EditorPaneProps) {
       if (!insertMenu?.contains(target) && !insertTrigger?.contains(target)) {
         setInsertMenuOpen(false);
       }
+      if (!shapePopover?.contains(target)) setShapePopoverOpen(false);
     };
     const closeMenuWithEscape = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") setInsertMenuOpen(false);
+      if (event.key === "Escape") {
+        setInsertMenuOpen(false);
+        setShapePopoverOpen(false);
+      }
     };
     document.addEventListener("pointerdown", closeMenuOutside);
     document.addEventListener("keydown", closeMenuWithEscape);
@@ -100,13 +167,29 @@ export function EditorPane(props: EditorPaneProps) {
     imageInput?.click();
   }
 
-  function startDrawing(tool: "select" | "pen" = "select"): void {
+  function openShapeToolbar(tool: ShapeTool): void {
+    if (props.loading || sourceMode() || shapeBusy()) return;
     closeInsertMenu();
-    setDrawingTool(tool);
+    setShapeTool(tool);
+    setShapePopoverOpen(true);
+  }
+
+  async function insertShape(): Promise<void> {
+    const document = props.document;
+    if (!document || !editorHandle || shapeBusy()) return;
+    setShapeBusy(true);
     setDrawingError(null);
-    setEditingDrawing(null);
-    setDrawingInitialSvg(undefined);
-    setDrawingOpen(true);
+    try {
+      const svg = createShapeSvg(shapeTool(), shapeColor());
+      const file = new File([svg], "figura.svg", { type: "image/svg+xml" });
+      const imported = await importImageForEditor(document.path, file);
+      editorHandle.insertAsset(imported.dataUrl, imported.relativePath, "Figura");
+      setShapePopoverOpen(false);
+    } catch (error) {
+      setDrawingError(error instanceof Error ? error.message : "No se pudo insertar la figura");
+    } finally {
+      setShapeBusy(false);
+    }
   }
 
   async function insertImage(file: File): Promise<void> {
@@ -337,7 +420,7 @@ export function EditorPane(props: EditorPaneProps) {
                             class="asset-menu-item"
                             role="menuitem"
                             disabled={props.loading || drawingBusy() || sourceMode()}
-                            onClick={() => startDrawing("select")}
+                            onClick={() => openShapeToolbar("rect")}
                           >
                             <span><ShapesIcon /></span>
                             Figura
@@ -383,7 +466,7 @@ export function EditorPane(props: EditorPaneProps) {
                       disabled={props.loading || drawingBusy() || sourceMode()}
                       aria-label="Dibujar"
                       title="Dibujar"
-                      onClick={() => startDrawing("pen")}
+                      onClick={() => openShapeToolbar("pen")}
                     >
                       <PencilIcon />
                     </button>
@@ -394,7 +477,7 @@ export function EditorPane(props: EditorPaneProps) {
                       disabled={props.loading || drawingBusy() || sourceMode()}
                       aria-label="Añadir figura"
                       title="Añadir figura"
-                      onClick={() => startDrawing("select")}
+                      onClick={() => openShapeToolbar("rect")}
                     >
                       <ShapesIcon />
                     </button>
@@ -423,6 +506,61 @@ export function EditorPane(props: EditorPaneProps) {
                       <span class="sr-only">{statusLabel(props.status)}</span>
                     </span>
                   </div>
+                  <Show when={shapePopoverOpen()}>
+                    <div
+                      ref={(element) => (shapePopover = element)}
+                      class="floating-drawing-toolbar"
+                      role="toolbar"
+                      aria-label="Herramientas de figura"
+                    >
+                      <div class="floating-tool-group" role="group" aria-label="Herramientas">
+                        <For each={shapeTools}>
+                          {(tool) => (
+                            <button
+                              type="button"
+                              class="floating-tool-button"
+                              classList={{ active: shapeTool() === tool.id }}
+                              aria-label={tool.label}
+                              aria-pressed={shapeTool() === tool.id}
+                              title={tool.label}
+                              onClick={() => setShapeTool(tool.id)}
+                            >
+                              <ShapeToolIcon tool={tool.id} />
+                            </button>
+                          )}
+                        </For>
+                      </div>
+                      <span class="floating-tool-divider" aria-hidden="true" />
+                      <div class="floating-tool-group shape-colors" role="group" aria-label="Color">
+                        <For each={shapeColors}>
+                          {(color) => (
+                            <button
+                              type="button"
+                              class="shape-color-button"
+                              classList={{ active: shapeColor() === color }}
+                              style={`--shape-color: ${color}`}
+                              aria-label={`Color ${color}`}
+                              aria-pressed={shapeColor() === color}
+                              title={`Color ${color}`}
+                              onClick={() => setShapeColor(color)}
+                            />
+                          )}
+                        </For>
+                      </div>
+                      <span class="floating-tool-divider" aria-hidden="true" />
+                      <button
+                        type="button"
+                        class="floating-tool-button floating-insert-button"
+                        classList={{ busy: shapeBusy() }}
+                        disabled={shapeBusy()}
+                        aria-label="Insertar figura"
+                        title="Insertar figura"
+                        onClick={() => void insertShape()}
+                      >
+                        <CheckIcon />
+                      </button>
+                    </div>
+                  </Show>
                 </div>
               )}
             </Show>

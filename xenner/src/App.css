@@ -1935,6 +1935,102 @@ button:disabled {
   height: 16px;
 }
 
+.floating-drawing-toolbar {
+  position: absolute;
+  z-index: 14;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  display: flex;
+  max-width: calc(100% - 20px);
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  overflow-x: auto;
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: var(--skin-note-radius);
+  box-shadow: var(--skin-note-shadow);
+  transform: translateX(-50%);
+}
+
+.floating-tool-group {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.floating-tool-button {
+  position: relative;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  padding: 0;
+  place-items: center;
+  color: var(--skin-toolbar-textDim);
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--skin-button-radius) * 0.9);
+  cursor: pointer;
+}
+
+.floating-tool-button:hover,
+.floating-tool-button.active {
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-button-backgroundHover);
+}
+
+.floating-tool-button.active,
+.floating-insert-button {
+  color: var(--skin-toolbar-accent);
+}
+
+.floating-tool-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.floating-tool-divider {
+  width: 1px;
+  height: 20px;
+  flex: 0 0 auto;
+  background-color: var(--skin-toolbar-textDim);
+  opacity: 0.28;
+}
+
+.shape-color-button {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  padding: 0;
+  background: var(--shape-color);
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.shape-color-button:hover,
+.shape-color-button.active {
+  border-color: var(--skin-toolbar-accent);
+}
+
+.floating-tool-button.busy {
+  color: transparent;
+}
+
+.floating-tool-button.busy::after {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  content: "";
+  border: 1.5px solid var(--skin-toolbar-textDim);
+  border-top-color: var(--skin-toolbar-accent);
+  border-radius: 50%;
+  animation: asset-spin 700ms linear infinite;
+}
+
 @keyframes asset-spin {
   to {
     transform: rotate(360deg);

@@ -114,6 +114,46 @@ export function TextIcon(props: IconProps) {
   );
 }
 
+export function SquareIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+    </svg>
+  );
+}
+
+export function CircleIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="8" />
+    </svg>
+  );
+}
+
+export function LineIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M5 19 19 5" />
+    </svg>
+  );
+}
+
+export function ArrowIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M5 19 19 5M11 5h8v8" />
+    </svg>
+  );
+}
+
+export function CheckIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  );
+}
+
 export function TrashIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

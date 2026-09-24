@@ -1,23 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 
-import type { SkinInfo } from "./loader";
-import type { ColorScheme } from "../settings/appearance";
-
-export interface CreateSkinRequest {
-  id: string;
-  name: string;
-  version: string;
-  author: string;
-  components: Record<string, Record<string, string>>;
-}
-
-export interface SkinDraft {
-  name: string;
-  accent: string;
-  mode: ColorScheme;
-  radius: number;
-  font: string;
-}
+import type { CreateSkinRequest, SkinDraft, SkinInfo } from "../types/skin";
 
 const FONT_STACKS: Record<string, string> = {
   system: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',

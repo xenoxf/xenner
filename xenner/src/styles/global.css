@@ -1,0 +1,82 @@
+/*
+ * Estilos globales de Xenner.
+ *
+ * Este archivo solo contiene reset, utilidades transversales y tokens
+ * estructurales. Los colores y las superficies provienen de --skin-*; cada
+ * componente mantiene sus estilos en un CSS Module.
+ */
+
+:root {
+  color-scheme: light dark;
+  --motion-fast: 120ms;
+  --motion-standard: 140ms;
+  --z-modal: 50;
+  --z-drawing-modal: 70;
+  --z-toast: 100;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+body {
+  overflow: hidden;
+  color: var(--skin-background-text);
+  font-family: var(--skin-ui-font, var(--skin-background-font));
+  font-size: 16px;
+  line-height: 24px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -1,0 +1,188 @@
+.shell,
+.editor {
+  min-height: 52vh;
+}
+
+.shell {
+  position: relative;
+}
+
+.editor:global(.milkdown),
+.editor :global(.milkdown) {
+  --crepe-color-background: var(--skin-note-background);
+  --crepe-color-on-background: var(--skin-note-text);
+  --crepe-color-surface: var(--skin-toolbar-background);
+  --crepe-color-surface-low: var(--skin-input-background);
+  --crepe-color-on-surface: var(--skin-note-text);
+  --crepe-color-on-surface-variant: var(--skin-sidebar-textDim);
+  --crepe-color-outline: var(--skin-sidebar-accent);
+  --crepe-color-primary: var(--skin-note-accent);
+  --crepe-color-secondary: var(--skin-sidebar-itemActive);
+  --crepe-color-on-secondary: var(--skin-note-text);
+  --crepe-color-inverse: var(--skin-input-text);
+  --crepe-color-on-inverse: var(--skin-input-background);
+  --crepe-color-inline-code: var(--skin-note-accent);
+  --crepe-color-error: var(--skin-note-accent);
+  --crepe-color-hover: var(--skin-sidebar-itemHover);
+  --crepe-color-selected: var(--skin-sidebar-itemActive);
+  --crepe-color-inline-area: var(--skin-input-background);
+  --crepe-base-font-size: var(--skin-editor-size, 16px);
+  --crepe-font-title: var(--skin-editor-font, var(--skin-background-font));
+  --crepe-font-default: var(--skin-editor-font, var(--skin-background-font));
+  --crepe-font-code: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --crepe-shadow-1: var(--skin-toolbar-shadow);
+  --crepe-shadow-2: var(--skin-note-shadow);
+  min-height: 100%;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  font-family: var(--skin-editor-font, var(--skin-background-font));
+}
+
+.editor :global(.ProseMirror) {
+  width: 100%;
+  min-height: 52vh;
+  margin: 0;
+  padding: 0;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  outline: none;
+  font-family: var(--skin-editor-font, var(--skin-background-font));
+  font-size: var(--skin-editor-size, 16px);
+  line-height: var(--skin-editor-line-height, 1.7);
+}
+
+.editor :global(.ProseMirror > :first-child) {
+  margin-top: 0;
+}
+
+.editor :global(.ProseMirror h1),
+.editor :global(.ProseMirror h2),
+.editor :global(.ProseMirror h3),
+.editor :global(.ProseMirror h4),
+.editor :global(.ProseMirror h5),
+.editor :global(.ProseMirror h6) {
+  color: var(--skin-note-text);
+  font-family: var(--skin-editor-font, var(--skin-background-font));
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.editor :global(.ProseMirror h1) {
+  font-size: 2.15em;
+}
+
+.editor :global(.ProseMirror h2) {
+  font-size: 1.7em;
+}
+
+.editor :global(.ProseMirror h3) {
+  font-size: 1.35em;
+}
+
+.editor :global(.ProseMirror p),
+.editor :global(.ProseMirror li) {
+  color: var(--skin-note-text);
+  line-height: var(--skin-editor-line-height, 1.7);
+}
+
+.editor :global(.ProseMirror a) {
+  color: var(--skin-note-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.editor :global(.ProseMirror blockquote) {
+  margin: 1em 0;
+  padding: 2px 0 2px 18px;
+  color: var(--skin-sidebar-textDim);
+  border-left: 3px solid var(--skin-note-accent);
+}
+
+.editor :global(.ProseMirror code) {
+  padding: 0.12em 0.35em;
+  color: var(--skin-note-accent);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: 5px;
+  font-family: var(--crepe-font-code);
+  font-size: 0.9em;
+}
+
+.editor :global(.ProseMirror pre) {
+  overflow: auto;
+  padding: 16px;
+  color: var(--skin-input-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: var(--skin-input-radius);
+}
+
+.editor :global(.ProseMirror pre code) {
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+}
+
+.editor :global(.ProseMirror table) {
+  width: 100%;
+  margin: 1em 0;
+  border-collapse: collapse;
+}
+
+.editor :global(.ProseMirror th),
+.editor :global(.ProseMirror td) {
+  padding: 8px 10px;
+  border: var(--skin-input-border);
+  text-align: left;
+}
+
+.editor :global(.ProseMirror th) {
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+}
+
+.editor :global(.ProseMirror img) {
+  max-width: 100%;
+  border-radius: calc(var(--skin-note-radius) * 0.5);
+}
+
+.editor :global(.ProseMirror hr) {
+  border: 0;
+  border-top: var(--skin-input-border);
+}
+
+.editor :global(.milkdown-toolbar),
+.editor :global(.milkdown-top-bar),
+.editor :global(.milkdown-menu) {
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+}
+
+.editor :global(.toolbar-item:hover),
+.editor :global(.top-bar-item:hover),
+.editor :global(.top-bar-heading-button:hover),
+.editor :global(.top-bar-heading-option:hover) {
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.editor :global(.toolbar-item.active svg),
+.editor :global(.top-bar-item.active svg),
+.editor :global(.top-bar-heading-option.active) {
+  color: var(--skin-toolbar-accent);
+}
+
+.loading {
+  position: absolute;
+  z-index: 2;
+  inset: 42px 54px auto;
+  padding: 12px;
+  color: var(--skin-sidebar-textDim);
+  text-align: center;
+  pointer-events: none;
+}
+
+.error {
+  color: var(--skin-note-accent);
+}

@@ -1,9 +1,4 @@
-export interface Note {
-  id: string;
-  title: string;
-  body: string;
-  updatedAt: number;
-}
+import type { LegacyNote } from "../types/legacy";
 
 export const MAX_NOTE_ID_LENGTH = 128;
 export const MAX_NOTE_TITLE_LENGTH = 1_024;
@@ -11,7 +6,7 @@ export const MAX_NOTE_BODY_LENGTH = 2_000_000;
 export const MAX_STORED_NOTES = 10_000;
 const MAX_DATE_TIMESTAMP = 8_640_000_000_000_000;
 
-export function isNote(value: unknown): value is Note {
+export function isNote(value: unknown): value is LegacyNote {
   if (!value || typeof value !== "object") return false;
   const note = value as Record<string, unknown>;
 
@@ -32,7 +27,7 @@ export function isNote(value: unknown): value is Note {
 }
 
 export interface SanitizedNotes {
-  notes: Note[];
+  notes: LegacyNote[];
   rejected: number;
 }
 
@@ -42,7 +37,7 @@ export function sanitizeNotes(value: unknown): SanitizedNotes {
   }
 
   const ids = new Set<string>();
-  const notes: Note[] = [];
+  const notes: LegacyNote[] = [];
   let rejected = 0;
 
   for (const candidate of value) {

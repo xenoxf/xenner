@@ -138,7 +138,7 @@ Para que una skin glassmorphism muestre el escritorio hacen falta **dos**
 cosas (ambas presentes):
 
 1. `xenner/src-tauri/tauri.conf.json` → `"transparent": true` (ventana ARGB).
-2. `xenner/src/skin/skin.css` → `html, body { background: transparent; }`.
+2. `xenner/src/styles/global.css` → `html, body { background: transparent; }`.
 
 **Qué blurea qué:**
 

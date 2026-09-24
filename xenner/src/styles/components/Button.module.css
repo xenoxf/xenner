@@ -1,0 +1,45 @@
+.button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 4px 10px;
+  color: var(--skin-button-text);
+  background-color: var(--skin-button-background);
+  border: var(--skin-button-border);
+  border-radius: var(--skin-button-radius);
+  box-shadow: var(--skin-button-shadow);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    color var(--motion-standard) ease,
+    background-color var(--motion-standard) ease,
+    border-color var(--motion-standard) ease,
+    transform var(--motion-standard) ease;
+}
+
+.button svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.primary {
+  border-color: var(--skin-button-accent);
+}
+
+.button:hover {
+  color: var(--skin-button-textHover);
+  background-color: var(--skin-button-backgroundHover);
+  border-color: var(--skin-button-borderHover);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}

@@ -2,15 +2,17 @@
 // SolidJS solo para el estado; las validaciones viven en model.ts.
 
 import { createSignal } from "solid-js";
+import type { LegacyNote } from "../types/legacy";
 import {
   isNote,
   MAX_NOTE_BODY_LENGTH,
   MAX_NOTE_TITLE_LENGTH,
   sanitizeNotes,
-  type Note,
 } from "./model";
 
-export type { Note } from "./model";
+type Note = LegacyNote;
+
+export type { LegacyNote as Note } from "../types/legacy";
 
 export type StorageStatus = "saved" | "saving" | "error";
 

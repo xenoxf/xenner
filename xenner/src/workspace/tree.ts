@@ -1,8 +1,4 @@
-import type { EntryKind, VaultEntry } from "./types";
-
-export interface WorkspaceTreeNode extends VaultEntry {
-  children: WorkspaceTreeNode[];
-}
+import type { EntryKind, VaultEntry, WorkspaceTreeNode } from "../types/workspace";
 
 const collator = new Intl.Collator("es", {
   numeric: true,

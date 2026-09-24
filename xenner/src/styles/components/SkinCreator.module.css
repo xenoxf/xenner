@@ -1,0 +1,157 @@
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.preview {
+  display: grid;
+  grid-template-columns: 34% 66%;
+  height: 132px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  background: var(--skin-note-background);
+  border: var(--skin-sidebar-border);
+  border-radius: var(--skin-note-radius);
+  box-shadow: var(--skin-note-shadow);
+}
+
+.previewSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px 12px;
+  background: var(--skin-sidebar-background);
+  border-right: var(--skin-sidebar-border);
+}
+
+.previewSidebar span {
+  display: block;
+  width: 70%;
+  height: 6px;
+  background: var(--skin-sidebar-textDim);
+  border-radius: 4px;
+}
+
+.previewSidebar span:first-child {
+  width: 48%;
+  background: var(--skin-sidebar-accent);
+}
+
+.previewEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+}
+
+.previewEditor strong {
+  color: var(--skin-note-text);
+  font-size: 16px;
+}
+
+.previewEditor span {
+  display: block;
+  width: 88%;
+  height: 7px;
+  background: var(--skin-sidebar-textDim);
+  border-radius: 4px;
+}
+
+.previewEditor .short {
+  width: 55%;
+}
+
+.settingGroup {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 15px 0;
+  border-top: var(--skin-input-border);
+}
+
+.settingGroup:has(input[type="range"]) {
+  flex-wrap: wrap;
+}
+
+.settingGroup input[type="range"] {
+  width: min(300px, 100%);
+  accent-color: var(--skin-button-accent);
+}
+
+.settingLabel {
+  display: flex;
+  min-width: 220px;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--skin-note-text);
+}
+
+.settingLabel span {
+  color: var(--skin-sidebar-textDim);
+  font-size: 12px;
+}
+
+.input {
+  min-height: 34px;
+  padding: 6px 10px;
+  color: var(--skin-input-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: var(--skin-input-radius);
+  box-shadow: var(--skin-input-shadow);
+}
+
+.input:focus {
+  border-color: var(--skin-input-focus);
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 1px;
+}
+
+.settingSelect {
+  width: min(250px, 100%);
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+}
+
+.segmented button {
+  min-width: 78px;
+  padding: 7px 10px;
+  color: var(--skin-sidebar-text);
+  background: transparent;
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-button-radius) * 0.9);
+  font: inherit;
+  cursor: pointer;
+}
+
+.segmented button.active {
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-sidebar-itemActive);
+  border-color: var(--skin-input-focus);
+}
+
+.colorInput {
+  width: 54px;
+  height: 34px;
+  padding: 3px;
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: var(--skin-input-radius);
+  cursor: pointer;
+}
+
+.formError {
+  margin: 8px 0 0;
+  color: var(--skin-note-accent);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 18px;
+}

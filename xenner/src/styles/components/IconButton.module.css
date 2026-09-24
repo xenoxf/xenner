@@ -1,0 +1,52 @@
+.iconButton {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  padding: 0;
+  place-items: center;
+  color: var(--skin-button-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius) * 0.85);
+  cursor: pointer;
+  transition:
+    color var(--motion-standard) ease,
+    background-color var(--motion-standard) ease,
+    border-color var(--motion-standard) ease,
+    transform var(--motion-standard) ease;
+}
+
+.compact {
+  width: 28px;
+  height: 28px;
+}
+
+.small {
+  width: 25px;
+  height: 25px;
+}
+
+.iconButton svg {
+  width: 17px;
+  height: 17px;
+}
+
+.iconButton:hover {
+  color: var(--skin-button-textHover);
+  background-color: var(--skin-button-backgroundHover);
+}
+
+.iconButton:active {
+  transform: translateY(1px);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.danger:hover {
+  color: var(--skin-note-accent);
+  border-color: var(--skin-note-accent);
+}

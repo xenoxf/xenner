@@ -8,7 +8,7 @@ import {
   parentPath,
   replacePathName,
 } from "./tree.ts";
-import type { VaultEntry } from "./types.ts";
+import type { VaultEntry } from "../types/workspace.ts";
 
 const entries: VaultEntry[] = [
   {

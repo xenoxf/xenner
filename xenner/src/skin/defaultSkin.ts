@@ -1,8 +1,9 @@
 // Skin base embebida: interfaz neutra, sobria y orientada a la lectura.
 // Los skins TXT pueden sobrescribir cada valor sin romper el fallback.
 
+import type { ColorScheme } from "../types/appearance";
+
 export type SkinVars = Record<string, string>;
-export type ColorScheme = "light" | "dark";
 
 export const DEFAULT_SKINS: Record<ColorScheme, Record<string, SkinVars>> = {
   light: {

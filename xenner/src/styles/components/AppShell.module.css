@@ -1,0 +1,19 @@
+.appShell {
+  display: grid;
+  grid-template-columns: minmax(236px, 272px) minmax(0, 1fr);
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  color: var(--skin-background-text);
+  background-color: var(--skin-background-background);
+  background-image: var(--skin-background-overlay);
+  font-family: var(--skin-ui-font, var(--skin-background-font));
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .appShell {
+    grid-template-columns: 225px minmax(0, 1fr);
+  }
+}

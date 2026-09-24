@@ -1,16 +1,16 @@
 import { createMemo, createSignal } from "solid-js";
 
-import { getWorkspaceGateway } from "./gateway";
-import { serializeNoteContent } from "./note";
-import { buildWorkspaceTree, isPathInside } from "./tree";
-import type { Note } from "../notes/model";
+import type { LegacyNote } from "../types/legacy";
 import type {
   CreatedEntry,
   NoteDocument,
   SaveStatus,
   VaultErrorShape,
   WorkspaceScan,
-} from "./types";
+} from "../types/workspace";
+import { getWorkspaceGateway } from "../services/workspace/gateway";
+import { serializeNoteContent } from "./note";
+import { buildWorkspaceTree, isPathInside } from "./tree";
 
 const SAVE_DELAY_MS = 300;
 const WORKSPACE_WATCH_INTERVAL_MS = 2_500;
@@ -401,7 +401,7 @@ function legacySlug(title: string, id: string): string {
   return `${base || "nota"}--${id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 8) || "legacy"}`;
 }
 
-export async function importLegacyNotes(notes: Note[]): Promise<number> {
+export async function importLegacyNotes(notes: LegacyNote[]): Promise<number> {
   if (!notes.length) return 0;
   const root = workspace()?.info.root;
   if (!root) return 0;

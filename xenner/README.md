@@ -39,3 +39,5 @@ PATH="$HOME/.cargo/bin:$PATH" cargo test
 La skin embebida y el sistema de skins se documentan en
 [`docs/SKIN_SPEC.md`](docs/SKIN_SPEC.md). La arquitectura de archivos, editor,
 assets y drawings está en [`docs/EDITOR_ARCHITECTURE.md`](docs/EDITOR_ARCHITECTURE.md).
+La estructura por capas, servicios, tipos y CSS Modules del frontend está en
+[`docs/FRONTEND_ARCHITECTURE.md`](docs/FRONTEND_ARCHITECTURE.md).

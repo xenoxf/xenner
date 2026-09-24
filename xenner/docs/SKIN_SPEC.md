@@ -2,7 +2,8 @@
 
 > Fuente de verdad del formato. Si el código y este doc discrepan, se corrige
 > el código. Regla: **una skin rota o ausente jamás cuelga la app**: siempre se
-> resuelve contra la skin default glassmorphism embebida en el código.
+> resuelve contra la skin Material embebida en el código, con su paleta del
+> modo claro u oscuro activo.
 
 ## 1. Dónde viven las skins
 
@@ -21,8 +22,11 @@ xenner/skins/
 
 El programa hace **scan** de `xenner/skins/` al arrancar (backend Rust
 `scan_skins`): cada subcarpeta con `skin.txt` válido aparece en el selector.
-Si la carpeta no existe, no hay permiso o está corrupta, el scan devuelve
-`[]` y la app usa la default embebida. Nunca lanza excepción al usuario.
+Las skins creadas por la persona usuaria viven en
+`AppLocalData/com.juniorxf.xenner/skins/` y se escanean en el mismo catálogo,
+marcadas como `origin="user"`. Si la carpeta no existe, no hay permiso o está
+corrupta, el scan devuelve `[]` y la app usa la default embebida. Nunca lanza
+excepción al usuario.
 
 ## 2. Selección de skin activa — `config.txt`
 
@@ -63,7 +67,8 @@ accent="#7dd3fc"
 ## 4. Claves por componente
 
 Compartidas por todos: `background`, `text`, `border`, `radius`, `blur`,
-`shadow`, `accent`, `font`.
+`shadow`, `accent`, `font`. `textDim` está permitido en `background`,
+`sidebar` y `toolbar`, donde la interfaz lo consume.
 
 | Fichero          | Claves propias extra                              |
 |------------------|---------------------------------------------------|
@@ -81,39 +86,56 @@ en default. Así una skin puede ser de un solo TXT y seguir funcionando.
 
 ## 5. Cómo se aplican (SkinEngine, frontend)
 
-1. Lee `config.txt` → `skinPath`.
-2. Para cada componente, intenta cargar `skins/<skinPath>/<comp>.txt`;
-   si falla, usa el diccionario embebido.
+1. Lee la preferencia de skin desde AppLocalData; si no existe, usa
+   `config.txt` como fallback de compatibilidad.
+2. Para cada componente, intenta cargar la skin sistémica o de usuario
+   seleccionada; si falta un archivo o una clave, usa el fallback embebido
+   del modo claro/oscuro activo.
 3. Parsea a `Record<clave, valor>` y lo publica como variables CSS:
    `--skin-<componente>-<clave>` en `:root` (ej. `--skin-note-blur`).
 4. Los componentes SolidJS **solo** usan esas variables, nunca colores
    hardcodeados. Cambiar un TXT + recargar = nueva apariencia.
 
-## 6. Skin default embebida (vidrio esmerilado)
+## 6. Skin default embebida (Material 3)
 
-Vive en el código (`src/skin/defaultSkin.ts`) y es idéntica al ejemplo
-`skins/glass-default/`. Usa una paleta de humo frío, superficies translúcidas
-y lechosas, `backdrop-filter: blur(...)`, bordes claros finos, sombras
-difusas e iluminación interior sutil. Requiere ventana transparente
-(`tauri.conf.json → "transparent": true` + `html,body{background:transparent}`)
-para ver lo que hay detrás del desktop.
+Vive en el código (`src/skin/defaultSkin.ts`) y tiene dos paletas del sistema
+Material Design 3, una clara y otra oscura. La selección de modo se hace desde
+**Apariencia** y solo modifica la skin embebida; las claves ausentes de una skin
+de usuario reciben el fallback del modo activo.
+
+Los valores baseline se derivan de los tokens Material Web v0.192:
+
+- Light usa `neutral98` como superficie, `neutral10` como texto y `primary40`
+  (`#6750a4`) como acento.
+- Dark usa `neutral6` como superficie, `neutral90` como texto y `primary80`
+  (`#d0bcff`) como acento.
+- Las formas principales usan la escala Material: botones `20px`, superficies
+  grandes `16px`, superficies compactas `12px` y superficies mínimas `8px`.
+
+La skin de ejemplo `skins/glass-default/` se conserva como skin sistémica de
+vidrio, pero ya no es el fallback default de la aplicación.
 
 ## 7. Límites v1 (declarados, no bugs)
 
-- Sin imágenes ni recursos externos. `url(...)` se rechaza en el parser y la CSP
-  de Tauri bloquea orígenes remotos. Una imagen local es trabajo futuro.
+- Sin imágenes ni recursos externos **dentro de una skin**. `url(...)` se
+  rechaza en el parser y la CSP de Tauri bloquea orígenes remotos. Los assets
+  de una nota se gestionan como archivos relativos, no como CSS de skin.
 - Lecturas Rust limitadas a 4 KiB (`config.txt`), 16 KiB (`skin.txt`) y 64 KiB
   por componente; el scan inspecciona como máximo 512 entradas y lista 256 skins.
 - El I/O de skins se ejecuta fuera del hilo principal. Se rechazan symlinks y
-  rutas canonizadas que salgan de la carpeta `skins/`.
+  rutas canonizadas que salgan de la carpeta permitida.
 - Sin expresiones ni `calc()` con variables ajenas: el valor se inyecta tal cual.
-- Recarga de skins con reinicio (hot-reload en fase futura).
-- Skins de usuario fuera del bundle (AppData) → fase futura (Rust ya expone
-  `scan_skins`/`read_skin_file` preparado para ello).
+- La skin activa se puede cambiar desde el modal; la selección temporal de una
+  skin sistémica no reescribe el bundle de recursos.
+- Las skins creadas por la persona usuaria viven en AppLocalData, se escanean
+  junto a las sistémicas y mantienen el mismo fallback.
 
 ## 8. Transparencia de ventana y alcance del glass
 
-Para que la skin glassmorphism muestre el escritorio hacen falta **dos**
+La skin Material default es opaca y no necesita transparencia. La transparencia
+sigue siendo una característica opcional de las skins sistémicas de vidrio.
+
+Para que una skin glassmorphism muestre el escritorio hacen falta **dos**
 cosas (ambas presentes):
 
 1. `xenner/src-tauri/tauri.conf.json` → `"transparent": true` (ventana ARGB).

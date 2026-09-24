@@ -6,6 +6,18 @@
   "permissions": [
     "allow-scan-skins",
     "allow-read-skin-file",
-    "allow-read-config"
+    "allow-read-config",
+    "allow-set-active-skin",
+    "allow-create-skin",
+    "allow-choose-workspace",
+    "allow-scan-workspace",
+    "allow-read-note",
+    "allow-import-asset",
+    "allow-read-asset",
+    "allow-write-note",
+    "allow-create-note",
+    "allow-create-folder",
+    "allow-rename-entry",
+    "allow-delete-entry"
   ]
 }

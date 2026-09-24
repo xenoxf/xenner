@@ -1,31 +1,77 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
+
 import "./App.css";
-import {
-  createNote,
-  deleteNote,
-  getStorageError,
-  getStorageStatus,
-  listNotes,
-  updateNote,
-} from "./notes/store";
+import { CreationRow, type CreationKind } from "./components/CreationRow";
+import { EditorPane } from "./components/EditorPane";
+import { Explorer, type CreationDraft } from "./components/Explorer";
+import { FolderOpenIcon, FolderPlusIcon, GearIcon, PlusIcon, RefreshIcon } from "./components/Icons";
+import { SettingsModal } from "./components/SettingsModal";
+import { readLegacyNotes } from "./notes/legacy";
+import type { Note } from "./notes/model";
 import { loadSkin, type SkinInfo } from "./skin/loader";
+import {
+  applyAppearance,
+  readAppearance,
+  resolveColorScheme,
+  saveAppearance,
+  watchSystemColorScheme,
+  type Appearance,
+  type ColorScheme,
+} from "./settings/appearance";
+import {
+  chooseWorkspace,
+  closeWorkspaceError,
+  createFolder,
+  createNote,
+  deleteEntry,
+  expandFolder,
+  getDocumentLoading,
+  getDocumentReloadToken,
+  getExpandedPaths,
+  getSaveStatus,
+  getSelectedDocument,
+  getSelectedPath,
+  getWorkspace,
+  getWorkspaceError,
+  getWorkspaceLoading,
+  getWorkspaceTree,
+  initializeWorkspace,
+  importLegacyNotes,
+  refreshWorkspaceTree,
+  reloadSelectedDocument,
+  renameEntry,
+  retryPendingSave,
+  selectNote,
+  toggleFolder,
+  updateSelectedDocument,
+  workspaceSupportsFolderPicker,
+} from "./workspace/store";
+
+function baseName(path: string): string {
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] ?? "Biblioteca";
+}
 
 function App() {
-  const initialNotes = listNotes();
   const [skins, setSkins] = createSignal<SkinInfo[]>([]);
   const [activeSkin, setActiveSkin] = createSignal("");
   const [skinLoading, setSkinLoading] = createSignal(true);
-  const [selectedId, setSelectedId] = createSignal<string | null>(
-    initialNotes[0]?.id ?? null,
-  );
+  const [settingsOpen, setSettingsOpen] = createSignal(false);
+  const [appearance, setAppearance] = createSignal<Appearance>(readAppearance());
+  const [creation, setCreation] = createSignal<CreationDraft | null>(null);
+  const [creating, setCreating] = createSignal(false);
+  const [legacyNotes, setLegacyNotes] = createSignal<Note[]>([]);
+  const [legacyIssue, setLegacyIssue] = createSignal<string | null>(null);
   let skinRequest = 0;
-  let titleInput: HTMLInputElement | undefined;
 
-  async function changeSkin(id?: string): Promise<void> {
+  async function changeSkin(
+    id?: string,
+    scheme: ColorScheme = resolveColorScheme(appearance()),
+  ): Promise<void> {
     const request = ++skinRequest;
     setSkinLoading(true);
     try {
-      const loaded = await loadSkin(id);
+      const loaded = await loadSkin(id, scheme);
       if (request !== skinRequest) return;
       setSkins(loaded.skins);
       setActiveSkin(loaded.activeId);
@@ -34,190 +80,268 @@ function App() {
     }
   }
 
-  onMount(() => {
-    void changeSkin();
-  });
-
-  const selected = () => {
-    const id = selectedId();
-    if (!id) return null;
-    return listNotes().find((note) => note.id === id) ?? null;
-  };
-
-  // Opción "" = skin default embebida (fuerza el caso "inexistente → default").
-  const skinOptions = (): SkinInfo[] => {
-    const options: SkinInfo[] = [
-      { id: "", name: "Frosted Glass (embebida)", version: "", author: "" },
-      ...skins(),
-    ];
-    const active = activeSkin();
-    if (active && !options.some((skin) => skin.id === active)) {
-      options.push({ id: active, name: `${active} (no encontrada)`, version: "", author: "" });
-    }
-    return options;
-  };
-
-  const saveLabel = () => {
-    switch (getStorageStatus()) {
-      case "saving":
-        return "Guardando…";
-      case "error":
-        return "Error al guardar";
-      default:
-        return "Guardado";
-    }
-  };
-
-  function addNote(): void {
-    const note = createNote();
-    setSelectedId(note.id);
-    queueMicrotask(() => titleInput?.focus());
+  function updateAppearance(next: Appearance): void {
+    setAppearance(next);
+    saveAppearance(next);
+    const scheme = applyAppearance(next);
+    void changeSkin(activeSkin(), scheme);
   }
 
-  function removeSelected(): void {
-    const current = selected();
-    if (!current) return;
-    if (!window.confirm(`¿Eliminar “${current.title.trim() || "Sin título"}”?`)) return;
+  function skinCreated(skin: SkinInfo): void {
+    setSkins((previous) => [
+      ...previous.filter((candidate) => candidate.id !== skin.id),
+      skin,
+    ]);
+    void changeSkin(skin.id);
+  }
 
-    const previous = listNotes();
-    const index = previous.findIndex((note) => note.id === current.id);
-    deleteNote(current.id);
-    const remaining = listNotes();
-    setSelectedId(remaining[Math.min(index, remaining.length - 1)]?.id ?? null);
+  onMount(() => {
+    const initialAppearance = appearance();
+    const initialScheme = applyAppearance(initialAppearance);
+    void changeSkin(undefined, initialScheme);
+    void (async () => {
+      await initializeWorkspace();
+      const legacy = readLegacyNotes();
+      const root = getWorkspace()?.info.root;
+      let imported = new Set<string>();
+      try {
+        const raw = localStorage.getItem("xenner:legacy-import:v1");
+        const marker = raw ? (JSON.parse(raw) as { root?: string; ids?: string[] }) : null;
+        if (marker && marker.root === root && Array.isArray(marker.ids)) {
+          imported = new Set(marker.ids);
+        }
+      } catch {
+        imported = new Set();
+      }
+      setLegacyNotes(legacy.notes.filter((note) => !imported.has(note.id)));
+      setLegacyIssue(legacy.issue);
+    })();
+    const stopWatchingSystem = watchSystemColorScheme((scheme) => {
+      if (appearance().mode === "system") void changeSkin(activeSkin(), scheme);
+    });
+    onCleanup(stopWatchingSystem);
+  });
+
+  function startCreation(kind: CreationKind, parent = ""): void {
+    if (parent) expandFolder(parent);
+    setCreation({ kind, parent });
+  }
+
+  async function submitCreation(name: string): Promise<void> {
+    const draft = creation();
+    if (!draft || creating()) return;
+    setCreating(true);
+    const result =
+      draft.kind === "note"
+        ? await createNote(draft.parent, name)
+        : await createFolder(draft.parent, name);
+    setCreating(false);
+    if (result) setCreation(null);
+  }
+
+  async function importOldNotes(): Promise<void> {
+    const notes = legacyNotes();
+    if (!notes.length) return;
+    const confirmed = window.confirm(
+      `Se importarán ${notes.length} notas antiguas a la carpeta Importadas. La copia local original se conserva. ¿Continuar?`,
+    );
+    if (!confirmed) return;
+    const imported = await importLegacyNotes(notes);
+    if (imported > 0) {
+      setLegacyNotes([]);
+      setLegacyIssue(null);
+    }
+  }
+
+  async function rename(path: string): Promise<void> {
+    const currentName = path.slice(path.lastIndexOf("/") + 1);
+    const nextName = window.prompt("Nuevo nombre", currentName)?.trim();
+    if (!nextName || nextName === currentName) return;
+    await renameEntry(path, nextName);
+  }
+
+  async function remove(path: string): Promise<void> {
+    const name = path.slice(path.lastIndexOf("/") + 1);
+    const confirmed = window.confirm(
+      path.toLocaleLowerCase("es").endsWith(".md")
+        ? `¿Eliminar “${name}”? Esta acción no se puede deshacer.`
+        : `¿Eliminar la carpeta “${name}”? Solo se puede eliminar si está vacía.`,
+    );
+    if (confirmed) await deleteEntry(path);
   }
 
   return (
-    <div class="desktop">
-      <header class="toolbar">
-        <span class="toolbar-title">xenner</span>
-        <span
-          class="save-status"
-          data-status={getStorageStatus()}
-          role="status"
-          aria-live="polite"
-          aria-describedby="storage-error"
-          title={getStorageError() ?? undefined}
-        >
-          {saveLabel()}
-        </span>
-        <span id="storage-error" class="sr-only" aria-live="assertive">
-          {getStorageError() ?? ""}
-        </span>
-        <span class="toolbar-spacer" />
-
-        <label class="sr-only" for="skin-select">
-          Skin activa
-        </label>
-        <select
-          id="skin-select"
-          class="input skin-select"
-          value={activeSkin()}
-          disabled={skinLoading()}
-          aria-busy={skinLoading()}
-          onChange={(event) => void changeSkin(event.currentTarget.value)}
-        >
-          <For each={skinOptions()}>
-            {(skin) => <option value={skin.id}>{skin.name}</option>}
-          </For>
-        </select>
-
-        <button class="btn btn-primary" type="button" onClick={addNote}>
-          Nueva nota
-        </button>
-      </header>
-
-      <div class="workspace">
-        <aside class="sidebar" aria-label="Lista de notas">
-          <div class="sidebar-head">
-            <span>Notas</span>
-            <span class="sidebar-count">{listNotes().length}</span>
-          </div>
-          <nav class="note-list" aria-label="Notas guardadas">
-            <Show
-              when={listNotes().length > 0}
-              fallback={<p class="sidebar-empty">Sin notas todavía</p>}
+    <div class="app-shell">
+      <aside class="explorer-sidebar" aria-label="Explorador de archivos">
+        <header class="explorer-header">
+          <div class="brand-row">
+            <div class="brand-mark" aria-hidden="true">
+              x
+            </div>
+            <div class="brand-copy">
+              <strong>xenner</strong>
+              <span>{baseName(getWorkspace()?.info.root ?? "Biblioteca")}</span>
+            </div>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Configuración"
+              title="Configuración"
+              onClick={() => setSettingsOpen(true)}
             >
-              <For each={listNotes()}>
-                {(note) => (
-                  <button
-                    type="button"
-                    classList={{
-                      "note-item": true,
-                      active: note.id === selectedId(),
-                    }}
-                    aria-pressed={note.id === selectedId()}
-                    aria-label={`Abrir nota ${note.title.trim() || "sin título"}`}
-                    onClick={() => setSelectedId(note.id)}
-                  >
-                    <span class="note-item-title">
-                      {note.title.trim() || "Sin título"}
-                    </span>
-                    <span class="note-item-date">
-                      {new Date(note.updatedAt).toLocaleDateString("es")}
-                    </span>
-                  </button>
-                )}
-              </For>
-            </Show>
-          </nav>
-        </aside>
+              <GearIcon />
+            </button>
+          </div>
+          <div class="workspace-actions">
+            <button
+              type="button"
+              class="compact-button"
+              disabled={!workspaceSupportsFolderPicker()}
+              title={workspaceSupportsFolderPicker() ? "Abrir otra biblioteca" : "El selector de carpetas requiere la app desktop"}
+              onClick={() => void chooseWorkspace()}
+            >
+              <FolderOpenIcon />
+              <span>Abrir carpeta</span>
+            </button>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Actualizar explorador"
+              title="Actualizar"
+              onClick={() => void refreshWorkspaceTree()}
+            >
+              <RefreshIcon />
+            </button>
+          </div>
+          <div class="explorer-toolbar">
+            <button type="button" class="toolbar-primary" onClick={() => startCreation("note")}>
+              <PlusIcon />
+              <span>Nueva nota</span>
+            </button>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Nueva carpeta"
+              title="Nueva carpeta"
+              onClick={() => startCreation("folder")}
+            >
+              <FolderPlusIcon />
+            </button>
+            <span class="explorer-count">{getWorkspace()?.info.noteCount ?? 0}</span>
+          </div>
+        </header>
 
-        <section class="editor" aria-label="Editor de nota">
-          <Show
-            when={selected()}
-            fallback={
-              <div class="editor-empty">
-                <p>Ninguna nota seleccionada</p>
-                <button class="btn btn-primary" type="button" onClick={addNote}>
-                  Crear una nota
-                </button>
+        <Show when={getWorkspaceError()}>
+          {(error) => (
+            <div class="workspace-alert" role="alert">
+              <div>
+                <strong>{error().code === "conflict" ? "Conflicto" : "Biblioteca"}</strong>
+                <span>{error().message}</span>
               </div>
-            }
-          >
-            <div class="editor-bar">
-              <input
-                ref={(element) => {
-                  titleInput = element;
-                }}
-                class="input editor-title"
-                aria-label="Título de la nota"
-                placeholder="Título"
-                value={selected()?.title ?? ""}
-                onInput={(event) => {
-                  const id = selectedId();
-                  if (id) updateNote(id, { title: event.currentTarget.value });
-                }}
-              />
-              <time
-                class="editor-date"
-                dateTime={new Date(selected()?.updatedAt ?? 0).toISOString()}
-              >
-                {selected()
-                  ? new Date(selected()!.updatedAt).toLocaleString("es")
-                  : ""}
-              </time>
-              <button
-                class="btn btn-danger"
-                type="button"
-                aria-label="Eliminar nota seleccionada"
-                onClick={removeSelected}
-              >
-                Eliminar
+              <button type="button" class="text-button" onClick={closeWorkspaceError}>
+                Descartar
               </button>
             </div>
-            <textarea
-              class="input editor-body"
-              aria-label="Cuerpo de la nota"
-              placeholder="Escribe tu nota…"
-              value={selected()?.body ?? ""}
-              onInput={(event) => {
-                const id = selectedId();
-                if (id) updateNote(id, { body: event.currentTarget.value });
-              }}
+          )}
+        </Show>
+
+        <Show when={legacyNotes().length > 0}>
+          <div class="legacy-import-card">
+            <div>
+              <strong>Notas antiguas disponibles</strong>
+              <span>{legacyNotes().length} notas de la versión local.</span>
+            </div>
+            <button type="button" class="text-button" onClick={() => void importOldNotes()}>
+              Importar
+            </button>
+          </div>
+        </Show>
+        <Show when={legacyIssue()}>
+          {(message) => <p class="legacy-issue">{message()}</p>}
+        </Show>
+
+        <div class="explorer-scroll" classList={{ loading: getWorkspaceLoading() }} aria-busy={getWorkspaceLoading()}>
+          <Show when={creation()?.parent === ""}>
+            <CreationRow
+              kind={creation()?.kind ?? "note"}
+              depth={0}
+              busy={creating()}
+              onSubmit={(name) => void submitCreation(name)}
+              onCancel={() => setCreation(null)}
             />
           </Show>
-        </section>
-      </div>
+          <Show
+            when={getWorkspaceTree().length > 0}
+            fallback={
+              <Show when={!getWorkspaceLoading() && creation() === null}>
+                <div class="explorer-placeholder">
+                  <FolderOpenIcon />
+                  <strong>Sin notas todavía</strong>
+                  <span>Crea una nota Markdown o abre una carpeta existente.</span>
+                </div>
+              </Show>
+            }
+          >
+            <Explorer
+              nodes={getWorkspaceTree()}
+              selectedPath={getSelectedPath()}
+              expandedPaths={getExpandedPaths()}
+              creation={creation()}
+              busy={creating()}
+              onSelect={(path) => void selectNote(path)}
+              onToggle={toggleFolder}
+              onStartCreation={startCreation}
+              onSubmitCreation={(name) => void submitCreation(name)}
+              onCancelCreation={() => setCreation(null)}
+              onRename={(path) => void rename(path)}
+              onDelete={(path) => void remove(path)}
+            />
+          </Show>
+        </div>
+
+        <footer class="explorer-footer">
+          <button type="button" class="settings-button" onClick={() => setSettingsOpen(true)}>
+            <GearIcon />
+            <span>Configuración</span>
+          </button>
+          <span title={getWorkspace()?.info.root ?? ""}>
+            {getWorkspace()?.info.truncated ? "Explorer limitado" : "Markdown local"}
+          </span>
+        </footer>
+      </aside>
+
+      <EditorPane
+        document={getSelectedDocument()}
+        status={getSaveStatus()}
+        loading={getDocumentLoading()}
+        reloadToken={getDocumentReloadToken()}
+        error={getWorkspaceError()}
+        onChange={updateSelectedDocument}
+        onCreate={() => startCreation("note")}
+        onRename={() => {
+          const path = getSelectedPath();
+          if (path) void rename(path);
+        }}
+        onDelete={() => {
+          const path = getSelectedPath();
+          if (path) void remove(path);
+        }}
+        onRetry={() => void retryPendingSave()}
+        onReload={() => void reloadSelectedDocument()}
+      />
+
+      <Show when={settingsOpen()}>
+        <SettingsModal
+          skins={skins()}
+          activeSkin={activeSkin()}
+          loading={skinLoading()}
+          appearance={appearance()}
+          onAppearanceChange={updateAppearance}
+          onSkinChange={(id) => void changeSkin(id)}
+          onSkinCreated={skinCreated}
+          onClose={() => setSettingsOpen(false)}
+        />
+      </Show>
     </div>
   );
 }

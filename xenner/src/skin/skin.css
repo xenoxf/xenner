@@ -22,7 +22,7 @@ body {
 }
 
 body {
-  font-family: var(--skin-background-font);
+  font-family: var(--skin-ui-font, var(--skin-background-font));
   font-size: 16px;
   line-height: 24px;
   color: var(--skin-background-text);

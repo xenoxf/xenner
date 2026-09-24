@@ -12,11 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "xenner",
-        "width": 1000,
-        "height": 680,
-        "minWidth": 720,
-        "minHeight": 480,
+        "title": "xenner — notas Markdown",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 860,
+        "minHeight": 600,
         "transparent": true
       }
     ],

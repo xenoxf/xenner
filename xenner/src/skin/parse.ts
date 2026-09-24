@@ -15,7 +15,7 @@ const SHARED_KEYS = [
 ] as const;
 
 export const COMPONENT_KEYS = {
-  background: [...SHARED_KEYS, "overlay"],
+  background: [...SHARED_KEYS, "textDim", "overlay"],
   button: [...SHARED_KEYS, "backgroundHover", "textHover", "borderHover"],
   note: [...SHARED_KEYS, "backgroundHover"],
   sidebar: [...SHARED_KEYS, "itemHover", "itemActive", "textDim"],

@@ -8,87 +8,154 @@ const year = new Date().getFullYear();
 
 <footer class="site-footer">
   <div class="site-footer__inner">
-    <div>
+    <div class="site-footer__brand">
       <Brand />
-      <p>Un creador de notas abierto a tu forma de trabajar.</p>
+      <p>Una ventana pequeña para ideas. Un archivo de texto para cambiar su mundo.</p>
     </div>
 
     <nav aria-label="Enlaces del pie">
-      <a href="#filosofia">Filosofía</a>
-      <a href="#skins">Sistema de skins</a>
-      <a href={specUrl} target="_blank" rel="noreferrer">Especificación ↗</a>
-      <a href={sourceUrl} target="_blank" rel="noreferrer">Código fuente ↗</a>
+      <span class="site-footer__label">directorios</span>
+      <a href="#filosofia"><b>01</b> La idea</a>
+      <a href="#skins"><b>02</b> Sistema de skins</a>
+      <a href={specUrl} target="_blank" rel="noreferrer"><b>03</b> Especificación ↗</a>
+      <a href={sourceUrl} target="_blank" rel="noreferrer"><b>04</b> Código fuente ↗</a>
     </nav>
 
-    <div class="site-footer__meta">
-      <span>v0.1</span>
-      <span>MIT</span>
-      <span>© {year} xenner</span>
+    <div class="site-footer__drive" aria-label="Información del proyecto">
+      <span class="site-footer__label">disk status</span>
+      <div class="site-footer__meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <p>0.1 · MIT<br />{year} / LOCAL</p>
+      <a href="#inicio">↑ volver arriba</a>
     </div>
   </div>
 </footer>
 
 <style>
   .site-footer {
-    color: rgba(242, 247, 243, 0.72);
-    background: #07100c;
-    border-top: 1px solid rgba(255, 255, 255, 0.09);
+    color: var(--paper-bright);
+    background: var(--ink);
+    border-top: 5px solid var(--hot);
   }
 
   .site-footer__inner {
-    width: min(100% - 3rem, 78rem);
+    width: min(calc(100% - var(--gutter) - var(--gutter)), var(--container));
     margin: 0 auto;
-    padding: 5rem 0 2.25rem;
+    padding: 4.5rem 0 2.5rem;
     display: grid;
-    grid-template-columns: 1.25fr 0.9fr auto;
+    grid-template-columns: 1.25fr 0.9fr 0.55fr;
     align-items: start;
-    gap: 3rem;
+    gap: 4rem;
   }
 
-  p {
-    max-width: 21rem;
-    margin: 1.1rem 0 0;
-    font-size: 0.9rem;
-    line-height: 1.7;
+  .site-footer__brand p {
+    max-width: 25rem;
+    margin: 1.35rem 0 0;
+    color: rgba(255, 248, 220, 0.65);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    line-height: 1.8;
   }
 
   nav {
     display: grid;
-    gap: 0.75rem;
+  }
+
+  .site-footer__label {
+    margin-bottom: 1rem;
+    color: var(--hot);
+    font-family: var(--font-ui);
+    font-size: 0.57rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 
   nav a {
-    width: fit-content;
-    color: inherit;
-    font-size: 0.82rem;
+    min-height: 2.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: var(--paper-bright);
+    border-bottom: 1px dashed #63586e;
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
     text-decoration: none;
   }
 
-  nav a:hover {
-    color: #b7cee1;
+  nav a b {
+    color: var(--cyan);
+    font-size: 0.52rem;
   }
 
-  .site-footer__meta {
-    display: grid;
-    justify-items: end;
-    gap: 0.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+  nav a:hover {
+    padding-left: 0.35rem;
+    color: var(--ink);
+    background: var(--cyan);
+  }
+
+  nav a:hover b {
+    color: var(--hot-dark);
+  }
+
+  .site-footer__drive {
+    padding: 1.1rem;
+    color: var(--ink);
+    border: 3px solid var(--paper-bright);
+    background: var(--paper);
+    box-shadow: 6px 6px 0 var(--violet);
+  }
+
+  .site-footer__drive .site-footer__label {
+    color: var(--hot-dark);
+  }
+
+  .site-footer__meter {
+    height: 1.1rem;
+    padding: 0.2rem;
+    display: flex;
+    gap: 0.18rem;
+    border: 2px solid var(--ink);
+    background: #fff;
+  }
+
+  .site-footer__meter i {
+    flex: 1;
+    background: var(--violet);
+  }
+
+  .site-footer__meter i:last-child {
+    background: #bdb49d;
+  }
+
+  .site-footer__drive p {
+    margin: 1rem 0 0;
+    font-family: var(--font-ui);
+    font-size: 0.58rem;
+    font-weight: 800;
+    line-height: 1.7;
+  }
+
+  .site-footer__drive a {
+    margin-top: 1.3rem;
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 0.56rem;
+    font-weight: 900;
+    text-decoration: none;
+  }
+
+  .site-footer__drive a:hover {
+    color: var(--hot-dark);
   }
 
   @media (max-width: 760px) {
     .site-footer__inner {
-      width: min(100% - 2rem, 78rem);
       grid-template-columns: 1fr;
-      gap: 2.5rem;
+      gap: 3rem;
     }
 
-    .site-footer__meta {
-      justify-items: start;
-      grid-auto-flow: column;
-      justify-content: start;
+    .site-footer__drive {
+      max-width: 18rem;
     }
   }
 </style>

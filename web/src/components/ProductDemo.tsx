@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import './ProductDemo.css';
 
-type SkinId = 'frosted' | 'webcore';
+type SkinId = 'webcore' | 'frosted';
 
 type Note = {
   id: number;
@@ -19,56 +19,55 @@ type Skin = {
 };
 
 const SKINS: Record<SkinId, Skin> = {
-  frosted: {
-    id: 'frosted',
-    name: 'Frosted Glass',
-    file: 'background.txt',
-    code: `# Fondo\nbackground="rgba(28,34,44,0.34)"\nblur="32px"\ntext="#f4f7fb"\naccent="#b7cee1"`,
-  },
   webcore: {
     id: 'webcore',
     name: 'WebCore',
     file: 'background.txt',
-    code: `# Fondo\nbackground="#14161c"\nblur="0px"\ntext="#e8eaf0"\naccent="#4ade80"`,
+    code: `# interfaz principal\nbackground="#111018"\nblur="0px"\ntext="#fff8dc"\naccent="#d9ff39"`,
+  },
+  frosted: {
+    id: 'frosted',
+    name: 'Frosted Glass',
+    file: 'background.txt',
+    code: `# escritorio semitransparente\nbackground="rgba(28,34,44,0.34)"\nblur="32px"\ntext="#f4f7fb"\naccent="#b7cee1"`,
   },
 };
 
 const INITIAL_NOTES: Note[] = [
   {
     id: 1,
-    title: 'La idea no necesita ruido',
-    preview: 'Una interfaz puede ser decoración…',
+    title: 'UNA PIEL ES UN ARCHIVO',
+    preview: 'Toolbar, fondo, botones…',
     body: [
-      'Una herramienta no debería competir con las ideas que ayudas a ordenar.',
-      'Por eso xenner empieza por lo esencial: escribir, guardar y volver.',
-      'La identidad visual vive en archivos simples. Tú decides cómo se siente tu espacio.',
+      'Cada superficie de xenner tiene su propio archivo. Fondo, toolbar, sidebar, botones y campos no se esconden detrás de un constructor.',
+      'Abre un TXT, cambia una clave y deja que la ventana se rehaga a tu ritmo.',
     ],
-    date: 'Hoy · 09:41',
+    date: '24.09.2026 / 09:41',
   },
   {
     id: 2,
-    title: 'Personalización sin ceremonia',
-    preview: 'Un TXT, una clave, un valor.',
+    title: 'CYBER MEMORY / 98',
+    preview: 'La idea sobrevive al reload.',
     body: [
-      'La skin más compleja sigue siendo texto legible.',
-      'Sin credenciales, sin constructor de temas y sin capas que oculten lo que ocurre.',
+      'Las skins se recargan sin mezclar su experimento con el contenido de tus notas.',
+      'El archivo se lee como configuración y vuelve como interfaz.',
     ],
-    date: 'Ayer · 18:12',
+    date: '23.09.2026 / 18:12',
   },
   {
     id: 3,
-    title: 'Ideas para después',
-    preview: 'Revisar el prototipo del panel…',
+    title: 'PARA DESPUÉS',
+    preview: 'Notas, tareas, grandes ideas sueltas.',
     body: [
-      'Convertir esta lista en tareas sencillas.',
-      'Probar la nueva jerarquía en una pantalla estrecha.',
+      'Crear, editar, seleccionar y borrar. La app actual guarda el contenido en localStorage, dentro de tu escritorio.',
+      'Nada de cuentas, nube obligatoria ni un roadmap disfrazado de producto.',
     ],
-    date: 'Lun · 07:30',
+    date: '21.09.2026 / 07:30',
   },
 ];
 
 export default function ProductDemo() {
-  const [skinId, setSkinId] = useState<SkinId>('frosted');
+  const [skinId, setSkinId] = useState<SkinId>('webcore');
   const [notes, setNotes] = useState<Note[]>(INITIAL_NOTES);
   const [selectedId, setSelectedId] = useState<number>(INITIAL_NOTES[0].id);
 
@@ -77,15 +76,16 @@ export default function ProductDemo() {
     [notes, selectedId],
   );
   const activeSkin = SKINS[skinId];
+  const wordCount = activeNote.body.join(' ').split(/\s+/).filter(Boolean).length;
 
   const addNote = () => {
     const id = Math.max(...notes.map((note) => note.id), 0) + 1;
     const note: Note = {
       id,
-      title: 'Nota sin título',
-      preview: 'Empieza a escribir…',
-      body: ['Una página limpia para la siguiente idea.'],
-      date: 'Ahora',
+      title: 'NOTA NUEVA_001',
+      preview: 'Escribe aquí antes de que huya…',
+      body: ['Una página en blanco para la siguiente idea.'],
+      date: 'AHORA / MEMORY RAM',
     };
 
     setNotes((current) => [note, ...current]);
@@ -95,29 +95,34 @@ export default function ProductDemo() {
   return (
     <div className="product-demo" data-skin={skinId}>
       <div className="demo-stage">
-        <div className="demo-stage__glow demo-stage__glow--one" aria-hidden="true"></div>
-        <div className="demo-stage__glow demo-stage__glow--two" aria-hidden="true"></div>
+        <div className="demo-stage__sun" aria-hidden="true"></div>
+        <div className="demo-stage__stars" aria-hidden="true"></div>
+        <div className="demo-stage__grid" aria-hidden="true"></div>
 
         <div className="demo-window">
           <header className="demo-toolbar">
+            <div className="demo-window__controls" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </div>
+
             <div className="demo-toolbar__identity">
-              <span className="demo-toolbar__mark">×</span>
-              <span>xenner</span>
+              <strong>xenner.exe</strong>
+              <span>— {activeNote.title.toLowerCase()}</span>
             </div>
 
-            <div className="demo-toolbar__status" aria-label="Estado de la nota">
-              <span></span> Guardado
+            <div className="demo-toolbar__status">
+              <span aria-hidden="true"></span> LOCAL_SAVE
             </div>
-
-            <button className="demo-add" type="button" onClick={addNote}>
-              <span aria-hidden="true">+</span> Nueva
-            </button>
           </header>
+
+          <div className="demo-menu" aria-hidden="true">
+            <span>archivo</span><span>edición</span><span>ver</span><span>skin</span>
+          </div>
 
           <div className="demo-layout">
             <aside className="demo-sidebar" aria-label="Notas de ejemplo">
               <div className="demo-sidebar__heading">
-                <span>Notas</span>
+                <span>▰ NOTAS</span>
                 <span>{String(notes.length).padStart(2, '0')}</span>
               </div>
 
@@ -134,41 +139,50 @@ export default function ProductDemo() {
                       onClick={() => setSelectedId(note.id)}
                       aria-pressed={isActive}
                     >
-                      <strong>{note.title}</strong>
-                      <span>{note.preview}</span>
-                      <time>{note.date}</time>
+                      <span className="demo-note-item__icon" aria-hidden="true"></span>
+                      <span className="demo-note-item__copy">
+                        <strong>{note.title}</strong>
+                        <span>{note.preview}</span>
+                        <time>{note.date}</time>
+                      </span>
                     </button>
                   );
                 })}
               </div>
+
+              <button className="demo-add" type="button" onClick={addNote}>
+                <b aria-hidden="true">+</b> CREAR NOTA
+              </button>
             </aside>
 
             <article className="demo-editor" aria-live="polite">
               <div className="demo-editor__meta">
                 <span>{activeNote.date}</span>
-                <span>{notes.length} notas</span>
+                <span>TEXT MODE / UTF-8</span>
               </div>
-              <h2>{activeNote.title}</h2>
+              <h3>{activeNote.title}</h3>
               <div className="demo-editor__body">
                 {activeNote.body.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
               <div className="demo-editor__footer">
-                <span>Skin · {activeSkin.name}</span>
-                <span>0 palabras</span>
+                <span>SKIN: {activeSkin.name}</span>
+                <span>{wordCount} WORDS</span>
               </div>
             </article>
           </div>
 
           <footer className="demo-statusbar">
-            <span>Local</span>
-            <span>TXT skin</span>
-            <span>0.1</span>
+            <span><i aria-hidden="true"></i> READY</span>
+            <span>TXT ENGINE</span>
+            <span>{notes.length} FILES</span>
+            <span>XENNER 0.1</span>
           </footer>
         </div>
 
         <div className="skin-switcher" role="group" aria-label="Vista previa de skins">
+          <span>PALETA:</span>
           {(Object.keys(SKINS) as SkinId[]).map((id) => (
             <button
               type="button"
@@ -186,8 +200,8 @@ export default function ProductDemo() {
 
       <div className="demo-console">
         <div className="demo-console__bar">
-          <span>{activeSkin.file}</span>
-          <span>sin build</span>
+          <span><i aria-hidden="true"></i> {activeSkin.file}</span>
+          <span>live_text.exe</span>
         </div>
         <pre><code>{activeSkin.code}</code></pre>
       </div>

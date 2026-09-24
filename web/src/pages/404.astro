@@ -4,16 +4,34 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
 <BaseLayout title="Página no encontrada" description="La página solicitada no existe." noindex>
   <main class="not-found" id="contenido">
-    <div class="not-found__glow" aria-hidden="true"></div>
-    <div class="not-found__content">
-      <a class="not-found__brand" href="/" aria-label="Volver al inicio">
-        <span aria-hidden="true">×</span> xenner
-      </a>
-      <p class="eyebrow">Error 404</p>
-      <h1>Esta nota no está <em>aquí.</em></h1>
-      <p>La dirección no existe o el contenido cambió de lugar.</p>
-      <a class="not-found__button" href="/">Volver al inicio <span aria-hidden="true">→</span></a>
-    </div>
+    <div class="not-found__checker" aria-hidden="true"></div>
+    <div class="not-found__sun" aria-hidden="true"></div>
+    <div class="not-found__scanlines" aria-hidden="true"></div>
+
+    <section class="error-window" aria-labelledby="error-title">
+      <header class="error-window__bar">
+        <div class="error-window__mark" aria-hidden="true">×</div>
+        <strong>XENNER.OS</strong>
+        <span>404.EXE</span>
+      </header>
+
+      <div class="error-window__body">
+        <div class="error-code" aria-hidden="true"><span>4</span><i></i><span>4</span></div>
+        <div class="error-copy">
+          <p class="eyebrow">ARCHIVO NO ENCONTRADO</p>
+          <h1 id="error-title">ESTA NOTA<br />NO ESTÁ AQUÍ.</h1>
+          <p>
+            La dirección no existe, el archivo cambió de sitio o alguien lo movió dentro de una carpeta equivocada.
+          </p>
+          <a class="button button--primary" href="/">VOLVER AL INICIO <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+
+      <footer class="error-window__status">
+        <span><i aria-hidden="true"></i> ERROR HANDLED</span>
+        <span>C:\WEB\404</span>
+      </footer>
+    </section>
   </main>
 </BaseLayout>
 
@@ -21,96 +39,217 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   .not-found {
     position: relative;
     min-height: 100svh;
-    padding: 2rem;
+    padding: clamp(1rem, 5vw, 4rem);
     display: grid;
     place-items: center;
     overflow: hidden;
-    color: #f4f7fb;
-    background: #09110e;
+    color: var(--paper-bright);
+    background: #5932b5;
   }
 
-  .not-found::before {
+  .not-found__checker {
     position: absolute;
     inset: 0;
-    content: '';
-    opacity: 0.2;
+    opacity: 0.12;
     background-image:
-      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
-    background-size: 4rem 4rem;
-    mask-image: radial-gradient(circle at center, black, transparent 75%);
+      linear-gradient(45deg, var(--paper-bright) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--paper-bright) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--paper-bright) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--paper-bright) 75%);
+    background-position: 0 0, 1.2rem 1.2rem, 1.2rem -1.2rem, -1.2rem 0;
+    background-size: 2.4rem 2.4rem;
   }
 
-  .not-found__glow {
+  .not-found__sun {
     position: absolute;
-    width: min(80vw, 45rem);
+    top: 50%;
+    left: 50%;
+    width: min(82vw, 55rem);
     aspect-ratio: 1;
+    border: 5px solid var(--ink);
     border-radius: 50%;
-    background: rgba(183, 206, 225, 0.13);
-    filter: blur(100px);
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 3.5rem, rgba(89, 50, 181, 0.62) 3.6rem 3.8rem),
+      var(--hot);
+    box-shadow: 1.3rem 1.3rem 0 var(--ink);
+    transform: translate(-50%, -50%);
   }
 
-  .not-found__content {
+  .not-found__scanlines {
+    position: absolute;
+    inset: 0;
+    opacity: 0.16;
+    background: repeating-linear-gradient(to bottom, transparent 0 3px, var(--ink) 4px);
+  }
+
+  .error-window {
     position: relative;
-    max-width: 46rem;
-    text-align: center;
+    z-index: 2;
+    width: min(100%, 56rem);
+    overflow: hidden;
+    color: var(--ink);
+    border: 4px solid var(--ink);
+    background: var(--paper);
+    box-shadow: 1.1rem 1.1rem 0 var(--ink);
+    font-family: var(--font-ui);
   }
 
-  .not-found__brand {
-    display: inline-flex;
+  .error-window__bar {
+    min-height: 3.2rem;
+    padding: 0 0.8rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: 0.6rem;
-    color: #fff;
-    font-weight: 700;
-    text-decoration: none;
+    gap: 0.8rem;
+    color: var(--ink);
+    border-bottom: 4px solid var(--ink);
+    background: var(--cyan);
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
   }
 
-  .not-found__brand span {
-    width: 2rem;
-    height: 2rem;
+  .error-window__mark {
+    width: 1.8rem;
+    height: 1.8rem;
     display: grid;
     place-items: center;
-    color: #09110e;
-    border-radius: 0.65rem;
-    background: #b7cee1;
+    color: var(--paper-bright);
+    background: var(--hot);
+    box-shadow: 2px 2px 0 var(--ink);
+    font-size: 1.2rem;
+    font-weight: 900;
   }
 
-  .not-found .eyebrow {
-    margin-top: 3.5rem;
-    color: #b7cee1;
+  .error-window__bar > span {
+    padding: 0.28rem 0.4rem;
+    color: var(--paper-bright);
+    background: var(--ink);
+  }
+
+  .error-window__body {
+    min-height: 30rem;
+    padding: clamp(1.5rem, 5vw, 3rem);
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr;
+    align-items: center;
+    gap: clamp(2rem, 6vw, 5rem);
+    background:
+      linear-gradient(rgba(17, 16, 24, 0.045) 1px, transparent 1px),
+      var(--paper);
+    background-size: 100% 1.9rem;
+  }
+
+  .error-code {
+    display: grid;
+    grid-template-columns: 1fr 0.45rem 1fr;
+    align-items: center;
+    color: var(--violet);
+    font-family: var(--font-display);
+    font-size: clamp(6rem, 18vw, 12rem);
+    line-height: 0.8;
+    -webkit-text-stroke: 3px var(--ink);
+    text-shadow: 6px 6px 0 var(--hot);
+    transform: rotate(-4deg);
+  }
+
+  .error-code i {
+    height: 1.3rem;
+    display: block;
+    border: 3px solid var(--ink);
+    background: var(--acid);
+  }
+
+  .error-copy .eyebrow {
+    color: var(--hot-dark);
   }
 
   h1 {
-    margin: 1.3rem 0 0;
-    font-size: clamp(3.5rem, 11vw, 7rem);
-    font-weight: 520;
-    letter-spacing: -0.075em;
-    line-height: 0.95;
-  }
-
-  h1 em {
-    color: #b7cee1;
+    margin: 1.2rem 0 0;
     font-family: var(--font-display);
-    font-weight: 400;
+    font-size: clamp(2.8rem, 6vw, 5.5rem);
+    letter-spacing: -0.015em;
+    line-height: 0.9;
+    text-transform: uppercase;
   }
 
-  .not-found__content > p:not(.eyebrow) {
-    margin: 1.5rem 0 0;
-    color: rgba(244, 247, 251, 0.56);
+  .error-copy > p:not(.eyebrow) {
+    max-width: 32rem;
+    margin: 1.4rem 0 0;
+    color: var(--muted);
+    font-size: 0.76rem;
+    line-height: 1.7;
   }
 
-  .not-found__button {
-    min-height: 3rem;
-    margin-top: 2rem;
-    padding: 0 1rem;
-    display: inline-flex;
+  .error-copy .button {
+    margin-top: 1.5rem;
+  }
+
+  .error-window__status {
+    min-height: 2rem;
+    padding: 0 0.7rem;
+    display: flex;
     align-items: center;
-    gap: 0.6rem;
-    color: #09110e;
-    border-radius: 999px;
-    background: #b7cee1;
-    font-size: 0.78rem;
-    font-weight: 700;
-    text-decoration: none;
+    justify-content: space-between;
+    color: var(--ink);
+    border-top: 4px solid var(--ink);
+    background: var(--acid);
+    font-size: 0.5rem;
+    font-weight: 900;
+  }
+
+  .error-window__status span {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .error-window__status i {
+    width: 0.45rem;
+    height: 0.45rem;
+    border: 1px solid var(--ink);
+    background: var(--hot);
+  }
+
+  @media (min-width: 1800px) {
+    .error-window {
+      width: min(100%, 72rem);
+    }
+
+    .error-window__body {
+      min-height: 38rem;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .error-window__body {
+      grid-template-columns: 1fr;
+      padding-top: 2.5rem;
+    }
+
+    .error-code {
+      width: min(80%, 18rem);
+      margin-inline: auto;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .error-window__bar {
+      padding-inline: 0.45rem;
+      gap: 0.4rem;
+    }
+
+    .error-window__bar > span {
+      display: none;
+    }
+
+    .error-window__body {
+      padding: 1.25rem 0.8rem 1.5rem;
+      gap: 1.5rem;
+    }
+
+    .error-window__status {
+      padding-inline: 0.45rem;
+      font-size: 0.43rem;
+    }
   }
 </style>

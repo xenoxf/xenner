@@ -4,8 +4,8 @@
   "description": "Creador de notas de escritorio con skins editables en TXT.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#07100c",
-  "theme_color": "#07100c",
+  "background_color": "#111018",
+  "theme_color": "#5932b5",
   "icons": [
     {
       "src": "/favicon.svg",

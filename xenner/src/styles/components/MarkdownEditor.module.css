@@ -38,14 +38,17 @@
   font-family: var(--skin-editor-font, var(--skin-background-font));
 }
 
-.editor :global(.ProseMirror) {
+.editor:global(.milkdown) :global(.ProseMirror),
+.editor :global(.milkdown) :global(.ProseMirror) {
   width: 100%;
+  max-width: none;
   min-height: 52vh;
   margin: 0;
   padding: 0;
   color: var(--skin-note-text);
   background-color: var(--skin-note-background);
   outline: none;
+  text-align: left;
   font-family: var(--skin-editor-font, var(--skin-background-font));
   font-size: var(--skin-editor-size, 16px);
   line-height: var(--skin-editor-line-height, 1.7);
@@ -171,6 +174,73 @@
 .editor :global(.top-bar-item.active svg),
 .editor :global(.top-bar-heading-option.active) {
   color: var(--skin-toolbar-accent);
+}
+
+.editor :global(.milkdown-block-handle) {
+  gap: 1px;
+}
+
+.editor :global(.milkdown-block-handle .operation-item) {
+  width: 26px;
+  height: 26px;
+  padding: 2px;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+}
+
+.editor :global(.milkdown-block-handle .operation-item svg) {
+  width: 17px;
+  height: 17px;
+}
+
+.editor :global(.milkdown-slash-menu) {
+  width: 216px;
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: min(var(--skin-note-radius), 9px);
+  box-shadow: var(--skin-note-shadow);
+}
+
+.editor :global(.milkdown-slash-menu .tab-group) {
+  padding: 5px 5px 0;
+}
+
+.editor :global(.milkdown-slash-menu .tab-group ul) {
+  gap: 2px;
+  padding: 3px 4px;
+}
+
+.editor :global(.milkdown-slash-menu .tab-group ul li) {
+  padding: 3px 6px;
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.editor :global(.milkdown-slash-menu .menu-groups) {
+  max-height: 300px;
+  padding: 0 5px 5px;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group h6) {
+  padding: 6px 6px 3px;
+  font-size: 9px;
+  line-height: 13px;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group li) {
+  min-width: 0;
+  gap: 8px;
+  padding: 6px 7px;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group li svg) {
+  width: 16px;
+  height: 16px;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group li > span) {
+  font-size: 11px;
+  line-height: 16px;
 }
 
 .loading {

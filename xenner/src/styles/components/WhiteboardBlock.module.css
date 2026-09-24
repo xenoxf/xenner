@@ -1,0 +1,121 @@
+.block {
+  width: 100%;
+  margin: 20px 0;
+  overflow: hidden;
+  background-color: var(--skin-note-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-note-radius) * 0.8);
+}
+
+.toolbar {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 7px;
+  overflow-x: auto;
+  background-color: var(--skin-toolbar-background);
+  border-bottom: var(--skin-toolbar-border);
+}
+
+.toolbar > button:not([class]) {
+  min-height: 28px;
+  padding: 4px 7px;
+  color: var(--skin-button-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  font-size: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.toolbar > button:not([class]):hover:not(:disabled) {
+  color: var(--skin-button-textHover);
+  background-color: var(--skin-button-backgroundHover);
+}
+
+.toolbar > button.active {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  color: var(--skin-toolbar-accent);
+  background-color: var(--skin-button-backgroundHover);
+  border-color: var(--skin-toolbar-accent);
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  cursor: pointer;
+}
+
+.toolbar > button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.toolbar > button.deleteButton {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  color: var(--skin-note-accent);
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  cursor: pointer;
+}
+
+.color,
+.widthControl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--skin-toolbar-textDim);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.color input {
+  width: 24px;
+  height: 24px;
+  padding: 1px;
+  background: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: 4px;
+}
+
+.widthControl input {
+  width: 64px;
+  accent-color: var(--skin-toolbar-accent);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.canvasWrap {
+  padding: 10px;
+  overflow: auto;
+  background-color: var(--skin-input-background);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  min-height: 260px;
+  aspect-ratio: 5 / 3;
+  background-color: var(--skin-note-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-input-radius) * 0.7);
+  touch-action: none;
+  cursor: crosshair;
+}
+
+@media (max-width: 760px) {
+  .canvas {
+    min-height: 210px;
+  }
+}

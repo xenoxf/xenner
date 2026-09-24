@@ -1,12 +1,10 @@
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
-import { EDITOR_BLOCKS, SHAPE_COLORS, SHAPE_TOOLS } from "../../data/editor";
+import { DRAWING_BLOCK_TOOLS } from "../../data/drawing";
+import { EDITOR_BLOCKS } from "../../data/editor";
 import styles from "../../styles/components/EditorToolbar.module.css";
-import type {
-  EditorBlockType,
-  ShapeColor,
-  ShapeTool,
-} from "../../types/editor";
+import type { DrawingTool } from "../../types/drawing";
+import type { EditorBlockType } from "../../types/editor";
 import {
   ArrowIcon,
   BulletListIcon,
@@ -17,7 +15,6 @@ import {
   MarkdownIcon,
   OrderedListIcon,
   PencilIcon,
-  PlusIcon,
   QuoteIcon,
   SquareIcon,
   TextIcon,
@@ -28,13 +25,21 @@ export interface EditorToolbarProps {
   sourceMode: boolean;
   ready: boolean;
   imageBusy: boolean;
-  shapeBusy: boolean;
+  whiteboardBusy: boolean;
   status: string;
   onApplyBlock(type: EditorBlockType): void;
   onChooseImage(): void;
-  onInsertShape(tool: ShapeTool, color: ShapeColor): void;
-  onAddText(): void;
+  onInsertWhiteboard(tool: DrawingTool): void;
   onToggleSource(): void;
+}
+
+function DrawingToolIcon(props: { tool: DrawingTool }) {
+  if (props.tool === "pen") return <PencilIcon />;
+  if (props.tool === "rect") return <SquareIcon />;
+  if (props.tool === "ellipse") return <CircleIcon />;
+  if (props.tool === "line") return <LineIcon />;
+  if (props.tool === "arrow") return <ArrowIcon />;
+  return <TextIcon />;
 }
 
 function BlockIcon(props: { type: EditorBlockType }) {
@@ -53,53 +58,33 @@ function BlockIcon(props: { type: EditorBlockType }) {
   }
 }
 
-function ShapeToolIcon(props: { tool: ShapeTool }) {
-  switch (props.tool) {
-    case "pen":
-      return <PencilIcon />;
-    case "rect":
-      return <SquareIcon />;
-    case "ellipse":
-      return <CircleIcon />;
-    case "line":
-      return <LineIcon />;
-    case "arrow":
-      return <ArrowIcon />;
-    case "text":
-      return <TextIcon />;
-  }
-}
-
 export function EditorToolbar(props: EditorToolbarProps) {
   const [blockMenuOpen, setBlockMenuOpen] = createSignal(false);
-  const [shapeMenuOpen, setShapeMenuOpen] = createSignal(false);
-  const [shapeColor, setShapeColor] = createSignal<ShapeColor>("#5b9bd5");
+  const [drawMenuOpen, setDrawMenuOpen] = createSignal(false);
   let blockMenu: HTMLDivElement | undefined;
   let blockTrigger: HTMLButtonElement | undefined;
-  let shapeMenu: HTMLDivElement | undefined;
-  let shapeTrigger: HTMLButtonElement | undefined;
+  let drawMenu: HTMLDivElement | undefined;
+  let drawTrigger: HTMLButtonElement | undefined;
 
   function closePopovers(): void {
     setBlockMenuOpen(false);
-    setShapeMenuOpen(false);
+    setDrawMenuOpen(false);
   }
 
   onMount(() => {
     const closeMenuOutside = (event: PointerEvent): void => {
       const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (!blockMenu?.contains(target) && !blockTrigger?.contains(target)) {
-        setBlockMenuOpen(false);
-      }
-      if (!shapeMenu?.contains(target) && !shapeTrigger?.contains(target)) {
-        setShapeMenuOpen(false);
+      if (target instanceof Node) {
+        const outsideBlocks = !blockMenu?.contains(target) && !blockTrigger?.contains(target);
+        const outsideDrawing = !drawMenu?.contains(target) && !drawTrigger?.contains(target);
+        if (outsideBlocks && outsideDrawing) closePopovers();
       }
     };
     const closeMenuWithEscape = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      const returnFocus = blockMenuOpen() ? blockTrigger : shapeMenuOpen() ? shapeTrigger : null;
+      if (event.key !== "Escape" || (!blockMenuOpen() && !drawMenuOpen())) return;
+      const returnFocus = blockMenuOpen() ? blockTrigger : drawTrigger;
       closePopovers();
-      if (returnFocus) queueMicrotask(() => returnFocus.focus());
+      queueMicrotask(() => returnFocus?.focus());
     };
     document.addEventListener("pointerdown", closeMenuOutside);
     document.addEventListener("keydown", closeMenuWithEscape);
@@ -125,14 +110,14 @@ export function EditorToolbar(props: EditorToolbarProps) {
 
   function toggleBlockMenu(): void {
     if (props.loading || props.sourceMode || !props.ready) return;
-    setShapeMenuOpen(false);
+    setDrawMenuOpen(false);
     setBlockMenuOpen((open) => !open);
   }
 
-  function toggleShapeMenu(): void {
-    if (props.loading || props.sourceMode || props.shapeBusy || !props.ready) return;
+  function toggleDrawMenu(): void {
+    if (props.loading || props.whiteboardBusy || props.sourceMode || !props.ready) return;
     setBlockMenuOpen(false);
-    setShapeMenuOpen((open) => !open);
+    setDrawMenuOpen((open) => !open);
   }
 
   return (
@@ -165,7 +150,6 @@ export function EditorToolbar(props: EditorToolbarProps) {
             role="menu"
             aria-label="Tipo de bloque"
           >
-            <p>Bloque</p>
             <div class={styles.blockGrid} role="group" aria-label="Formatos de texto">
               <For each={EDITOR_BLOCKS}>
                 {(block) => (
@@ -173,6 +157,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
                     type="button"
                     class={styles.blockItem}
                     role="menuitem"
+                    title={block.label}
                     onClick={() => {
                       closePopovers();
                       props.onApplyBlock(block.id);
@@ -200,67 +185,44 @@ export function EditorToolbar(props: EditorToolbarProps) {
       </button>
       <div class={styles.anchor}>
         <button
-          ref={(element) => (shapeTrigger = element)}
+          ref={(element) => (drawTrigger = element)}
           type="button"
-          class={`${styles.button} ${shapeMenuOpen() ? styles.open : ""} ${props.shapeBusy ? styles.busy : ""}`}
-          disabled={props.loading || props.shapeBusy || props.sourceMode || !props.ready}
+          class={`${styles.button} ${drawMenuOpen() ? styles.open : ""}`}
+          disabled={props.loading || props.whiteboardBusy || props.sourceMode || !props.ready}
           aria-label="Dibujar"
           aria-haspopup="menu"
-          aria-controls="editor-shape-menu"
-          aria-expanded={shapeMenuOpen()}
+          aria-controls="editor-drawing-menu"
+          aria-expanded={drawMenuOpen()}
           title={props.ready ? "Dibujar" : "Preparando editor"}
-          onClick={toggleShapeMenu}
+          onClick={toggleDrawMenu}
         >
           <PencilIcon />
         </button>
-        <Show when={shapeMenuOpen()}>
+        <Show when={drawMenuOpen()}>
           <div
-            ref={(element) => (shapeMenu = element)}
-            id="editor-shape-menu"
-            class={`${styles.menu} ${styles.shapePicker}`}
+            ref={(element) => (drawMenu = element)}
+            id="editor-drawing-menu"
+            class={`${styles.menu} ${styles.drawingPicker}`}
             role="menu"
-            aria-label="Dibujar e insertar figuras"
+            aria-label="Figuras para dibujar"
           >
-            <p>Figuras</p>
-            <div class={styles.shapeGrid} role="group" aria-label="Tipos de figura">
-              <For each={SHAPE_TOOLS}>
-                {(tool) => (
-                  <button
-                    type="button"
-                    class={styles.shapeTool}
-                    role="menuitem"
-                    disabled={props.shapeBusy}
-                    aria-label={`Insertar ${tool.label.toLowerCase()}`}
-                    title={tool.label}
-                    onClick={() => {
-                      closePopovers();
-                      props.onInsertShape(tool.id, shapeColor());
-                    }}
-                  >
-                    <ShapeToolIcon tool={tool.id} />
-                  </button>
-                )}
-              </For>
-            </div>
-            <div class={styles.colors}>
-              <span>Color</span>
-              <div role="group" aria-label="Color de la figura">
-                <For each={SHAPE_COLORS}>
-                  {(color) => (
-                    <button
-                      type="button"
-                      class={`${styles.colorButton} ${shapeColor() === color ? styles.active : ""}`}
-                      style={`--shape-color: ${color}`}
-                      role="menuitemradio"
-                      aria-label={`Color ${color}`}
-                      aria-checked={shapeColor() === color}
-                      title={`Color ${color}`}
-                      onClick={() => setShapeColor(color)}
-                    />
-                  )}
-                </For>
-              </div>
-            </div>
+            <For each={DRAWING_BLOCK_TOOLS}>
+              {(item) => (
+                <button
+                  type="button"
+                  class={styles.drawingItem}
+                  role="menuitem"
+                  title={item.label}
+                  onClick={() => {
+                    closePopovers();
+                    props.onInsertWhiteboard(item.id);
+                  }}
+                >
+                  <DrawingToolIcon tool={item.id} />
+                  <span>{item.label}</span>
+                </button>
+              )}
+            </For>
           </div>
         </Show>
       </div>
@@ -274,16 +236,6 @@ export function EditorToolbar(props: EditorToolbarProps) {
         onClick={props.onToggleSource}
       >
         <MarkdownIcon />
-      </button>
-      <button
-        type="button"
-        class={styles.button}
-        disabled={props.loading || props.sourceMode || !props.ready}
-        aria-label="Añadir bloque de texto"
-        title="Añadir bloque de texto"
-        onClick={props.onAddText}
-      >
-        <PlusIcon />
       </button>
       <span class="sr-only" role="status" aria-live="polite">
         {props.status}

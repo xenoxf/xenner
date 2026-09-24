@@ -4,15 +4,15 @@
   bottom: 16px;
   left: 50%;
   display: flex;
-  width: min(238px, calc(100% - 32px));
-  min-height: 48px;
+  width: min(196px, calc(100% - 32px));
+  min-height: 46px;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 6px 8px;
+  padding: 5px 7px;
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
-  border-radius: calc(var(--skin-note-radius) * 1.4);
+  border-radius: calc(var(--skin-note-radius) * 1.25);
   box-shadow: var(--skin-note-shadow);
   transform: translateX(-50%);
   backdrop-filter: blur(var(--skin-toolbar-blur));
@@ -25,8 +25,8 @@
 .button {
   position: relative;
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
   padding: 0;
   place-items: center;
@@ -58,8 +58,8 @@
 }
 
 .button svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
 }
 
 .button:disabled {
@@ -92,51 +92,43 @@
 .menu {
   position: absolute;
   z-index: 12;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + 9px);
   left: 50%;
-  width: 194px;
-  padding: 6px;
+  padding: 5px;
   color: var(--skin-toolbar-text);
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
-  border-radius: var(--skin-note-radius);
+  border-radius: min(var(--skin-note-radius), 10px);
   box-shadow: var(--skin-note-shadow);
   transform: translateX(-50%);
 }
 
-.menu > p {
-  margin: 3px 8px 6px;
-  color: var(--skin-toolbar-textDim);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
 .blockPicker {
-  width: 188px;
+  width: 172px;
 }
 
 .blockGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 3px;
-  padding: 2px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
 }
 
 .blockItem {
   display: flex;
   min-width: 0;
-  min-height: 34px;
+  min-height: 42px;
   align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 2px;
   color: var(--skin-toolbar-text);
   background: transparent;
   border: 0;
-  border-radius: calc(var(--skin-button-radius) * 0.8);
-  font-size: 11px;
-  text-align: left;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  font-size: 9px;
+  line-height: 1.1;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -147,105 +139,62 @@
 }
 
 .blockItem:focus-visible {
-  outline: 2px solid var(--skin-input-focus);
+  outline: 1px solid var(--skin-input-focus);
   outline-offset: -1px;
 }
 
 .blockItem > span {
   display: grid;
-  width: 19px;
-  height: 19px;
-  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
   place-items: center;
   color: var(--skin-toolbar-textDim);
 }
 
 .blockItem svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
-.shapePicker {
-  width: 246px;
-}
-
-.shapeGrid {
+.drawingPicker {
   display: grid;
-  grid-template-columns: repeat(6, 32px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  width: 172px;
+}
+
+.drawingItem {
+  display: flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 2px 0 7px;
-}
-
-.shapeTool {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  place-items: center;
-  color: var(--skin-toolbar-textDim);
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 2px;
+  color: var(--skin-toolbar-text);
   background: transparent;
   border: 0;
-  border-radius: calc(var(--skin-button-radius) * 0.9);
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  font-size: 9px;
+  line-height: 1.1;
   cursor: pointer;
 }
 
-.shapeTool:hover:not(:disabled),
-.shapeTool:focus-visible {
+.drawingItem:hover,
+.drawingItem:focus-visible {
   color: var(--skin-toolbar-accent);
   background: var(--skin-button-backgroundHover);
 }
 
-.shapeTool:focus-visible {
-  outline: 2px solid var(--skin-input-focus);
+.drawingItem:focus-visible {
+  outline: 1px solid var(--skin-input-focus);
   outline-offset: -1px;
 }
 
-.shapeTool svg {
-  width: 17px;
-  height: 17px;
-}
-
-.colors {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 7px 2px;
-  border-top: var(--skin-toolbar-border);
-}
-
-.colors > span {
-  color: var(--skin-toolbar-textDim);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.colors > div {
-  display: flex;
-  gap: 5px;
-}
-
-.colorButton {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  padding: 0;
-  background: var(--shape-color);
-  border: 2px solid transparent;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--skin-toolbar-border);
-  cursor: pointer;
-}
-
-.colorButton:hover,
-.colorButton:focus-visible,
-.colorButton.active {
-  border-color: var(--skin-toolbar-background);
-  outline: 2px solid var(--skin-toolbar-accent);
-  outline-offset: 1px;
+.drawingItem svg {
+  width: 15px;
+  height: 15px;
 }
 
 @keyframes asset-spin {

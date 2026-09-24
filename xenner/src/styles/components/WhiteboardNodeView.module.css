@@ -1,0 +1,69 @@
+.node {
+  position: relative;
+  width: 100%;
+  margin: 20px 0;
+}
+
+.node.ProseMirror-selectednode .preview {
+  outline: 2px solid var(--skin-note-accent);
+  outline-offset: 3px;
+}
+
+.preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-note-radius) * 0.8);
+  cursor: pointer;
+}
+
+.preview img {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+  background-color: var(--skin-note-background);
+}
+
+.previewLabel {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 7px;
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: calc(var(--skin-button-radius) * 0.8);
+  box-shadow: var(--skin-note-shadow);
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.preview:hover .previewLabel,
+.preview:focus-visible .previewLabel {
+  opacity: 1;
+}
+
+.preview:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.editorHost:empty {
+  display: none;
+}
+
+.loading {
+  padding: 24px;
+  color: var(--skin-toolbar-textDim);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-note-radius) * 0.8);
+  font-size: 12px;
+  text-align: center;
+}

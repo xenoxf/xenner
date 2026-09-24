@@ -1,13 +1,14 @@
 import type { Crepe as CrepeInstance } from "@milkdown/crepe";
 import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
 import {
+  addBlockTypeCommand,
   turnIntoTextCommand,
   wrapInBlockquoteCommand,
   wrapInBulletListCommand,
   wrapInHeadingCommand,
   wrapInOrderedListCommand,
 } from "@milkdown/kit/preset/commonmark";
-import { createParagraphNear, splitBlock } from "@milkdown/kit/prose/commands";
+import { createParagraphNear } from "@milkdown/kit/prose/commands";
 import { insert, replaceAll } from "@milkdown/kit/utils";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
@@ -15,11 +16,16 @@ import {
   importImageForEditor,
   prepareMarkdownForEditor,
   serializeMarkdownFromEditor,
+  updateAssetForEditor,
 } from "../../services/editorAssets";
 import { notifyError, notifySuccess } from "../../services/toastService";
+import { serializeDrawing } from "../../editor/drawing";
 import { DEFAULT_TEXT_COLOR, normalizeTextColor, textColorMark, textColorRemark } from "../../editor/text-color";
+import { whiteboardNode, whiteboardRemark } from "../../editor/whiteboard-node";
 import styles from "../../styles/components/MarkdownEditor.module.css";
+import type { DrawingTool } from "../../types/drawing";
 import type { MarkdownEditorHandle, PreparedMarkdown } from "../../types/editor";
+import { createWhiteboardView } from "./WhiteboardNodeView";
 
 const TEXT_COLOR_TOOLBAR_ICON = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -27,11 +33,6 @@ const TEXT_COLOR_TOOLBAR_ICON = `
     <path d="M5 5h14M12 5v9M8.5 18h7M6.5 15.5h11" />
   </svg>
 `;
-
-type ImageNode = {
-  type: { name: string };
-  attrs: Record<string, unknown>;
-};
 
 interface MarkdownEditorProps {
   notePath: string;
@@ -84,10 +85,45 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         features: {
           [Crepe.Feature.AI]: false,
           [Crepe.Feature.TopBar]: false,
-          [Crepe.Feature.BlockEdit]: false,
+          [Crepe.Feature.BlockEdit]: true,
           [Crepe.Feature.ImageBlock]: true,
         },
         featureConfigs: {
+          [Crepe.Feature.BlockEdit]: {
+            blockHandle: {
+              root,
+              getOffset: () => 10,
+            },
+            slashMenu: {
+              root,
+              offset: 8,
+            },
+            textGroup: {
+              label: "Texto",
+              text: { label: "Texto" },
+              h1: { label: "Título 1" },
+              h2: { label: "Título 2" },
+              h3: { label: "Título 3" },
+              h4: { label: "Título 4" },
+              h5: { label: "Título 5" },
+              h6: { label: "Título 6" },
+              quote: { label: "Cita" },
+              divider: { label: "Separador" },
+            },
+            listGroup: {
+              label: "Listas",
+              bulletList: { label: "Viñetas" },
+              orderedList: { label: "Numerada" },
+              taskList: { label: "Tareas" },
+            },
+            advancedGroup: {
+              label: "Insertar",
+              image: { label: "Imagen" },
+              codeBlock: { label: "Código" },
+              table: { label: "Tabla" },
+              math: { label: "Fórmula" },
+            },
+          },
           [Crepe.Feature.Placeholder]: {
             text: "Escribe tu nota…",
             mode: "doc",
@@ -118,7 +154,29 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           },
         },
       });
-      instance.editor.use(textColorRemark).use(textColorMark);
+      instance.editor
+        .use(textColorRemark)
+        .use(textColorMark)
+        .use(whiteboardNode)
+        .use(whiteboardRemark)
+        .use(createWhiteboardView({
+          onSave: async (svg, currentSrc) => {
+            try {
+              const file = new File([svg], "pizarra.svg", { type: "image/svg+xml" });
+              const relativePath = prepared.replacements.get(currentSrc);
+              const saved = relativePath
+                ? await updateAssetForEditor(props.notePath, relativePath, file)
+                : await importImageForEditor(props.notePath, file);
+              prepared.replacements.delete(currentSrc);
+              prepared.replacements.set(saved.dataUrl, saved.relativePath);
+              notifySuccess(relativePath ? "Pizarra actualizada" : "Pizarra guardada");
+              return saved.dataUrl;
+            } catch (error) {
+              notifyError("No se pudo guardar la pizarra", error);
+              return null;
+            }
+          },
+        }));
       crepe = instance;
       await instance.create();
       if (disposed) {
@@ -130,58 +188,9 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           if (!disposed) props.onChange(serializeMarkdownFromEditor(markdown, prepared.replacements));
         });
       });
-      const isImageNode = (value: unknown): value is ImageNode => {
-        if (!value || typeof value !== "object") return false;
-        const candidate = value as { type?: { name?: unknown }; attrs?: unknown };
-        return (
-          (candidate.type?.name === "image" || candidate.type?.name === "image-block") &&
-          !!candidate.attrs &&
-          typeof candidate.attrs === "object"
-        );
-      };
-
-      const findImage = (source?: string): { position: number; node: ImageNode } | null => {
-        const view = instance.editor.ctx.get(editorViewCtx);
-        const state = view.state;
-        const selection = state.selection as typeof state.selection & { node?: unknown };
-        const from = selection.$from;
-        const candidates: Array<{ position: number; node: unknown }> = [
-          { position: selection.from, node: selection.node },
-        ];
-        if (from.nodeAfter) candidates.push({ position: selection.from, node: from.nodeAfter });
-        if (from.nodeBefore) {
-          candidates.push({ position: selection.from - from.nodeBefore.nodeSize, node: from.nodeBefore });
-        }
-        for (const candidate of candidates) {
-          if (isImageNode(candidate.node)) {
-            if (!source || candidate.node.attrs.src === source) {
-              return { position: candidate.position, node: candidate.node };
-            }
-          }
-        }
-        if (source) {
-          let match: { position: number; node: ImageNode } | null = null;
-          state.doc.descendants((node, position) => {
-            if (isImageNode(node) && node.attrs.src === source) {
-              match = { position, node };
-              return false;
-            }
-            return !match;
-          });
-          return match;
-        }
-        return null;
-      };
-
       props.onReady?.({
         focus() {
           instance.editor.ctx.get(editorViewCtx).focus();
-        },
-        insertTextBlock() {
-          const view = instance.editor.ctx.get(editorViewCtx);
-          const dispatch = (transaction: Parameters<typeof view.dispatch>[0]) => view.dispatch(transaction);
-          const inserted = splitBlock(view.state, dispatch) || createParagraphNear(view.state, dispatch);
-          if (inserted) view.focus();
         },
         setBlockType(type) {
           const commands = instance.editor.ctx.get(commandsCtx);
@@ -193,34 +202,28 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           else commands.call(wrapInBlockquoteCommand.key);
           instance.editor.ctx.get(editorViewCtx).focus();
         },
+        async insertWhiteboard(tool: DrawingTool) {
+          const file = new File([serializeDrawing([])], "pizarra.svg", {
+            type: "image/svg+xml",
+          });
+          const imported = await importImageForEditor(props.notePath, file);
+          prepared.replacements.set(imported.dataUrl, imported.relativePath);
+          const node = whiteboardNode.type(instance.editor.ctx).create({
+            src: imported.dataUrl,
+            tool,
+            draft: true,
+          });
+          const commands = instance.editor.ctx.get(commandsCtx);
+          commands.call(addBlockTypeCommand.key, { nodeType: node });
+          const view = instance.editor.ctx.get(editorViewCtx);
+          createParagraphNear(view.state, view.dispatch);
+          view.focus();
+        },
         insertAsset(dataUrl, relativePath, alt = "Dibujo") {
           prepared.replacements.set(dataUrl, relativePath);
           const view = instance.editor.ctx.get(editorViewCtx);
           if (!view.hasFocus()) view.focus();
           instance.editor.action(insert(`![${alt}](${dataUrl})`));
-        },
-        getSelectedAsset() {
-          const target = findImage();
-          if (!target || typeof target.node.attrs.src !== "string") return null;
-          const dataUrl = target.node.attrs.src;
-          const relativePath = prepared.replacements.get(dataUrl);
-          if (!relativePath) return null;
-          const alt =
-            typeof target.node.attrs.alt === "string"
-              ? target.node.attrs.alt
-              : typeof target.node.attrs.caption === "string"
-                ? target.node.attrs.caption
-                : undefined;
-          return { dataUrl, relativePath, alt };
-        },
-        replaceAsset(previousDataUrl, nextDataUrl, relativePath) {
-          const target = findImage(previousDataUrl);
-          if (!target) return false;
-          prepared.replacements.delete(previousDataUrl);
-          prepared.replacements.set(nextDataUrl, relativePath);
-          const view = instance.editor.ctx.get(editorViewCtx);
-          view.dispatch(view.state.tr.setNodeAttribute(target.position, "src", nextDataUrl));
-          return true;
         },
       });
       setReady(true);

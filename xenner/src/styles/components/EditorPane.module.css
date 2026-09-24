@@ -37,8 +37,9 @@
 .documentColumn {
   width: min(var(--skin-content-width, 860px), 100%);
   min-height: 100%;
-  margin: 0 auto;
+  margin: 0;
   padding: clamp(42px, 6vw, 72px) 54px 132px;
+  text-align: left;
 }
 
 .heading {

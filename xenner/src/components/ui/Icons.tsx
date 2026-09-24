@@ -147,6 +147,14 @@ export function QuoteIcon(props: IconProps) {
   );
 }
 
+export function SelectIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="m5 3 10 8-5 1 3 6-2.5 1.2-3-6L4 17Z" />
+    </svg>
+  );
+}
+
 export function InfoIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

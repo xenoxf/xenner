@@ -1,6 +1,6 @@
+import type { DrawingTool } from "./drawing";
+
 export type EditorBlockType = "paragraph" | "heading1" | "heading2" | "bullet" | "ordered" | "quote";
-export type ShapeTool = "pen" | "rect" | "ellipse" | "line" | "arrow" | "text";
-export type ShapeColor = "#5b9bd5" | "#e7e7e4" | "#e05d5d" | "#5ac47a" | "#f0b35c";
 
 export interface PreparedMarkdown {
   content: string;
@@ -13,21 +13,9 @@ export interface ImportedEditorAsset {
   fileName?: string;
 }
 
-export interface SelectedEditorAsset {
-  dataUrl: string;
-  relativePath: string;
-  alt?: string;
-}
-
 export interface MarkdownEditorHandle {
   focus(): void;
-  insertTextBlock(): void;
   setBlockType(type: EditorBlockType): void;
+  insertWhiteboard(tool: DrawingTool): Promise<void>;
   insertAsset(dataUrl: string, relativePath: string, alt?: string): void;
-  getSelectedAsset(): SelectedEditorAsset | null;
-  replaceAsset(
-    previousDataUrl: string,
-    nextDataUrl: string,
-    relativePath: string,
-  ): boolean;
 }

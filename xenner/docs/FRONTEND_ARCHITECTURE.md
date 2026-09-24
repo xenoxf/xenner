@@ -91,8 +91,11 @@ convierten en clases globales de aplicación.
   renderiza y coordina animaciones de layout.
 - `services/editorAssets.ts` es la única frontera usada por el editor para
   importar, leer y convertir assets.
-- `DrawingModal.tsx` permanece como funcionalidad futura separada; esta
-  refactorización no lo conectó al flujo activo.
+- La pizarra es un nodo `whiteboard` de Milkdown con NodeView inline. Se
+  persiste como una imagen Markdown estándar bajo `.assets/`, pero mientras se
+  edita muestra el lienzo directamente dentro de la nota; no usa modal.
+- `BlockEdit` de Crepe proporciona el `+` contextual y el menú slash; el dock de
+  Solid conserva las acciones propias de dibujo e imagen.
 - `notes/store.ts` permanece como compatibilidad del CRUD antiguo y no se
   mezcló con `NoteDocument`.
 

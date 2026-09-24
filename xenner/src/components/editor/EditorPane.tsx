@@ -1,20 +1,14 @@
 import { createSignal, Show } from "solid-js";
 
-import { createShapeSvg } from "../../editor/shapeSvg";
 import {
   chooseImageForEditor,
   editorSupportsNativeImagePicker,
   importImageForEditor,
 } from "../../services/editorAssets";
 import { notifyError, notifySuccess } from "../../services/toastService";
-import { SHAPE_TOOLS } from "../../data/editor";
 import styles from "../../styles/components/EditorPane.module.css";
-import type {
-  EditorBlockType,
-  MarkdownEditorHandle,
-  ShapeColor,
-  ShapeTool,
-} from "../../types/editor";
+import type { DrawingTool } from "../../types/drawing";
+import type { EditorBlockType, MarkdownEditorHandle } from "../../types/editor";
 import type {
   NoteDocument,
   SaveStatus,
@@ -59,10 +53,10 @@ function statusLabel(status: SaveStatus): string {
 }
 
 export function EditorPane(props: EditorPaneProps) {
-  const [shapeBusy, setShapeBusy] = createSignal(false);
   const [imageBusy, setImageBusy] = createSignal(false);
   const [editorReady, setEditorReady] = createSignal(false);
   const [sourceMode, setSourceMode] = createSignal(false);
+  const [whiteboardBusy, setWhiteboardBusy] = createSignal(false);
   let editorHandle: MarkdownEditorHandle | null = null;
   let imageInput: HTMLInputElement | undefined;
 
@@ -70,11 +64,6 @@ export function EditorPane(props: EditorPaneProps) {
     if (!editorHandle || !editorReady() || props.loading || sourceMode()) return;
     editorHandle.setBlockType(type);
     editorHandle.focus();
-  }
-
-  function addTextBlock(): void {
-    if (!editorHandle || !editorReady() || props.loading || sourceMode()) return;
-    editorHandle.insertTextBlock();
   }
 
   async function chooseImage(): Promise<void> {
@@ -98,21 +87,15 @@ export function EditorPane(props: EditorPaneProps) {
     }
   }
 
-  async function insertShape(tool: ShapeTool, color: ShapeColor): Promise<void> {
-    const document = props.document;
-    if (!document || !editorHandle || shapeBusy() || !editorReady()) return;
-    setShapeBusy(true);
+  async function insertWhiteboard(tool: DrawingTool): Promise<void> {
+    if (!editorHandle || !editorReady() || props.loading || sourceMode() || whiteboardBusy()) return;
+    setWhiteboardBusy(true);
     try {
-      const svg = createShapeSvg(tool, color);
-      const file = new File([svg], "figura.svg", { type: "image/svg+xml" });
-      const imported = await importImageForEditor(document.path, file);
-      editorHandle.insertAsset(imported.dataUrl, imported.relativePath, "Figura");
-      const label = SHAPE_TOOLS.find((item) => item.id === tool)?.label ?? "Figura";
-      notifySuccess("Figura insertada", label);
+      await editorHandle.insertWhiteboard(tool);
     } catch (error) {
-      notifyError("No se pudo insertar la figura", error);
+      notifyError("No se pudo crear la pizarra", error);
     } finally {
-      setShapeBusy(false);
+      setWhiteboardBusy(false);
     }
   }
 
@@ -237,12 +220,11 @@ export function EditorPane(props: EditorPaneProps) {
                   sourceMode={sourceMode()}
                   ready={editorReady()}
                   imageBusy={imageBusy()}
-                  shapeBusy={shapeBusy()}
+                  whiteboardBusy={whiteboardBusy()}
                   status={statusLabel(props.status)}
                   onApplyBlock={applyBlockType}
                   onChooseImage={() => void chooseImage()}
-                  onInsertShape={(tool, color) => void insertShape(tool, color)}
-                  onAddText={addTextBlock}
+                  onInsertWhiteboard={(tool) => void insertWhiteboard(tool)}
                   onToggleSource={() => setSourceMode((value) => !value)}
                 />
               </div>

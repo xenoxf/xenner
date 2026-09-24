@@ -100,6 +100,24 @@ function shapeToSvg(shape: DrawingShape): string {
   }
 }
 
+export function drawingFromDataUrl(dataUrl: string): string {
+  const base64 = dataUrl.split(",", 2)[1];
+  if (!base64) return "";
+  const binary = atob(base64);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+export function drawingToDataUrl(svg: string): string {
+  const bytes = new TextEncoder().encode(svg);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return `data:image/svg+xml;base64,${btoa(binary)}`;
+}
+
 export function serializeDrawing(shapes: DrawingShape[]): string {
   const body = shapes.map(shapeToSvg).join("");
   const markers = shapes

@@ -9,6 +9,7 @@ import {
   wrapInOrderedListCommand,
 } from "@milkdown/kit/preset/commonmark";
 import { createParagraphNear } from "@milkdown/kit/prose/commands";
+import { TextSelection } from "@milkdown/kit/prose/state";
 import { replaceAll } from "@milkdown/kit/utils";
 import { imageBlockSchema } from "@milkdown/kit/component/image-block";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
@@ -23,7 +24,13 @@ import {
 import { notifyError, notifySuccess } from "../../services/toastService";
 import { leaveEditor } from "../../services/editorSession";
 import { createDrawingId, serializeDrawing } from "../../editor/drawing";
-import { DEFAULT_TEXT_COLOR, normalizeTextColor, textColorMark, textColorRemark } from "../../editor/text-color";
+import {
+  DEFAULT_TEXT_BACKGROUND,
+  DEFAULT_TEXT_COLOR,
+  normalizeTextColor,
+  textColorMark,
+  textColorRemark,
+} from "../../editor/text-color";
 import { whiteboardNode, whiteboardRemark } from "../../editor/whiteboard-node";
 import styles from "../../styles/components/MarkdownEditor.module.css";
 import type { DrawingTool } from "../../types/drawing";
@@ -42,7 +49,16 @@ const WHITEBOARD_SLASH_ICON = `
 const TEXT_COLOR_TOOLBAR_ICON = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
     stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M5 5h14M12 5v9M8.5 18h7M6.5 15.5h11" />
+    <path d="m14.6 17.9-1.3-1.3a1 1 0 0 1 0-1.4l1.4-1.4a1 1 0 0 1 1.4 0l1.3 1.3a1 1 0 0 1 0 1.4l-1.4 1.4a1 1 0 0 1-1.4 0Z" />
+    <path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM15 5l4 4" />
+  </svg>
+`;
+
+const TEXT_BACKGROUND_TOOLBAR_ICON = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m4 16 8-8 4 4-8 8H4v-4Z" />
+    <path d="m12 8 4-4 4 4-4 4M4 20h16" />
   </svg>
 `;
 
@@ -61,6 +77,8 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   let root: HTMLDivElement | undefined;
   let crepe: CrepeInstance | null = null;
   let textColorInput: HTMLInputElement | undefined;
+  let textBackgroundInput: HTMLInputElement | undefined;
+  let pendingTextSelection: { from: number; to: number } | null = null;
   let disposed = false;
   let lastReloadToken = props.reloadToken;
   let prepared: PreparedMarkdown = {
@@ -71,18 +89,48 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   let insertWhiteboardCommand: ((tool: DrawingTool) => Promise<void>) | null = null;
   let insertingWhiteboard = false;
 
-  function applyTextColorValue(value: string): boolean {
+  function captureTextSelection(): void {
+    if (!crepe) return;
+    const { from, to } = crepe.editor.ctx.get(editorViewCtx).state.selection;
+    pendingTextSelection = from === to ? null : { from, to };
+  }
+
+  function openTextStylePicker(input: HTMLInputElement | undefined): void {
+    if (!input) return;
+    captureTextSelection();
+    input.click();
+  }
+
+  function applyTextStyleValue(target: "color" | "background", value: string): boolean {
     if (!crepe) return false;
     const normalized = normalizeTextColor(value);
     if (!normalized) return false;
     const view = crepe.editor.ctx.get(editorViewCtx);
-    const { from, to } = view.state.selection;
+    const selection = pendingTextSelection ?? view.state.selection;
+    const { from, to } = selection;
     if (from === to) return false;
+
     const markType = textColorMark.type(crepe.editor.ctx);
-    const transaction = view.state.tr.removeMark(from, to, markType);
-    transaction.addMark(from, to, markType.create({ color: normalized }));
+    let currentColor = "";
+    let currentBackground = "";
+    view.state.doc.nodesBetween(from, to, (node) => {
+      if (!node.isText) return;
+      const mark = node.marks.find((candidate) => candidate.type === markType);
+      if (!mark) return;
+      if (!currentColor) currentColor = normalizeTextColor(mark.attrs.color) ?? "";
+      if (!currentBackground) currentBackground = normalizeTextColor(mark.attrs.background) ?? "";
+    });
+    const attrs = target === "color"
+      ? { color: normalized, background: currentBackground }
+      : { color: currentColor, background: normalized };
+    const transaction = view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to));
+    transaction.removeMark(from, to, markType);
+    if (attrs.color || attrs.background) {
+      transaction.addMark(from, to, markType.create(attrs));
+    }
     view.dispatch(transaction.scrollIntoView());
     view.focus();
+    pendingTextSelection = null;
     return true;
   }
 
@@ -198,12 +246,20 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           },
           [Crepe.Feature.Toolbar]: {
             buildToolbar(builder) {
-              builder.addGroup("appearance", "Apariencia").addItem("text-color", {
-                icon: TEXT_COLOR_TOOLBAR_ICON,
-                label: "Color de texto",
-                active: () => false,
-                onRun: () => textColorInput?.click(),
-              });
+              builder
+                .addGroup("appearance", "Apariencia")
+                .addItem("text-color", {
+                  icon: TEXT_COLOR_TOOLBAR_ICON,
+                  label: "Color de texto",
+                  active: () => false,
+                  onRun: () => openTextStylePicker(textColorInput),
+                })
+                .addItem("text-background", {
+                  icon: TEXT_BACKGROUND_TOOLBAR_ICON,
+                  label: "Fondo del texto",
+                  active: () => false,
+                  onRun: () => openTextStylePicker(textBackgroundInput),
+                });
             },
           },
           [Crepe.Feature.ImageBlock]: {
@@ -360,7 +416,16 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         value={DEFAULT_TEXT_COLOR}
         tabIndex={-1}
         aria-label="Color del texto seleccionado"
-        onInput={(event) => applyTextColorValue(event.currentTarget.value)}
+        onInput={(event) => applyTextStyleValue("color", event.currentTarget.value)}
+      />
+      <input
+        ref={(element) => (textBackgroundInput = element)}
+        class="sr-only"
+        type="color"
+        value={DEFAULT_TEXT_BACKGROUND}
+        tabIndex={-1}
+        aria-label="Fondo del texto seleccionado"
+        onInput={(event) => applyTextStyleValue("background", event.currentTarget.value)}
       />
       <Show when={!ready() && !error()}>
         <div class={styles.loading} role="status">

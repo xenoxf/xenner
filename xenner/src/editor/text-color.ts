@@ -1,13 +1,15 @@
 import { $markSchema, $remark } from "@milkdown/kit/utils";
 
 export const DEFAULT_TEXT_COLOR = "#2563eb";
+export const DEFAULT_TEXT_BACKGROUND = "#fef3c7";
 
 interface MarkdownNode {
   type: string;
   value?: string;
   children?: MarkdownNode[];
   data?: {
-    color?: string;
+    color?: string | null;
+    background?: string | null;
   };
 }
 
@@ -15,7 +17,8 @@ interface TextColorNode extends MarkdownNode {
   type: "textColor";
   children: MarkdownNode[];
   data: {
-    color: string;
+    color?: string | null;
+    background?: string | null;
   };
 }
 
@@ -41,8 +44,20 @@ type TextColorHandler = (
 export const textColorToMarkdown = {
   handlers: {
     textColor: ((node, _parent, state) => {
-      const color = normalizeTextColor(node.data?.color) ?? DEFAULT_TEXT_COLOR;
-      const before = `<span data-xenner-color="${color}" style="color:${color}">`;
+      const color = normalizeTextColor(node.data?.color);
+      const background = normalizeTextColor(node.data?.background);
+      const attributes: string[] = [];
+      const styles: string[] = [];
+      if (color) {
+        attributes.push(`data-xenner-color="${color}"`);
+        styles.push(`color:${color}`);
+      }
+      if (background) {
+        attributes.push(`data-xenner-background="${background}"`);
+        styles.push(`background-color:${background}`);
+      }
+      if (!attributes.length) return state.containerPhrasing(node, { before: "", after: "" });
+      const before = `<span ${attributes.join(" ")}${styles.length ? ` style="${styles.join(";")}"` : ""}>`;
       const content = state.containerPhrasing(node, { before: "", after: "" });
       return `${before}${content}</span>`;
     }) satisfies TextColorHandler,
@@ -65,19 +80,26 @@ function isHtml(node: MarkdownNode): node is MarkdownNode & { value: string } {
   return node.type === "html" && typeof node.value === "string";
 }
 
-function colorSpanValue(node: MarkdownNode): string | null {
+function textStyleSpanValue(node: MarkdownNode): { color: string | null; background: string | null } | null {
   if (!isHtml(node)) return null;
   const value = node.value.trim();
   if (!/^<span\b[^>]*>$/i.test(value)) return null;
 
   const dataColor = /\bdata-xenner-color\s*=\s*(["'])(#[0-9a-f]{3,8})\1/i.exec(value);
-  if (dataColor) return normalizeTextColor(dataColor[2]);
-
+  const dataBackground = /\bdata-xenner-background\s*=\s*(["'])(#[0-9a-f]{3,8})\1/i.exec(value);
   const style = /\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(value);
   const styleValue = style?.[1] ?? style?.[2];
-  if (!styleValue) return null;
-  const color = /(?:^|;)\s*color\s*:\s*(#[0-9a-f]{3,8})/i.exec(styleValue);
-  return normalizeTextColor(color?.[1]);
+  const styleColor = styleValue
+    ? /(?:^|;)\s*color\s*:\s*(#[0-9a-f]{3,8})/i.exec(styleValue)
+    : null;
+  const styleBackground = styleValue
+    ? /(?:^|;)\s*background(?:-color)?\s*:\s*(#[0-9a-f]{3,8})/i.exec(styleValue)
+    : null;
+  const color = normalizeTextColor(dataColor?.[2]) ?? normalizeTextColor(styleColor?.[1]);
+  const background =
+    normalizeTextColor(dataBackground?.[2]) ?? normalizeTextColor(styleBackground?.[1]);
+  if (!color && !background) return null;
+  return { color, background };
 }
 
 function isClosingSpan(node: MarkdownNode): boolean {
@@ -95,8 +117,8 @@ function transformTextColorChildren(parent: MarkdownNode): void {
 
   for (let index = 0; index < source.length; index += 1) {
     const child = source[index];
-    const color = colorSpanValue(child);
-    if (!color) {
+    const style = textStyleSpanValue(child);
+    if (!style) {
       transformTextColorChildren(child);
       transformed.push(child);
       continue;
@@ -119,7 +141,7 @@ function transformTextColorChildren(parent: MarkdownNode): void {
     const children = source.slice(index + 1, closingIndex);
     const marked: TextColorNode = {
       type: "textColor",
-      data: { color },
+      data: style,
       children,
     };
     transformTextColorChildren(marked);
@@ -147,34 +169,47 @@ export const textColorRemark = $remark("xennerTextColor", () => remarkTextColor)
 export const textColorMark = $markSchema("textColor", () => ({
   attrs: {
     color: {
-      default: DEFAULT_TEXT_COLOR,
+      default: "",
+      validate: "string",
+    },
+    background: {
+      default: "",
       validate: "string",
     },
   },
   parseDOM: [
     {
-      tag: "span[data-xenner-color]",
+      tag: "span[data-xenner-color], span[data-xenner-background]",
       getAttrs: (dom) => ({
-        color: normalizeTextColor(dom.getAttribute("data-xenner-color")) ?? DEFAULT_TEXT_COLOR,
+        color: normalizeTextColor(dom.getAttribute("data-xenner-color")) ?? "",
+        background: normalizeTextColor(dom.getAttribute("data-xenner-background")) ?? "",
       }),
     },
   ],
   toDOM: (mark) => {
-    const color = normalizeTextColor(mark.attrs.color) ?? DEFAULT_TEXT_COLOR;
-    return [
-      "span",
-      {
-        "data-xenner-color": color,
-        style: `color:${color}`,
-      },
-      0,
-    ];
+    const color = normalizeTextColor(mark.attrs.color);
+    const background = normalizeTextColor(mark.attrs.background);
+    const attributes: Record<string, string> = {};
+    const styles: string[] = [];
+    if (color) {
+      attributes["data-xenner-color"] = color;
+      styles.push(`color:${color}`);
+    }
+    if (background) {
+      attributes["data-xenner-background"] = background;
+      styles.push(`background-color:${background}`);
+    }
+    if (styles.length) attributes.style = styles.join(";");
+    return ["span", attributes, 0];
   },
   parseMarkdown: {
     match: (node) => node.type === "textColor",
     runner: (state, node, markType) => {
-      const color = normalizeTextColor((node as unknown as TextColorNode).data?.color) ?? DEFAULT_TEXT_COLOR;
-      state.openMark(markType, { color });
+      const data = (node as unknown as TextColorNode).data ?? {};
+      state.openMark(markType, {
+        color: normalizeTextColor(data.color) ?? "",
+        background: normalizeTextColor(data.background) ?? "",
+      });
       state.next(node.children ?? []);
       state.closeMark(markType);
     },
@@ -182,8 +217,12 @@ export const textColorMark = $markSchema("textColor", () => ({
   toMarkdown: {
     match: (node) => node.type.name === "textColor",
     runner: (state, mark) => {
-      const color = normalizeTextColor(mark.attrs.color) ?? DEFAULT_TEXT_COLOR;
-      state.withMark(mark, "textColor", undefined, { data: { color } });
+      state.withMark(mark, "textColor", undefined, {
+        data: {
+          color: normalizeTextColor(mark.attrs.color) ?? "",
+          background: normalizeTextColor(mark.attrs.background) ?? "",
+        },
+      });
     },
   },
 }));

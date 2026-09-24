@@ -46,6 +46,7 @@ export default function App() {
         expandedPaths={getExpandedPaths()}
         creation={explorer.creation()}
         creating={explorer.creating()}
+        canPaste={Boolean(explorer.cutPath())}
         legacyNoteCount={explorer.legacyNotes().length}
         legacyIssue={explorer.legacyIssue()}
         onChooseWorkspace={() => void chooseWorkspace()}
@@ -60,6 +61,10 @@ export default function App() {
         onToggle={toggleFolder}
         onRename={(path) => void explorer.rename(path)}
         onDelete={(path) => void explorer.remove(path)}
+        onMove={(path, parent) => void explorer.move(path, parent)}
+        onCopyMarkdown={(path) => void explorer.copyMarkdown(path)}
+        onCut={(path) => explorer.cut(path)}
+        onPaste={(parent) => void explorer.paste(parent)}
       />
 
       <EditorPane

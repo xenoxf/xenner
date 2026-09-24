@@ -231,10 +231,15 @@
 .editor :global(.milkdown-slash-menu) {
   position: absolute;
   z-index: 25;
-  display: block;
+  display: flex;
   width: min(292px, calc(100vw - 32px));
   max-height: min(430px, calc(100vh - 110px));
-  overflow: hidden;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: var(--skin-toolbar-textDim) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
   color: var(--skin-toolbar-text);
   font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
   background-color: var(--skin-toolbar-background);
@@ -289,11 +294,30 @@
 }
 
 .editor :global(.milkdown-slash-menu .menu-groups) {
+  min-height: 0;
   max-height: 360px;
+  flex: 1 1 auto;
   padding: 0 5px 5px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-color: var(--skin-toolbar-textDim) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.editor :global(.milkdown-slash-menu .menu-groups::-webkit-scrollbar) {
+  width: 5px;
+}
+
+.editor :global(.milkdown-slash-menu .menu-groups::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+.editor :global(.milkdown-slash-menu .menu-groups::-webkit-scrollbar-thumb) {
+  background: var(--skin-toolbar-textDim);
+  border-radius: 999px;
 }
 
 .editor :global(.milkdown-slash-menu .menu-group + .menu-group) {

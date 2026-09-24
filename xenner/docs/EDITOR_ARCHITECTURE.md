@@ -14,13 +14,16 @@
 - Las carpetas organizan notas; el título de una nota es exactamente el nombre
   de su archivo Markdown, sin la extensión técnica `.md`. Editar el título
   renombra el archivo.
+- Las notas y carpetas se pueden arrastrar dentro del explorer o mover con el
+  menú contextual (`Cortar` y `Pegar`). Al mover una nota se copian sus assets
+  relativos al nuevo nivel para que el Markdown siga funcionando.
 - El contenido enriquecido se escribe como Markdown, no como JSON oculto.
 - Imágenes y dibujos se guardan como recursos relativos a la biblioteca.
 - Los dibujos visuales usan SVG editable. El Markdown solo contiene una
   referencia Markdown a ese SVG, por ejemplo:
 
   ```md
-  ![Diagrama del proyecto](Idea.assets/diagrama.svg)
+  ![Diagrama del proyecto](.assets/diagrama.svg)
   ```
 
 ## 2. Código de barras permitido
@@ -61,7 +64,7 @@ principales son:
 - escanear carpetas y archivos Markdown sin seguir symlinks;
 - leer con límite de tamaño;
 - crear carpeta o nota;
-- renombrar y eliminar con confirmación en la UI;
+- renombrar, mover y eliminar con confirmación en la UI;
 - guardar de forma atómica;
 - importar recursos dentro de la biblioteca.
 
@@ -74,7 +77,8 @@ los componentes internos.
 - Las rutas públicas del frontend son relativas y usan `/` como separador.
 - Se rechazan rutas absolutas, `..`, componentes vacíos, controles y NUL.
 - La raíz y cada padre se canonicalizan y se comprueba containment.
-- No se siguen symlinks durante scan, lectura, escritura o rename.
+- No se siguen symlinks durante scan, lectura, escritura, rename o move.
+- Las entradas internas `.assets` no se muestran ni se mueven directamente.
 - Los nombres se validan también contra ambiguidades de Windows.
 - El I/O pesado se ejecuta con `spawn_blocking`.
 - El contenido de notas tiene un límite de tamaño antes de escribir.

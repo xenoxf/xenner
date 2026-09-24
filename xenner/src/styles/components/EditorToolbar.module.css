@@ -122,8 +122,10 @@
   z-index: 30;
   bottom: calc(100% + 10px);
   left: 0;
+  display: flex;
   width: min(292px, calc(100vw - 32px));
   max-height: min(430px, calc(100vh - 110px));
+  flex-direction: column;
   overflow: hidden;
   color: var(--skin-toolbar-text);
   background-color: var(--skin-toolbar-background);
@@ -163,11 +165,33 @@
   font-size: 12px;
 }
 
-.menuGroup {
-  max-height: 340px;
-  padding: 0 6px 6px;
+.menuResults {
+  min-height: 0;
+  max-height: 360px;
+  flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-color: var(--skin-toolbar-textDim) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.menuResults::-webkit-scrollbar {
+  width: 5px;
+}
+
+.menuResults::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.menuResults::-webkit-scrollbar-thumb {
+  background: var(--skin-toolbar-textDim);
+  border-radius: 999px;
+}
+
+.menuGroup {
+  padding: 0 6px 6px;
 }
 
 .menuGroup + .menuGroup {

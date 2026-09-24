@@ -4,7 +4,8 @@ Editor de notas desktop construido con Tauri 2, SolidJS y TypeScript.
 
 Xenner trabaja con una biblioteca local de archivos Markdown:
 
-- explorer jerárquico con carpetas, páginas Markdown y eliminación;
+- explorer jerárquico con carpetas, páginas Markdown, arrastre para mover y
+  menú contextual;
 - título igual al nombre del archivo, renombrado desde el editor, autoguardado y
   apertura automática de una nota sin título cuando la biblioteca está vacía;
 - editor visual Milkdown/Crepe con encabezados, listas, tareas, tablas, código,

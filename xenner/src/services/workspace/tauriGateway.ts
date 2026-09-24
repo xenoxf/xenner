@@ -86,6 +86,10 @@ export class TauriWorkspaceGateway implements WorkspaceGateway {
     return invokeWorkspace("rename_entry", { relativePath, name });
   }
 
+  moveEntry(relativePath: string, targetParent: string): Promise<string> {
+    return invokeWorkspace("move_entry", { relativePath, targetParent });
+  }
+
   async deleteEntry(relativePath: string): Promise<void> {
     await invokeWorkspace("delete_entry", { relativePath });
   }

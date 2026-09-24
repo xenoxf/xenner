@@ -13,10 +13,12 @@ fn main() {
             "choose_image_asset",
             "read_asset",
             "update_asset",
+            "delete_asset",
             "write_note",
             "create_note",
             "create_folder",
             "rename_entry",
+            "move_entry",
             "delete_entry",
         ]),
     ))

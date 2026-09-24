@@ -87,11 +87,6 @@
   color: var(--skin-note-text);
 }
 
-.settingLabel span {
-  color: var(--skin-sidebar-textDim);
-  font-size: 12px;
-}
-
 .input {
   min-height: 34px;
   padding: 6px 10px;

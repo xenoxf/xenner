@@ -158,7 +158,11 @@ export function previewEntry(state: PreviewState, path: string): VaultEntry {
 
 export function assertPreviewParent(state: PreviewState, parent: string): void {
   assertSafeRelativePath(parent, true);
-  if (parent) previewEntry(state, parent);
+  if (!parent) return;
+  const entry = previewEntry(state, parent);
+  if (entry.kind !== "directory") {
+    throw vaultError("invalidPath", "El destino no es una carpeta");
+  }
 }
 
 export function previewScan(state: PreviewState): WorkspaceScan {

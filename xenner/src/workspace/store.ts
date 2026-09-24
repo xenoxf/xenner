@@ -503,6 +503,51 @@ export async function renameEntry(path: string, name: string): Promise<string | 
   }
 }
 
+export async function moveEntry(path: string, targetParent: string): Promise<string | null> {
+  if (!(await leaveEditor())) return null;
+  if (!(await flushPendingSave())) return null;
+  const entry = workspace()?.entries.find((candidate) => candidate.path === path);
+  const sourceParent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  if (!entry) {
+    setWorkspaceError({ code: "notFound", message: "La entrada ya no existe" });
+    return null;
+  }
+  if (sourceParent === targetParent) return path;
+  if (
+    entry.kind === "directory" &&
+    (targetParent === path || targetParent.startsWith(`${path}/`))
+  ) {
+    setWorkspaceError({ code: "invalidPath", message: "No se puede mover una carpeta dentro de sí misma" });
+    return null;
+  }
+
+  const previousSelection = selectedPath();
+  try {
+    const nextPath = await gateway.moveEntry(path, targetParent);
+    await refreshWorkspace();
+    setExpandedPaths((previous) => {
+      const next = new Set<string>();
+      for (const expandedPath of previous) {
+        if (expandedPath === path) next.add(nextPath);
+        else if (expandedPath.startsWith(`${path}/`)) {
+          next.add(`${nextPath}${expandedPath.slice(path.length)}`);
+        } else next.add(expandedPath);
+      }
+      return next;
+    });
+    if (previousSelection && isPathInside(previousSelection, path)) {
+      const nextSelectedPath = `${nextPath}${previousSelection.slice(path.length)}`;
+      await selectNote(nextSelectedPath);
+    }
+    if (targetParent) expandFolder(targetParent);
+    setWorkspaceError(null);
+    return nextPath;
+  } catch (error) {
+    setWorkspaceError(errorMessage(error));
+    return null;
+  }
+}
+
 export async function deleteEntry(path: string): Promise<boolean> {
   if (!(await leaveEditor())) return false;
   if (!(await flushPendingSave())) return false;

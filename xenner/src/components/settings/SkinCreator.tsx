@@ -52,7 +52,6 @@ export function SkinCreator(props: SkinCreatorProps) {
       <div class={styles.settingGroup}>
         <label class={styles.settingLabel} for="skin-name">
           <strong>Nombre de la skin</strong>
-          <span>Se convierte en un identificador seguro.</span>
         </label>
         <input
           id="skin-name"
@@ -66,7 +65,6 @@ export function SkinCreator(props: SkinCreatorProps) {
       <div class={styles.settingGroup}>
         <span class={styles.settingLabel}>
           <strong>Modo base</strong>
-          <span>Define la paleta inicial de la skin.</span>
         </span>
         <div class={styles.segmented} role="radiogroup" aria-label="Modo base">
           <button
@@ -90,7 +88,6 @@ export function SkinCreator(props: SkinCreatorProps) {
       <div class={styles.settingGroup}>
         <label class={styles.settingLabel} for="skin-accent">
           <strong>Color de acento</strong>
-          <span>Se usa en selección, foco y enlaces.</span>
         </label>
         <input
           id="skin-accent"
@@ -103,7 +100,6 @@ export function SkinCreator(props: SkinCreatorProps) {
       <div class={styles.settingGroup}>
         <label class={styles.settingLabel} for="skin-radius">
           <strong>Radio de superficies</strong>
-          <span>De 0 a 32 píxeles.</span>
         </label>
         <input
           id="skin-radius"
@@ -118,7 +114,6 @@ export function SkinCreator(props: SkinCreatorProps) {
       <div class={styles.settingGroup}>
         <label class={styles.settingLabel} for="skin-font">
           <strong>Tipografía</strong>
-          <span>Se escribe como una skin TXT editable.</span>
         </label>
         <select
           id="skin-font"

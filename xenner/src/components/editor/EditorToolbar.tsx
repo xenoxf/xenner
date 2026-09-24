@@ -224,34 +224,36 @@ export function EditorToolbar(props: EditorToolbarProps) {
               />
             </div>
             <Show when={visibleItems().length > 0} fallback={<p class={styles.emptyMenu}>No hay coincidencias</p>}>
-              <For each={groupedItems()}>
-                {(group) => (
-                  <section class={styles.menuGroup} role="group" aria-label={group.label}>
-                    <p>{group.label}</p>
-                    <For each={group.items}>
-                      {(item) => {
-                        const index = () => visibleItems().findIndex((candidate) => candidate.id === item.id);
-                        return (
-                          <button
-                            type="button"
-                            class={`${styles.menuItem} ${activeIndex() === index() ? styles.menuItemActive : ""}`}
-                            role="option"
-                            aria-selected={activeIndex() === index()}
-                            tabIndex={activeIndex() === index() ? 0 : -1}
-                            onPointerEnter={() => setActiveIndex(index())}
-                            onClick={() => runItem(item)}
-                            onKeyDown={(event) => moveMenuFocus(event, index())}
-                          >
-                            <span class={styles.menuIcon}><ItemIcon id={item.id} /></span>
-                            <span>{item.label}</span>
-                            {item.id === "whiteboard" && <small>Dibuja con el lápiz</small>}
-                          </button>
-                        );
-                      }}
-                    </For>
-                  </section>
-                )}
-              </For>
+              <div class={styles.menuResults}>
+                <For each={groupedItems()}>
+                  {(group) => (
+                    <section class={styles.menuGroup} role="group" aria-label={group.label}>
+                      <p>{group.label}</p>
+                      <For each={group.items}>
+                        {(item) => {
+                          const index = () => visibleItems().findIndex((candidate) => candidate.id === item.id);
+                          return (
+                            <button
+                              type="button"
+                              class={`${styles.menuItem} ${activeIndex() === index() ? styles.menuItemActive : ""}`}
+                              role="option"
+                              aria-selected={activeIndex() === index()}
+                              tabIndex={activeIndex() === index() ? 0 : -1}
+                              onPointerEnter={() => setActiveIndex(index())}
+                              onClick={() => runItem(item)}
+                              onKeyDown={(event) => moveMenuFocus(event, index())}
+                            >
+                              <span class={styles.menuIcon}><ItemIcon id={item.id} /></span>
+                              <span>{item.label}</span>
+                              {item.id === "whiteboard" && <small>Dibuja con el lápiz</small>}
+                            </button>
+                          );
+                        }}
+                      </For>
+                    </section>
+                  )}
+                </For>
+              </div>
             </Show>
           </div>
         </Show>

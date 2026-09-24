@@ -46,7 +46,6 @@ export function SettingsModal(props: SettingsModalProps) {
           <div class={styles.brand}>
             <div>
               <strong>Configuración</strong>
-              <span>xenner</span>
             </div>
           </div>
           <nav class={styles.sections}>
@@ -59,12 +58,10 @@ export function SettingsModal(props: SettingsModalProps) {
                   onClick={() => setSection(item.id)}
                 >
                   <strong>{item.label}</strong>
-                  <span>{item.description}</span>
                 </button>
               )}
             </For>
           </nav>
-          <p class={styles.version}>Editor de archivos Markdown</p>
         </aside>
         <section class={styles.content}>
           <header class={styles.header}>
@@ -81,12 +78,6 @@ export function SettingsModal(props: SettingsModalProps) {
 
           <Show when={section() === "appearance"}>
             <div class={`${styles.sectionContent} ${styles.appearance}`}>
-              <div class={styles.sectionHeading}>
-                <div>
-                  <h3>Apariencia visual</h3>
-                  <p>Ajusta la interfaz y el ritmo de lectura sin cambiar tus archivos.</p>
-                </div>
-              </div>
               <Show
                 when={props.activeSkin === ""}
                 fallback={
@@ -99,7 +90,6 @@ export function SettingsModal(props: SettingsModalProps) {
                 <div class={styles.settingGroup}>
                   <div class={styles.settingLabel}>
                     <strong>Modo de color</strong>
-                    <span>La skin seleccionada puede cambiarlo sin tocar el contenido.</span>
                   </div>
                   <div class={styles.themeSwitcher} role="radiogroup" aria-label="Modo de color">
                     <For each={THEME_MODES}>
@@ -112,7 +102,6 @@ export function SettingsModal(props: SettingsModalProps) {
                           onClick={() => props.onAppearanceChange({ ...props.appearance, mode: mode.id })}
                         >
                           <strong>{mode.label}</strong>
-                          <span>{mode.description}</span>
                         </button>
                       )}
                     </For>
@@ -122,7 +111,6 @@ export function SettingsModal(props: SettingsModalProps) {
               <div class={styles.settingGroup}>
                 <label class={styles.settingLabel} for="ui-font">
                   <strong>Tipografía de la interfaz</strong>
-                  <span>Se usa en explorer, botones y configuración.</span>
                 </label>
                 <select
                   id="ui-font"
@@ -140,7 +128,6 @@ export function SettingsModal(props: SettingsModalProps) {
               <div class={styles.settingGroup}>
                 <label class={styles.settingLabel} for="editor-font">
                   <strong>Tipografía del editor</strong>
-                  <span>Tipografía independiente para el contenido Markdown.</span>
                 </label>
                 <select
                   id="editor-font"
@@ -214,7 +201,6 @@ export function SettingsModal(props: SettingsModalProps) {
               <div class={styles.sectionHeading}>
                 <div>
                   <h3>Skins instaladas</h3>
-                  <p>La skin activa se aplica inmediatamente y conserva el fallback seguro.</p>
                 </div>
               </div>
               <div class={styles.skinList}>
@@ -255,7 +241,6 @@ export function SettingsModal(props: SettingsModalProps) {
               <div class={styles.sectionHeading}>
                 <div>
                   <h3>Creador de skins</h3>
-                  <p>Genera una skin TXT segura y editable en AppLocalData.</p>
                 </div>
               </div>
               <SkinCreator onCreated={props.onSkinCreated} />

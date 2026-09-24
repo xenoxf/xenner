@@ -16,10 +16,12 @@
     "allow-choose-image-asset",
     "allow-read-asset",
     "allow-update-asset",
+    "allow-delete-asset",
     "allow-write-note",
     "allow-create-note",
     "allow-create-folder",
     "allow-rename-entry",
+    "allow-move-entry",
     "allow-delete-entry"
   ]
 }

@@ -18,6 +18,7 @@ export interface ExplorerSidebarProps {
   expandedPaths: ReadonlySet<string>;
   creation: CreationDraft | null;
   creating: boolean;
+  canPaste: boolean;
   legacyNoteCount: number;
   legacyIssue: string | null;
   onChooseWorkspace(): void;
@@ -32,6 +33,10 @@ export interface ExplorerSidebarProps {
   onToggle(path: string): void;
   onRename(path: string): void;
   onDelete(path: string): void;
+  onMove(path: string, targetParent: string): void;
+  onCopyMarkdown(path: string): void;
+  onCut(path: string): void;
+  onPaste(parent: string): void;
 }
 
 export function ExplorerSidebar(props: ExplorerSidebarProps) {
@@ -153,6 +158,7 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
             expandedPaths={props.expandedPaths}
             creation={props.creation}
             busy={props.creating}
+            canPaste={props.canPaste}
             onSelect={props.onSelect}
             onToggle={props.onToggle}
             onStartCreation={props.onStartCreation}
@@ -160,6 +166,10 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
             onCancelCreation={props.onCancelCreation}
             onRename={props.onRename}
             onDelete={props.onDelete}
+            onMove={props.onMove}
+            onCopyMarkdown={props.onCopyMarkdown}
+            onCut={props.onCut}
+            onPaste={props.onPaste}
           />
         </Show>
       </div>

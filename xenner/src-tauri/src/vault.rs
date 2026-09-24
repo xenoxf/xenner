@@ -10,6 +10,7 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use blake3::Hasher;
 use serde::Serialize;
+use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
@@ -1147,6 +1148,249 @@ fn rename_entry_blocking(
     Ok(relative_join(parent_relative_path, &name))
 }
 
+fn referenced_asset_names(markdown: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let mut offset = 0usize;
+    while let Some(relative) = markdown[offset..].find(".assets/") {
+        let start = offset + relative + ASSET_DIRECTORY.len() + 1;
+        let rest = &markdown[start..];
+        let end = rest
+            .find(|character: char| character.is_whitespace() || ")]>\"'?&".contains(character))
+            .unwrap_or(rest.len());
+        let name = &rest[..end];
+        if !name.is_empty() && !name.contains('/') && asset_extension(name).is_ok() {
+            names.insert(name.to_string());
+        }
+        offset = start + end.max(1);
+        if offset >= markdown.len() {
+            break;
+        }
+    }
+    names
+}
+
+fn parent_notes_reference(parent: &Path, asset_name: &str) -> bool {
+    let Ok(entries) = fs::read_dir(parent) else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        if !entry
+            .file_type()
+            .map(|kind| kind.is_file())
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        let path = entry.path();
+        if !path
+            .extension()
+            .and_then(OsStr::to_str)
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+        {
+            continue;
+        }
+        let Ok(bytes) = fs::read(&path) else {
+            continue;
+        };
+        if bytes.len() as u64 > MAX_NOTE_BYTES {
+            continue;
+        }
+        let Ok(content) = String::from_utf8(bytes) else {
+            continue;
+        };
+        if referenced_asset_names(&content).contains(asset_name) {
+            return true;
+        }
+    }
+    false
+}
+
+fn cleanup_moved_assets(parent: &Path, names: &BTreeSet<String>) {
+    let asset_directory = parent.join(ASSET_DIRECTORY);
+    for name in names {
+        let path = asset_directory.join(name);
+        if is_plain_file(&path) && !parent_notes_reference(parent, name) {
+            let _ = fs::remove_file(path);
+        }
+    }
+}
+
+fn cleanup_copied_assets(files: &[PathBuf], created_directory: Option<&Path>) {
+    for path in files.iter().rev() {
+        let _ = fs::remove_file(path);
+    }
+    if let Some(directory) = created_directory {
+        let _ = fs::remove_dir(directory);
+    }
+}
+
+fn copy_assets_for_note_move(
+    source: &Path,
+    target_parent: &Path,
+    asset_names: &BTreeSet<String>,
+) -> Result<(Vec<PathBuf>, Option<PathBuf>), VaultError> {
+    let source_directory = source
+        .parent()
+        .map(|parent| parent.join(ASSET_DIRECTORY))
+        .ok_or_else(|| invalid_path("la nota no tiene una carpeta padre"))?;
+    if asset_names.is_empty() {
+        return Ok((Vec::new(), None));
+    }
+    let source_metadata = match fs::symlink_metadata(&source_directory) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return Ok((Vec::new(), None));
+        }
+        Err(error) => return Err(error.into()),
+    };
+    if !source_metadata.file_type().is_dir() || source_metadata.file_type().is_symlink() {
+        return Err(invalid_path("la carpeta de assets de origen no es normal"));
+    }
+
+    let target_directory = target_parent.join(ASSET_DIRECTORY);
+    let target_metadata = fs::symlink_metadata(&target_directory);
+    let created_directory = match target_metadata {
+        Ok(metadata) => {
+            if !metadata.file_type().is_dir() || metadata.file_type().is_symlink() {
+                return Err(invalid_path("la carpeta de assets de destino no es normal"));
+            }
+            None
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            fs::create_dir(&target_directory)?;
+            Some(target_directory.clone())
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let canonical_target = fs::canonicalize(&target_directory)?;
+    if !canonical_target.starts_with(target_parent) {
+        if let Some(directory) = &created_directory {
+            let _ = fs::remove_dir(directory);
+        }
+        return Err(invalid_path("la carpeta de assets escapa del destino"));
+    }
+
+    let mut copied = Vec::new();
+    let result = (|| -> Result<(), VaultError> {
+        for name in asset_names {
+            let source_file = source_directory.join(name);
+            if !is_plain_file(&source_file) {
+                continue;
+            }
+            validate_name(name)?;
+            let target_file = target_directory.join(name);
+            let target_file_metadata = fs::symlink_metadata(&target_file);
+            match target_file_metadata {
+                Ok(metadata) => {
+                    if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+                        return Err(invalid_path("un asset de destino no es normal"));
+                    }
+                    if metadata.len() > MAX_ASSET_BYTES as u64
+                        || fs::metadata(&source_file)?.len() > MAX_ASSET_BYTES as u64
+                    {
+                        return Err(VaultError::new("tooLarge", "el asset es demasiado grande"));
+                    }
+                    if fs::read(&source_file)? != fs::read(&target_file)? {
+                        return Err(conflict("un asset de destino tiene contenido diferente"));
+                    }
+                }
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                    let bytes = fs::read(&source_file)?;
+                    if bytes.len() > MAX_ASSET_BYTES {
+                        return Err(VaultError::new("tooLarge", "el asset es demasiado grande"));
+                    }
+                    write_bytes_atomically(&target_file, &bytes)?;
+                    copied.push(target_file.clone());
+                }
+                Err(error) => return Err(error.into()),
+            }
+        }
+        Ok(())
+    })();
+
+    if let Err(error) = result {
+        cleanup_copied_assets(&copied, created_directory.as_deref());
+        return Err(error);
+    }
+    Ok((copied, created_directory))
+}
+
+fn move_entry_blocking(
+    root: PathBuf,
+    relative_path: String,
+    target_parent: String,
+) -> Result<String, VaultError> {
+    let path = safe_existing_entry(&root, &relative_path)?;
+    let kind = existing_entry_kind(&path);
+    let name = relative_path
+        .rsplit('/')
+        .next()
+        .ok_or_else(|| invalid_path("la entrada no tiene nombre"))?;
+    if kind != EntryKind::Directory && !name.to_ascii_lowercase().ends_with(".md") {
+        return Err(invalid_path("solo se pueden mover notas `.md`"));
+    }
+    if relative_path
+        .split('/')
+        .any(|component| component == ASSET_DIRECTORY)
+        || target_parent
+            .split('/')
+            .any(|component| component == ASSET_DIRECTORY)
+    {
+        return Err(invalid_path(
+            "no se pueden mover entradas internas de assets",
+        ));
+    }
+
+    let source_parent = parent_relative(&relative_path);
+    if source_parent == target_parent {
+        return Ok(relative_path);
+    }
+    if kind == EntryKind::Directory
+        && (target_parent == relative_path
+            || target_parent.starts_with(&format!("{relative_path}/")))
+    {
+        return Err(invalid_path(
+            "una carpeta no se puede mover dentro de sí misma",
+        ));
+    }
+
+    let target = resolve_directory(&root, &target_parent)?;
+    if path_exists_case_insensitive(&target, name) {
+        return Err(VaultError::new(
+            "alreadyExists",
+            "ya existe una entrada con ese nombre",
+        ));
+    }
+    let moved_assets = if kind == EntryKind::Note {
+        let document = read_note_blocking(root.clone(), relative_path.clone())?;
+        referenced_asset_names(&document.body)
+    } else {
+        BTreeSet::new()
+    };
+    let (copied_assets, created_assets) = if kind == EntryKind::Note {
+        copy_assets_for_note_move(&path, &target, &moved_assets)?
+    } else {
+        (Vec::new(), None)
+    };
+    if path_exists_case_insensitive(&target, name) {
+        cleanup_copied_assets(&copied_assets, created_assets.as_deref());
+        return Err(VaultError::new(
+            "alreadyExists",
+            "ya existe una entrada con ese nombre",
+        ));
+    }
+    if let Err(error) = fs::rename(&path, target.join(name)) {
+        cleanup_copied_assets(&copied_assets, created_assets.as_deref());
+        return Err(error.into());
+    }
+    if kind == EntryKind::Note {
+        if let Some(source_parent) = path.parent() {
+            cleanup_moved_assets(source_parent, &moved_assets);
+        }
+    }
+    Ok(relative_join(&target_parent, name))
+}
+
 fn delete_entry_blocking(root: PathBuf, relative_path: String) -> Result<(), VaultError> {
     let path = safe_existing_entry(&root, &relative_path)?;
     if is_plain_directory(&path) {
@@ -1388,6 +1632,20 @@ pub async fn rename_entry(
 }
 
 #[tauri::command]
+pub async fn move_entry(
+    state: State<'_, VaultState>,
+    relative_path: String,
+    target_parent: String,
+) -> Result<String, VaultError> {
+    let root = root_from_state(&state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        move_entry_blocking(root, relative_path, target_parent)
+    })
+    .await
+    .map_err(|_| join_error())?
+}
+
+#[tauri::command]
 pub async fn delete_entry(
     state: State<'_, VaultState>,
     relative_path: String,
@@ -1493,6 +1751,67 @@ mod tests {
         assert_eq!(first.document.title, "Sin título");
         assert_eq!(second.document.title, "Sin título 2");
         assert_eq!(first.document.body, "");
+    }
+
+    #[test]
+    fn mueve_notas_y_conserva_sus_assets() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let root = directory.path().to_path_buf();
+        fs::create_dir(root.join("A")).expect("source folder");
+        fs::create_dir(root.join("B")).expect("target folder");
+        let note =
+            create_note_blocking(root.clone(), "A".into(), Some("Nota".into())).expect("note");
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" data-xenner-asset="safe"></svg>"#;
+        let imported = import_asset_blocking(
+            root.clone(),
+            note.entry.path.clone(),
+            "drawing.svg".into(),
+            BASE64.encode(svg.as_bytes()),
+        )
+        .expect("asset");
+        let unrelated_svg = r#"<svg xmlns="http://www.w3.org/2000/svg" data-xenner-asset="safe"><circle cx="1" cy="1" r="1" /></svg>"#;
+        let unrelated = import_asset_blocking(
+            root.clone(),
+            note.entry.path.clone(),
+            "unrelated.svg".into(),
+            BASE64.encode(unrelated_svg.as_bytes()),
+        )
+        .expect("unrelated asset");
+        let markdown = format!("![Dibujo]({})", imported.relative_path);
+        write_note_blocking(
+            root.clone(),
+            note.entry.path.clone(),
+            markdown,
+            note.document.revision,
+        )
+        .expect("reference asset");
+
+        let moved =
+            move_entry_blocking(root.clone(), note.entry.path.clone(), "B".into()).expect("move");
+        assert_eq!(moved, "B/Nota.md");
+        assert!(root.join("A/Nota.md").exists() == false);
+        assert!(root.join("B/Nota.md").exists());
+        assert!(!root
+            .join("A/.assets")
+            .join(imported.relative_path.trim_start_matches("./.assets/"))
+            .exists());
+        assert!(root
+            .join("A/.assets")
+            .join(unrelated.relative_path.trim_start_matches("./.assets/"))
+            .exists());
+        let asset = read_asset_blocking(root, "B/Nota.md".into(), imported.relative_path)
+            .expect("moved asset");
+        assert_eq!(asset.data_base64, BASE64.encode(svg.as_bytes()));
+    }
+
+    #[test]
+    fn rechaza_mover_una_carpeta_dentro_de_si_misma() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let root = directory.path().to_path_buf();
+        fs::create_dir_all(root.join("Tema/Sub")).expect("folders");
+        let error =
+            move_entry_blocking(root, "Tema".into(), "Tema/Sub".into()).expect_err("self move");
+        assert_eq!(error.code, "invalidPath");
     }
 
     #[test]

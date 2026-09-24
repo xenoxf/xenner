@@ -72,11 +72,6 @@
   outline-offset: 2px;
 }
 
-.sections button span {
-  color: var(--skin-sidebar-textDim);
-  font-size: 11px;
-}
-
 .version {
   margin: auto 8px 0;
 }
@@ -129,13 +124,7 @@
 }
 
 .sectionHeading h3 {
-  margin: 16px 0 4px;
-}
-
-.sectionHeading p {
-  max-width: 500px;
-  margin: 0;
-  color: var(--skin-sidebar-textDim);
+  margin: 0 0 12px;
 }
 
 .notice {
@@ -162,11 +151,6 @@
   flex-direction: column;
   gap: 2px;
   color: var(--skin-note-text);
-}
-
-.settingLabel span {
-  color: var(--skin-sidebar-textDim);
-  font-size: 12px;
 }
 
 .settingLabel output {
@@ -227,11 +211,6 @@
 .themeSwitcher button.active {
   background-color: var(--skin-sidebar-itemActive);
   border-color: var(--skin-input-focus);
-}
-
-.themeSwitcher button span {
-  color: var(--skin-sidebar-textDim);
-  font-size: 11px;
 }
 
 .skinList {

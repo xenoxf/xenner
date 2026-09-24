@@ -9,9 +9,10 @@ import type {
   WorkspaceScan,
   WriteAcknowledgement,
 } from "../../types/workspace";
-import { joinPath, replacePathName } from "../../workspace/tree";
+import { isPathInside, joinPath, replacePathName } from "../../workspace/tree";
 import { noteTitleFromPath, serializeNoteContent, splitNoteContent } from "../../workspace/note";
 import { vaultError } from "./errors";
+import type { PreviewDocument } from "./previewState";
 import {
   assertPreviewParent,
   assertSafeRelativePath,
@@ -251,6 +252,64 @@ export class PreviewWorkspaceGateway implements WorkspaceGateway {
         }
         return candidate;
       }),
+    });
+    return nextPath;
+  }
+
+  async moveEntry(relativePath: string, targetParent: string): Promise<string> {
+    assertSafeRelativePath(relativePath);
+    assertSafeRelativePath(targetParent, true);
+    const state = readPreviewState();
+    const entry = previewEntry(state, relativePath);
+    if (entry.kind === "note" && !entry.name.toLocaleLowerCase("es").endsWith(".md")) {
+      throw vaultError("invalidPath", "Solo se pueden mover notas `.md`");
+    }
+    if (
+      relativePath.split("/").some((part) => part === ".assets") ||
+      targetParent.split("/").some((part) => part === ".assets")
+    ) {
+      throw vaultError("invalidPath", "No se pueden mover entradas internas de assets");
+    }
+    assertPreviewParent(state, targetParent);
+    const sourceParent = relativePath.includes("/")
+      ? relativePath.slice(0, relativePath.lastIndexOf("/"))
+      : "";
+    if (sourceParent === targetParent) return relativePath;
+    if (
+      entry.kind === "directory" &&
+      (targetParent === relativePath || isPathInside(targetParent, relativePath))
+    ) {
+      throw vaultError("invalidPath", "No se puede mover una carpeta dentro de sí misma");
+    }
+
+    const nextPath = joinPath(targetParent, entry.name);
+    if (
+      state.entries.some(
+        (candidate) =>
+          candidate.path !== relativePath &&
+          candidate.path.toLocaleLowerCase("es") === nextPath.toLocaleLowerCase("es"),
+      )
+    ) {
+      throw vaultError("alreadyExists", "Ya existe una entrada con ese nombre");
+    }
+
+    const suffix = (candidate: string): string | null =>
+      candidate === relativePath || candidate.startsWith(`${relativePath}/`)
+        ? `${nextPath}${candidate.slice(relativePath.length)}`
+        : null;
+    const documents: Record<string, PreviewDocument> = {};
+    for (const [path, document] of Object.entries(state.documents)) {
+      const nextDocumentPath = suffix(path);
+      if (nextDocumentPath) documents[nextDocumentPath] = document;
+      else documents[path] = document;
+    }
+    writePreviewState({
+      ...state,
+      entries: state.entries.map((candidate) => {
+        const nextEntryPath = suffix(candidate.path);
+        return nextEntryPath ? { ...candidate, path: nextEntryPath } : candidate;
+      }),
+      documents,
     });
     return nextPath;
   }

@@ -96,5 +96,6 @@ export interface WorkspaceGateway {
   createNote(parent: string, name?: string): Promise<CreateNoteResult>;
   createFolder(parent: string, name: string): Promise<CreatedEntry>;
   renameEntry(relativePath: string, name: string): Promise<string>;
+  moveEntry(relativePath: string, targetParent: string): Promise<string>;
   deleteEntry(relativePath: string): Promise<void>;
 }

@@ -30,6 +30,7 @@ pub fn run() {
             vault::create_note,
             vault::create_folder,
             vault::rename_entry,
+            vault::move_entry,
             vault::delete_entry
         ])
         .run(tauri::generate_context!())

@@ -83,6 +83,8 @@ convierten en clases globales de aplicación.
 
 - `workspace/store.ts` conserva el estado reactivo y la cola de autoguardado; el
   nombre del archivo es la fuente del título y el input superior lo renombra.
+- El explorer usa drag-and-drop para mover entradas y un menú contextual para
+  copiar Markdown, cortar/pegar, renombrar, crear y eliminar.
 - `services/workspace/` separa selección de gateway, adaptador Tauri, preview
   browser, estado preview y normalización de errores.
 - `services/skinLoader.ts` mantiene la cadena de fallback y publica variables

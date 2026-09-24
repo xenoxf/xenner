@@ -16,6 +16,7 @@ import {
   PlusIcon,
   RefreshIcon,
   ShapesIcon,
+  TextIcon,
 } from "./Icons";
 import { NOTE_TITLE_MAX_LENGTH } from "../workspace/note";
 import type { NoteDocument, SaveStatus, VaultErrorShape } from "../workspace/types";
@@ -57,6 +58,7 @@ function displayName(path: string): string {
 
 export function EditorPane(props: EditorPaneProps) {
   const [drawingOpen, setDrawingOpen] = createSignal(false);
+  const [drawingTool, setDrawingTool] = createSignal<"select" | "pen">("select");
   const [editingDrawing, setEditingDrawing] = createSignal<SelectedEditorAsset | null>(null);
   const [drawingInitialSvg, setDrawingInitialSvg] = createSignal<string | undefined>(undefined);
   const [drawingBusy, setDrawingBusy] = createSignal(false);
@@ -98,8 +100,9 @@ export function EditorPane(props: EditorPaneProps) {
     imageInput?.click();
   }
 
-  function startDrawing(): void {
+  function startDrawing(tool: "select" | "pen" = "select"): void {
     closeInsertMenu();
+    setDrawingTool(tool);
     setDrawingError(null);
     setEditingDrawing(null);
     setDrawingInitialSvg(undefined);
@@ -154,6 +157,7 @@ export function EditorPane(props: EditorPaneProps) {
     setDrawingError(null);
     try {
       const svg = await readAssetForEditor(document.path, selected.relativePath);
+      setDrawingTool("select");
       setEditingDrawing(selected);
       setDrawingInitialSvg(svg);
       setDrawingOpen(true);
@@ -333,7 +337,7 @@ export function EditorPane(props: EditorPaneProps) {
                             class="asset-menu-item"
                             role="menuitem"
                             disabled={props.loading || drawingBusy() || sourceMode()}
-                            onClick={startDrawing}
+                            onClick={() => startDrawing("select")}
                           >
                             <span><ShapesIcon /></span>
                             Figura
@@ -351,7 +355,38 @@ export function EditorPane(props: EditorPaneProps) {
                         </div>
                       </Show>
                     </div>
-                    <span class="asset-dock-separator" aria-hidden="true" />
+                    <button
+                      type="button"
+                      class="asset-dock-button"
+                      disabled={props.loading || sourceMode()}
+                      aria-label="Texto rico"
+                      title="Texto rico"
+                      onClick={() => editorHandle?.focus()}
+                    >
+                      <TextIcon />
+                    </button>
+                    <button
+                      type="button"
+                      class="asset-dock-button"
+                      classList={{ busy: imageBusy() }}
+                      disabled={props.loading || imageBusy() || sourceMode()}
+                      aria-label="Insertar imagen"
+                      title="Insertar imagen"
+                      onClick={chooseImage}
+                    >
+                      <ImageIcon />
+                    </button>
+                    <button
+                      type="button"
+                      class="asset-dock-button"
+                      classList={{ busy: drawingBusy() }}
+                      disabled={props.loading || drawingBusy() || sourceMode()}
+                      aria-label="Dibujar"
+                      title="Dibujar"
+                      onClick={() => startDrawing("pen")}
+                    >
+                      <PencilIcon />
+                    </button>
                     <button
                       type="button"
                       class="asset-dock-button"
@@ -359,7 +394,7 @@ export function EditorPane(props: EditorPaneProps) {
                       disabled={props.loading || drawingBusy() || sourceMode()}
                       aria-label="Añadir figura"
                       title="Añadir figura"
-                      onClick={startDrawing}
+                      onClick={() => startDrawing("select")}
                     >
                       <ShapesIcon />
                     </button>
@@ -377,7 +412,6 @@ export function EditorPane(props: EditorPaneProps) {
                     >
                       <MarkdownIcon />
                     </button>
-                    <span class="asset-dock-separator" aria-hidden="true" />
                     <span
                       class="save-state"
                       data-status={props.status}
@@ -398,6 +432,7 @@ export function EditorPane(props: EditorPaneProps) {
       <Show when={drawingOpen()}>
         <DrawingModal
           initialSvg={drawingInitialSvg()}
+          initialTool={drawingTool()}
           title={editingDrawing() ? "Editar dibujo" : "Nuevo dibujo"}
           submitLabel={editingDrawing() ? "Guardar cambios" : "Insertar dibujo"}
           onSave={saveDrawing}

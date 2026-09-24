@@ -12,6 +12,7 @@ import {
 } from "../editor/assets";
 
 export interface MarkdownEditorHandle {
+  focus(): void;
   insertAsset(dataUrl: string, relativePath: string, alt?: string): void;
   getSelectedAsset(): SelectedEditorAsset | null;
   replaceAsset(
@@ -66,6 +67,11 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           [Crepe.Feature.Placeholder]: {
             text: "Escribe tu nota…",
             mode: "doc",
+          },
+          [Crepe.Feature.BlockEdit]: {
+            advancedGroup: {
+              image: null,
+            },
           },
           [Crepe.Feature.ImageBlock]: {
             onUpload: async (file) => {
@@ -132,6 +138,9 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
       };
 
       props.onReady?.({
+        focus() {
+          instance.editor.ctx.get(editorViewCtx).focus();
+        },
         insertAsset(dataUrl, relativePath, alt = "Dibujo") {
           prepared.replacements.set(dataUrl, relativePath);
           instance.editor.action(insert(`![${alt}](${dataUrl})`));

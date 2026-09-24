@@ -106,6 +106,14 @@ export function MarkdownIcon(props: IconProps) {
   );
 }
 
+export function TextIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M5 5h14M12 5v14M8 19h8" />
+    </svg>
+  );
+}
+
 export function TrashIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

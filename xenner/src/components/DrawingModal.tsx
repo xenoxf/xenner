@@ -2,7 +2,8 @@ import { createSignal, For, onMount, Show } from "solid-js";
 
 import { CloseIcon, TrashIcon } from "./Icons";
 
-type Tool = "select" | "pen" | "rect" | "ellipse" | "line" | "arrow" | "text";
+export type DrawingTool = "select" | "pen" | "rect" | "ellipse" | "line" | "arrow" | "text";
+type Tool = DrawingTool;
 type ShapeKind = Exclude<Tool, "select"> | "path";
 
 interface Point {
@@ -25,6 +26,7 @@ interface Shape {
 
 interface DrawingModalProps {
   initialSvg?: string;
+  initialTool?: DrawingTool;
   title?: string;
   submitLabel?: string;
   onSave(svg: string): void | Promise<void>;
@@ -265,7 +267,7 @@ export function parseDrawingSvg(svg: string): Shape[] {
 
 export function DrawingModal(props: DrawingModalProps) {
   const initialShapes = parseDrawingSvg(props.initialSvg ?? "");
-  const [tool, setTool] = createSignal<Tool>("select");
+  const [tool, setTool] = createSignal<Tool>(props.initialTool ?? "select");
   const [color, setColor] = createSignal(initialShapes[0]?.color ?? DEFAULT_COLOR);
   const [width, setWidth] = createSignal(initialShapes[0]?.width ?? 4);
   const [shapes, setShapes] = createSignal<Shape[]>(initialShapes);

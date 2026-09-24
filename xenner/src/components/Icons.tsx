@@ -114,11 +114,35 @@ export function TextIcon(props: IconProps) {
   );
 }
 
-export function TextColorIcon(props: IconProps) {
+export function HeadingIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>
-      <path d="M5 5h14M12 5v9M8.5 18h7" />
-      <path d="M6.5 15.5h11" stroke-width="2.4" />
+      <path d="M4 5v14M12 5v14M4 12h8" />
+    </svg>
+  );
+}
+
+export function BulletListIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="M4 5.5h.01M4 11.5h.01M4 17.5h.01" stroke-width="2.4" />
+    </svg>
+  );
+}
+
+export function OrderedListIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M9 6h11M9 12h11M9 18h11M3 5h2v4M3 15.5c0-1 2.5-1.2 2.5.2 0 1-2.5 1.4-2.5 2.8h3M3 10h2" />
+    </svg>
+  );
+}
+
+export function QuoteIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M5 7h5v5H6.5C6.5 15 8 17 10 18M14 7h5v5h-3.5c0 3 1.5 5 3.5 6" />
     </svg>
   );
 }

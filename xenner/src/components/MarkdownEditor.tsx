@@ -1,5 +1,13 @@
 import type { Crepe as CrepeInstance } from "@milkdown/crepe";
-import { editorViewCtx } from "@milkdown/kit/core";
+import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
+import {
+  turnIntoTextCommand,
+  wrapInBlockquoteCommand,
+  wrapInBulletListCommand,
+  wrapInHeadingCommand,
+  wrapInOrderedListCommand,
+} from "@milkdown/kit/preset/commonmark";
+import { createParagraphNear, splitBlock } from "@milkdown/kit/prose/commands";
 import { insert, replaceAll } from "@milkdown/kit/utils";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
@@ -10,13 +18,23 @@ import {
   type PreparedMarkdown,
   type SelectedEditorAsset,
 } from "../editor/assets";
-import { normalizeTextColor, textColorMark, textColorRemark } from "../editor/text-color";
+import { DEFAULT_TEXT_COLOR, normalizeTextColor, textColorMark, textColorRemark } from "../editor/text-color";
 import { notifyError, notifySuccess } from "./ToastRegion";
+
+const TEXT_COLOR_TOOLBAR_ICON = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 5h14M12 5v9M8.5 18h7M6.5 15.5h11" />
+  </svg>
+`;
+
+export type EditorBlockType = "paragraph" | "heading1" | "heading2" | "bullet" | "ordered" | "quote";
 
 export interface MarkdownEditorHandle {
   focus(): void;
+  insertTextBlock(): void;
+  setBlockType(type: EditorBlockType): void;
   insertAsset(dataUrl: string, relativePath: string, alt?: string): void;
-  applyTextColor(color: string | null): boolean;
   getSelectedAsset(): SelectedEditorAsset | null;
   replaceAsset(
     previousDataUrl: string,
@@ -44,9 +62,25 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   const [error, setError] = createSignal<string | null>(null);
   let root: HTMLDivElement | undefined;
   let crepe: CrepeInstance | null = null;
+  let textColorInput: HTMLInputElement | undefined;
   let disposed = false;
   let lastReloadToken = props.reloadToken;
   let prepared: PreparedMarkdown = { content: props.initialValue, replacements: new Map() };
+
+  function applyTextColorValue(value: string): boolean {
+    if (!crepe) return false;
+    const normalized = normalizeTextColor(value);
+    if (!normalized) return false;
+    const view = crepe.editor.ctx.get(editorViewCtx);
+    const { from, to } = view.state.selection;
+    if (from === to) return false;
+    const markType = textColorMark.type(crepe.editor.ctx);
+    const transaction = view.state.tr.removeMark(from, to, markType);
+    transaction.addMark(from, to, markType.create({ color: normalized }));
+    view.dispatch(transaction.scrollIntoView());
+    view.focus();
+    return true;
+  }
 
   onMount(async () => {
     if (!root) return;
@@ -65,6 +99,7 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         features: {
           [Crepe.Feature.AI]: false,
           [Crepe.Feature.TopBar]: false,
+          [Crepe.Feature.BlockEdit]: false,
           [Crepe.Feature.ImageBlock]: true,
         },
         featureConfigs: {
@@ -72,12 +107,14 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
             text: "Escribe tu nota…",
             mode: "doc",
           },
-          [Crepe.Feature.BlockEdit]: {
-            blockHandle: {
-              getOffset: () => 6,
-            },
-            advancedGroup: {
-              image: null,
+          [Crepe.Feature.Toolbar]: {
+            buildToolbar(builder) {
+              builder.addGroup("appearance", "Apariencia").addItem("text-color", {
+                icon: TEXT_COLOR_TOOLBAR_ICON,
+                label: "Color de texto",
+                active: () => false,
+                onRun: () => textColorInput?.click(),
+              });
             },
           },
           [Crepe.Feature.ImageBlock]: {
@@ -155,26 +192,27 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         focus() {
           instance.editor.ctx.get(editorViewCtx).focus();
         },
+        insertTextBlock() {
+          const view = instance.editor.ctx.get(editorViewCtx);
+          const dispatch = (transaction: Parameters<typeof view.dispatch>[0]) => view.dispatch(transaction);
+          const inserted = splitBlock(view.state, dispatch) || createParagraphNear(view.state, dispatch);
+          if (inserted) view.focus();
+        },
+        setBlockType(type) {
+          const commands = instance.editor.ctx.get(commandsCtx);
+          if (type === "paragraph") commands.call(turnIntoTextCommand.key);
+          else if (type === "heading1") commands.call(wrapInHeadingCommand.key, 1);
+          else if (type === "heading2") commands.call(wrapInHeadingCommand.key, 2);
+          else if (type === "bullet") commands.call(wrapInBulletListCommand.key);
+          else if (type === "ordered") commands.call(wrapInOrderedListCommand.key);
+          else commands.call(wrapInBlockquoteCommand.key);
+          instance.editor.ctx.get(editorViewCtx).focus();
+        },
         insertAsset(dataUrl, relativePath, alt = "Dibujo") {
           prepared.replacements.set(dataUrl, relativePath);
           const view = instance.editor.ctx.get(editorViewCtx);
           if (!view.hasFocus()) view.focus();
           instance.editor.action(insert(`![${alt}](${dataUrl})`));
-        },
-        applyTextColor(color) {
-          const view = instance.editor.ctx.get(editorViewCtx);
-          const { from, to } = view.state.selection;
-          if (from === to) return false;
-          const normalized = color === null ? null : normalizeTextColor(color);
-          if (color !== null && !normalized) return false;
-          const markType = textColorMark.type(instance.editor.ctx);
-          const transaction = view.state.tr.removeMark(from, to, markType);
-          if (normalized) {
-            transaction.addMark(from, to, markType.create({ color: normalized }));
-          }
-          view.dispatch(transaction.scrollIntoView());
-          view.focus();
-          return true;
         },
         getSelectedAsset() {
           const target = findImage();
@@ -235,6 +273,15 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   return (
     <div class="markdown-editor-shell">
       <div ref={(element) => (root = element)} class="markdown-editor" />
+      <input
+        ref={(element) => (textColorInput = element)}
+        class="sr-only"
+        type="color"
+        value={DEFAULT_TEXT_COLOR}
+        tabIndex={-1}
+        aria-label="Color del texto seleccionado"
+        onInput={(event) => applyTextColorValue(event.currentTarget.value)}
+      />
       <Show when={!ready() && !error()}>
         <div class="editor-loading" role="status">
           Preparando editor…

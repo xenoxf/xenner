@@ -1,26 +1,30 @@
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import type { JSX } from "solid-js";
 
-import { DrawingModal, parseDrawingSvg } from "./DrawingModal";
-import { MarkdownEditor, type MarkdownEditorHandle } from "./MarkdownEditor";
+import {
+  MarkdownEditor,
+  type EditorBlockType,
+  type MarkdownEditorHandle,
+} from "./MarkdownEditor";
 import { importImageForEditor } from "../editor/assets";
 import {
   ArrowIcon,
-  CheckIcon,
+  BulletListIcon,
   CircleIcon,
+  HeadingIcon,
   ImageIcon,
   LineIcon,
   MarkdownIcon,
   NoteIcon,
+  OrderedListIcon,
   PencilIcon,
   PlusIcon,
+  QuoteIcon,
   RefreshIcon,
-  ShapesIcon,
   SquareIcon,
-  TextColorIcon,
   TextIcon,
 } from "./Icons";
-import { notify, notifyError, notifySuccess } from "./ToastRegion";
+import { notifyError, notifySuccess } from "./ToastRegion";
 import { NOTE_TITLE_MAX_LENGTH } from "../workspace/note";
 import { getWorkspaceGateway } from "../workspace/gateway";
 import type { NoteDocument, SaveStatus, VaultErrorShape } from "../workspace/types";
@@ -68,7 +72,30 @@ const shapeTools: { id: ShapeTool; label: string }[] = [
   { id: "text", label: "Texto" },
 ];
 const shapeColors: ShapeColor[] = ["#5b9bd5", "#e7e7e4", "#e05d5d", "#5ac47a", "#f0b35c"];
-const textColorPresets = ["#2563eb", "#dc2626", "#059669", "#7c3aed", "#ea580c", "#111827"];
+const blockTypes: { id: EditorBlockType; label: string }[] = [
+  { id: "paragraph", label: "Texto" },
+  { id: "heading1", label: "Título 1" },
+  { id: "heading2", label: "Título 2" },
+  { id: "bullet", label: "Lista" },
+  { id: "ordered", label: "Numerada" },
+  { id: "quote", label: "Cita" },
+];
+
+function BlockIcon(props: { type: EditorBlockType }): JSX.Element {
+  switch (props.type) {
+    case "paragraph":
+      return <TextIcon />;
+    case "heading1":
+    case "heading2":
+      return <HeadingIcon />;
+    case "bullet":
+      return <BulletListIcon />;
+    case "ordered":
+      return <OrderedListIcon />;
+    case "quote":
+      return <QuoteIcon />;
+  }
+}
 
 function ShapeToolIcon(props: { tool: ShapeTool }): JSX.Element {
   switch (props.tool) {
@@ -114,53 +141,46 @@ function displayName(path: string): string {
 }
 
 export function EditorPane(props: EditorPaneProps) {
-  const [shapePopoverOpen, setShapePopoverOpen] = createSignal(false);
-  const [drawingOpen, setDrawingOpen] = createSignal(false);
-  const [shapeTool, setShapeTool] = createSignal<ShapeTool>("rect");
+  const [blockMenuOpen, setBlockMenuOpen] = createSignal(false);
+  const [shapeMenuOpen, setShapeMenuOpen] = createSignal(false);
   const [shapeColor, setShapeColor] = createSignal<ShapeColor>("#5b9bd5");
   const [shapeBusy, setShapeBusy] = createSignal(false);
   const [imageBusy, setImageBusy] = createSignal(false);
   const [editorReady, setEditorReady] = createSignal(false);
   const [sourceMode, setSourceMode] = createSignal(false);
-  const [insertMenuOpen, setInsertMenuOpen] = createSignal(false);
-  const [textColorMenuOpen, setTextColorMenuOpen] = createSignal(false);
-  const [textColor, setTextColor] = createSignal(textColorPresets[0]);
   let editorHandle: MarkdownEditorHandle | null = null;
   let imageInput: HTMLInputElement | undefined;
-  let insertMenu: HTMLDivElement | undefined;
-  let insertTrigger: HTMLButtonElement | undefined;
-  let shapePopover: HTMLDivElement | undefined;
-  let textColorMenu: HTMLDivElement | undefined;
-  let textColorTrigger: HTMLButtonElement | undefined;
+  let blockMenu: HTMLDivElement | undefined;
+  let blockTrigger: HTMLButtonElement | undefined;
+  let shapeMenu: HTMLDivElement | undefined;
+  let shapeTrigger: HTMLButtonElement | undefined;
   let activeDocumentPath: string | null = null;
 
   createEffect(() => {
     const documentPath = props.document?.path ?? null;
     if (documentPath === activeDocumentPath) return;
     activeDocumentPath = documentPath;
-    setDrawingOpen(false);
-    setInsertMenuOpen(false);
-    setTextColorMenuOpen(false);
-    setShapePopoverOpen(false);
+    setBlockMenuOpen(false);
+    setShapeMenuOpen(false);
   });
 
   onMount(() => {
     const closeMenuOutside = (event: PointerEvent): void => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (!insertMenu?.contains(target) && !insertTrigger?.contains(target)) {
-        setInsertMenuOpen(false);
+      if (!blockMenu?.contains(target) && !blockTrigger?.contains(target)) {
+        setBlockMenuOpen(false);
       }
-      if (!textColorMenu?.contains(target) && !textColorTrigger?.contains(target)) {
-        setTextColorMenuOpen(false);
+      if (!shapeMenu?.contains(target) && !shapeTrigger?.contains(target)) {
+        setShapeMenuOpen(false);
       }
-      if (!shapePopover?.contains(target)) setShapePopoverOpen(false);
     };
     const closeMenuWithEscape = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
-        setInsertMenuOpen(false);
-        setTextColorMenuOpen(false);
-        setShapePopoverOpen(false);
+        const returnFocus = blockMenuOpen() ? blockTrigger : shapeMenuOpen() ? shapeTrigger : null;
+        setBlockMenuOpen(false);
+        setShapeMenuOpen(false);
+        if (returnFocus) queueMicrotask(() => returnFocus.focus());
       }
     };
     document.addEventListener("pointerdown", closeMenuOutside);
@@ -172,9 +192,8 @@ export function EditorPane(props: EditorPaneProps) {
   });
 
   function closePopovers(): void {
-    setInsertMenuOpen(false);
-    setTextColorMenuOpen(false);
-    setShapePopoverOpen(false);
+    setBlockMenuOpen(false);
+    setShapeMenuOpen(false);
   }
 
   function moveToolbarFocus(event: KeyboardEvent, container: HTMLElement | undefined): void {
@@ -191,15 +210,23 @@ export function EditorPane(props: EditorPaneProps) {
     controls[next]?.focus();
   }
 
-  function applyTextColor(color: string | null): void {
+  function toggleBlockMenu(): void {
+    if (props.loading || sourceMode() || !editorReady()) return;
+    setShapeMenuOpen(false);
+    setBlockMenuOpen((open) => !open);
+  }
+
+  function applyBlockType(type: EditorBlockType): void {
     if (!editorHandle || !editorReady() || props.loading || sourceMode()) return;
-    if (!editorHandle.applyTextColor(color)) {
-      notify({ title: "Selecciona texto", message: "El color se aplica al texto resaltado.", tone: "info" });
-      editorHandle.focus();
-      return;
-    }
-    if (color) setTextColor(color);
-    setTextColorMenuOpen(false);
+    editorHandle.setBlockType(type);
+    setBlockMenuOpen(false);
+    editorHandle.focus();
+  }
+
+  function addTextBlock(): void {
+    if (!editorHandle || !editorReady() || props.loading || sourceMode()) return;
+    closePopovers();
+    editorHandle.insertTextBlock();
   }
 
   async function chooseImage(): Promise<void> {
@@ -225,51 +252,24 @@ export function EditorPane(props: EditorPaneProps) {
     }
   }
 
-  function openShapeToolbar(tool: ShapeTool): void {
+  function toggleShapeMenu(): void {
     if (props.loading || sourceMode() || shapeBusy() || !editorReady()) return;
-    closePopovers();
-    setShapeTool(tool);
-    setShapePopoverOpen(true);
+    setBlockMenuOpen(false);
+    setShapeMenuOpen((open) => !open);
   }
 
-  function openDrawing(): void {
-    if (props.loading || sourceMode() || shapeBusy() || !editorReady()) return;
-    closePopovers();
-    setDrawingOpen(true);
-  }
-
-  async function saveDrawing(svg: string): Promise<void> {
-    const document = props.document;
-    if (!document || !editorHandle || shapeBusy() || !editorReady()) return;
-    if (parseDrawingSvg(svg).length === 0) {
-      notify({ title: "El lienzo está vacío", message: "Dibuja al menos una figura antes de insertar.", tone: "info" });
-      return;
-    }
-    setShapeBusy(true);
-    try {
-      const file = new File([svg], "dibujo.svg", { type: "image/svg+xml" });
-      const imported = await importImageForEditor(document.path, file);
-      editorHandle.insertAsset(imported.dataUrl, imported.relativePath, "Dibujo");
-      setDrawingOpen(false);
-      notifySuccess("Dibujo insertado", "Se añadió al final del bloque actual");
-    } catch (error) {
-      notifyError("No se pudo insertar el dibujo", error);
-    } finally {
-      setShapeBusy(false);
-    }
-  }
-
-  async function insertShape(): Promise<void> {
+  async function insertShape(tool: ShapeTool): Promise<void> {
     const document = props.document;
     if (!document || !editorHandle || shapeBusy() || !editorReady()) return;
     setShapeBusy(true);
     try {
-      const svg = createShapeSvg(shapeTool(), shapeColor());
+      const svg = createShapeSvg(tool, shapeColor());
       const file = new File([svg], "figura.svg", { type: "image/svg+xml" });
       const imported = await importImageForEditor(document.path, file);
       editorHandle.insertAsset(imported.dataUrl, imported.relativePath, "Figura");
-      setShapePopoverOpen(false);
-      notifySuccess("Figura insertada", "Se añadió al final del bloque actual");
+      setShapeMenuOpen(false);
+      const label = shapeTools.find((item) => item.id === tool)?.label ?? "Figura";
+      notifySuccess("Figura insertada", label);
     } catch (error) {
       notifyError("No se pudo insertar la figura", error);
     } finally {
@@ -408,125 +408,48 @@ export function EditorPane(props: EditorPaneProps) {
                   >
                     <div class="asset-menu-anchor">
                       <button
-                        ref={(element) => (insertTrigger = element)}
+                        ref={(element) => (blockTrigger = element)}
                         type="button"
-                        class="asset-dock-button asset-add-button"
-                        classList={{ open: insertMenuOpen(), busy: imageBusy() }}
-                        disabled={props.loading || imageBusy() || sourceMode() || !editorReady()}
-                        aria-label="Insertar contenido"
-                        aria-haspopup="menu"
-                        aria-controls="editor-insert-menu"
-                        aria-expanded={insertMenuOpen()}
-                        title={!editorReady() ? "Preparando editor" : imageBusy() ? "Procesando imagen" : "Insertar contenido"}
-                        onClick={() => {
-                          setTextColorMenuOpen(false);
-                          setShapePopoverOpen(false);
-                          setInsertMenuOpen((open) => !open);
-                        }}
-                      >
-                        <PlusIcon />
-                      </button>
-                      <Show when={insertMenuOpen()}>
-                        <div
-                          ref={(element) => (insertMenu = element)}
-                          id="editor-insert-menu"
-                          class="asset-menu"
-                          role="menu"
-                          aria-label="Insertar contenido"
-                        >
-                          <p>Insertar</p>
-                          <button
-                            type="button"
-                            class="asset-menu-item"
-                            role="menuitem"
-                            disabled={props.loading || imageBusy() || sourceMode() || !editorReady()}
-                            onClick={() => void chooseImage()}
-                          >
-                            <span><ImageIcon /></span>
-                            Imagen
-                          </button>
-                          <button
-                            type="button"
-                            class="asset-menu-item"
-                            role="menuitem"
-                            disabled={props.loading || shapeBusy() || sourceMode() || !editorReady()}
-                            onClick={() => openShapeToolbar("rect")}
-                          >
-                            <span><ShapesIcon /></span>
-                            Figura
-                          </button>
-                        </div>
-                      </Show>
-                    </div>
-                    <div class="asset-menu-anchor">
-                      <button
-                        ref={(element) => (textColorTrigger = element)}
-                        type="button"
-                        class="asset-dock-button text-color-trigger"
-                        classList={{ open: textColorMenuOpen() }}
-                        style={`--selected-text-color: ${textColor()}`}
+                        class="asset-dock-button"
+                        classList={{ open: blockMenuOpen() }}
                         disabled={props.loading || sourceMode() || !editorReady()}
-                        aria-label="Color del texto"
+                        aria-label="Tipo de bloque"
                         aria-haspopup="menu"
-                        aria-controls="editor-text-color-menu"
-                        aria-expanded={textColorMenuOpen()}
-                        title={editorReady() ? "Color del texto" : "Preparando editor"}
-                        onClick={() => {
-                          setInsertMenuOpen(false);
-                          setShapePopoverOpen(false);
-                          setTextColorMenuOpen((open) => !open);
-                        }}
+                        aria-controls="editor-block-menu"
+                        aria-expanded={blockMenuOpen()}
+                        title={editorReady() ? "Tipo de bloque" : "Preparando editor"}
+                        onClick={toggleBlockMenu}
                       >
-                        <TextColorIcon />
+                        <TextIcon />
                       </button>
-                      <Show when={textColorMenuOpen()}>
+                      <Show when={blockMenuOpen()}>
                         <div
-                          ref={(element) => (textColorMenu = element)}
-                          id="editor-text-color-menu"
-                          class="asset-menu text-color-menu"
+                          ref={(element) => (blockMenu = element)}
+                          id="editor-block-menu"
+                          class="asset-menu block-picker"
                           role="menu"
-                          aria-label="Color del texto"
+                          aria-label="Tipo de bloque"
                         >
-                          <p>Color del texto</p>
-                          <div class="text-color-grid" role="group" aria-label="Colores predefinidos">
-                            <For each={textColorPresets}>
-                              {(color) => (
+                          <p>Bloque</p>
+                          <div class="block-picker-grid" role="group" aria-label="Formatos de texto">
+                            <For each={blockTypes}>
+                              {(block) => (
                                 <button
                                   type="button"
-                                  class="text-color-swatch"
-                                  classList={{ active: textColor() === color }}
-                                  style={`--text-swatch: ${color}`}
-                                  role="menuitemradio"
-                                  aria-label={`Color ${color}`}
-                                  aria-checked={textColor() === color}
-                                  title={`Color ${color}`}
-                                  onClick={() => applyTextColor(color)}
-                                />
+                                  class="block-picker-item"
+                                  role="menuitem"
+                                  onClick={() => applyBlockType(block.id)}
+                                >
+                                  <span><BlockIcon type={block.id} /></span>
+                                  {block.label}
+                                </button>
                               )}
                             </For>
                           </div>
-                          <label class="custom-text-color">
-                            <span>Personalizado</span>
-                            <input
-                              type="color"
-                              value={textColor()}
-                              aria-label="Elegir color personalizado"
-                              onInput={(event) => setTextColor(event.currentTarget.value)}
-                              onChange={() => applyTextColor(textColor())}
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            class="asset-menu-item text-color-auto"
-                            role="menuitem"
-                            onClick={() => applyTextColor(null)}
-                          >
-                            <span><RefreshIcon /></span>
-                            Automático
-                          </button>
                         </div>
                       </Show>
                     </div>
+                    <span class="asset-dock-separator" aria-hidden="true" />
                     <button
                       type="button"
                       class="asset-dock-button"
@@ -538,28 +461,72 @@ export function EditorPane(props: EditorPaneProps) {
                     >
                       <ImageIcon />
                     </button>
-                    <button
-                      type="button"
-                      class="asset-dock-button"
-                      classList={{ busy: shapeBusy() }}
-                      disabled={props.loading || shapeBusy() || sourceMode() || !editorReady()}
-                      aria-label="Dibujar"
-                      title={editorReady() ? "Dibujar" : "Preparando editor"}
-                      onClick={openDrawing}
-                    >
-                      <PencilIcon />
-                    </button>
-                    <button
-                      type="button"
-                      class="asset-dock-button"
-                      classList={{ busy: shapeBusy() }}
-                      disabled={props.loading || shapeBusy() || sourceMode() || !editorReady()}
-                      aria-label="Añadir figura"
-                      title={editorReady() ? "Añadir figura" : "Preparando editor"}
-                      onClick={() => openShapeToolbar("rect")}
-                    >
-                      <ShapesIcon />
-                    </button>
+                    <div class="asset-menu-anchor">
+                      <button
+                        ref={(element) => (shapeTrigger = element)}
+                        type="button"
+                        class="asset-dock-button"
+                        classList={{ open: shapeMenuOpen(), busy: shapeBusy() }}
+                        disabled={props.loading || shapeBusy() || sourceMode() || !editorReady()}
+                        aria-label="Dibujar"
+                        aria-haspopup="menu"
+                        aria-controls="editor-shape-menu"
+                        aria-expanded={shapeMenuOpen()}
+                        title={editorReady() ? "Dibujar" : "Preparando editor"}
+                        onClick={toggleShapeMenu}
+                      >
+                        <PencilIcon />
+                      </button>
+                      <Show when={shapeMenuOpen()}>
+                        <div
+                          ref={(element) => (shapeMenu = element)}
+                          id="editor-shape-menu"
+                          class="asset-menu shape-picker"
+                          role="menu"
+                          aria-label="Dibujar e insertar figuras"
+                        >
+                          <p>Figuras</p>
+                          <div class="shape-tool-grid" role="group" aria-label="Tipos de figura">
+                            <For each={shapeTools}>
+                              {(tool) => (
+                                <button
+                                  type="button"
+                                  class="shape-tool-action"
+                                  role="menuitem"
+                                  disabled={shapeBusy()}
+                                  aria-label={`Insertar ${tool.label.toLowerCase()}`}
+                                  title={tool.label}
+                                  onClick={() => void insertShape(tool.id)}
+                                >
+                                  <ShapeToolIcon tool={tool.id} />
+                                </button>
+                              )}
+                            </For>
+                          </div>
+                          <div class="shape-picker-colors">
+                            <span>Color</span>
+                            <div role="group" aria-label="Color de la figura">
+                              <For each={shapeColors}>
+                                {(color) => (
+                                  <button
+                                    type="button"
+                                    class="shape-color-button"
+                                    classList={{ active: shapeColor() === color }}
+                                    style={`--shape-color: ${color}`}
+                                    role="menuitemradio"
+                                    aria-label={`Color ${color}`}
+                                    aria-checked={shapeColor() === color}
+                                    title={`Color ${color}`}
+                                    onClick={() => setShapeColor(color)}
+                                  />
+                                )}
+                              </For>
+                            </div>
+                          </div>
+                        </div>
+                      </Show>
+                    </div>
+                    <span class="asset-dock-separator" aria-hidden="true" />
                     <button
                       type="button"
                       class="asset-dock-button"
@@ -574,87 +541,24 @@ export function EditorPane(props: EditorPaneProps) {
                     >
                       <MarkdownIcon />
                     </button>
-                    <span
-                      class="save-state"
-                      data-status={props.status}
-                      role="status"
-                      aria-label={statusLabel(props.status)}
-                      title={`${statusLabel(props.status)} · ${new Date(document().updatedAt).toLocaleString("es")}`}
-                      aria-live="polite"
+                    <button
+                      type="button"
+                      class="asset-dock-button"
+                      disabled={props.loading || sourceMode() || !editorReady()}
+                      aria-label="Añadir bloque de texto"
+                      title="Añadir bloque de texto"
+                      onClick={addTextBlock}
                     >
-                      <span class="sr-only">{statusLabel(props.status)}</span>
+                      <PlusIcon />
+                    </button>
+                    <span class="sr-only" role="status" aria-live="polite">
+                      {statusLabel(props.status)}
                     </span>
                   </div>
-                  <Show when={shapePopoverOpen()}>
-                    <div
-                      ref={(element) => (shapePopover = element)}
-                      class="floating-drawing-toolbar"
-                      role="toolbar"
-                      aria-label="Herramientas de figura"
-                      onKeyDown={(event) => moveToolbarFocus(event, event.currentTarget)}
-                    >
-                      <div class="floating-tool-group" role="group" aria-label="Herramientas">
-                        <For each={shapeTools}>
-                          {(tool) => (
-                            <button
-                              type="button"
-                              class="floating-tool-button"
-                              classList={{ active: shapeTool() === tool.id }}
-                              aria-label={tool.label}
-                              aria-pressed={shapeTool() === tool.id}
-                              title={tool.label}
-                              onClick={() => setShapeTool(tool.id)}
-                            >
-                              <ShapeToolIcon tool={tool.id} />
-                            </button>
-                          )}
-                        </For>
-                      </div>
-                      <span class="floating-tool-divider" aria-hidden="true" />
-                      <div class="floating-tool-group shape-colors" role="group" aria-label="Color">
-                        <For each={shapeColors}>
-                          {(color) => (
-                            <button
-                              type="button"
-                              class="shape-color-button"
-                              classList={{ active: shapeColor() === color }}
-                              style={`--shape-color: ${color}`}
-                              aria-label={`Color ${color}`}
-                              aria-pressed={shapeColor() === color}
-                              title={`Color ${color}`}
-                              onClick={() => setShapeColor(color)}
-                            />
-                          )}
-                        </For>
-                      </div>
-                      <span class="floating-tool-divider" aria-hidden="true" />
-                      <button
-                        type="button"
-                        class="floating-tool-button floating-insert-button"
-                        classList={{ busy: shapeBusy() }}
-                        disabled={shapeBusy()}
-                        aria-label="Insertar figura"
-                        title="Insertar figura"
-                        onClick={() => void insertShape()}
-                      >
-                        <CheckIcon />
-                      </button>
-                    </div>
-                  </Show>
               </div>
             )}
           </Show>
         )}
-      </Show>
-      <Show when={drawingOpen()}>
-        <DrawingModal
-          initialTool="pen"
-          title="Nuevo dibujo"
-          submitLabel="Insertar dibujo"
-          busy={shapeBusy()}
-          onSave={(svg) => saveDrawing(svg)}
-          onClose={() => setDrawingOpen(false)}
-        />
       </Show>
     </main>
   );

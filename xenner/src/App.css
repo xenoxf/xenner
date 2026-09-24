@@ -1641,14 +1641,20 @@ button:disabled {
 }
 
 .editor-pane {
-  border-left: 0;
+  min-height: 0;
+  margin: 12px 12px 12px 0;
+  overflow: hidden;
+  background-color: var(--skin-note-background);
+  border: var(--skin-note-border);
+  border-radius: calc(var(--skin-note-radius) * 2.2);
   box-shadow: var(--skin-note-shadow);
 }
 
 .document-header {
-  min-height: 62px;
-  padding: 10px 18px 10px 24px;
-  border-bottom: var(--skin-toolbar-border);
+  min-height: 126px;
+  padding: 62px 54px 18px;
+  background: transparent;
+  border-bottom: 0;
 }
 
 .document-heading {
@@ -1660,15 +1666,16 @@ button:disabled {
   display: block;
   width: 100%;
   min-width: 0;
-  padding: 0;
+  padding: 0 0 12px;
   color: var(--skin-toolbar-text);
   background: transparent;
   border: 0;
+  border-bottom: 1px solid var(--skin-input-border);
   outline: 0;
   font: inherit;
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
 .note-title-input::placeholder {
@@ -1767,16 +1774,18 @@ button:disabled {
 .editor-asset-dock {
   position: absolute;
   z-index: 8;
-  bottom: 18px;
+  bottom: 16px;
   left: 50%;
   display: flex;
+  width: min(430px, calc(100% - 32px));
+  min-height: 54px;
   align-items: center;
-  gap: 3px;
-  min-height: 48px;
-  padding: 5px;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 10px;
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
-  border-radius: calc(var(--skin-note-radius) * 1.35);
+  border-radius: calc(var(--skin-note-radius) * 1.4);
   box-shadow: var(--skin-note-shadow);
   transform: translateX(-50%);
   backdrop-filter: blur(var(--skin-toolbar-blur));
@@ -1789,8 +1798,8 @@ button:disabled {
 .asset-dock-button {
   position: relative;
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
   padding: 0;
   place-items: center;
@@ -1850,8 +1859,8 @@ button:disabled {
 
 .editor-asset-dock .save-state {
   display: grid;
-  width: 32px;
-  height: 36px;
+  width: 34px;
+  height: 38px;
   margin: 0;
   place-items: center;
   font-size: 0;

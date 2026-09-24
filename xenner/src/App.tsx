@@ -335,10 +335,6 @@ function App() {
         onChange={updateSelectedDocument}
         onTitleChange={updateSelectedTitle}
         onCreate={() => startCreation("note")}
-        onDelete={() => {
-          const path = getSelectedPath();
-          if (path) void remove(path);
-        }}
         onRetry={() => void retryPendingSave()}
         onReload={() => void reloadSelectedDocument()}
       />

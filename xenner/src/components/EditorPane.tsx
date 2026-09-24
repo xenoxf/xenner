@@ -16,7 +16,6 @@ import {
   PlusIcon,
   RefreshIcon,
   ShapesIcon,
-  TrashIcon,
 } from "./Icons";
 import { NOTE_TITLE_MAX_LENGTH } from "../workspace/note";
 import type { NoteDocument, SaveStatus, VaultErrorShape } from "../workspace/types";
@@ -31,7 +30,6 @@ interface EditorPaneProps {
   onChange(body: string): void;
   onTitleChange(title: string): void;
   onCreate(): void;
-  onDelete(): void;
   onRetry(): void;
   onReload(): void;
 }
@@ -220,7 +218,7 @@ export function EditorPane(props: EditorPaneProps) {
                 <input
                   class="note-title-input"
                   value={document().title}
-                  placeholder="Sin título"
+                  placeholder="Título de la página"
                   aria-label="Título de la nota"
                   maxlength={NOTE_TITLE_MAX_LENGTH}
                   spellcheck={false}
@@ -229,17 +227,6 @@ export function EditorPane(props: EditorPaneProps) {
                     if (event.key === "Enter") event.preventDefault();
                   }}
                 />
-              </div>
-              <div class="document-actions">
-                <button
-                  type="button"
-                  class="icon-button document-icon-button danger"
-                  aria-label="Eliminar nota"
-                  title="Eliminar"
-                  onClick={props.onDelete}
-                >
-                  <TrashIcon />
-                </button>
               </div>
             </header>
             <Show when={props.error?.code === "conflict" || props.error?.code === "io"}>

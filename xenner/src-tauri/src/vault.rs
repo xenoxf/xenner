@@ -22,6 +22,7 @@ use tauri_plugin_dialog::DialogExt;
 const DEFAULT_WORKSPACE_DIR: &str = "workspace";
 const WORKSPACE_PREFERENCE_FILE: &str = "workspace.txt";
 const MAX_NOTE_BYTES: u64 = 2_000_000;
+const NOTE_TITLE_MAX_CHARS: usize = 240;
 const MAX_ASSET_BYTES: usize = 8_000_000;
 const ASSET_DIRECTORY: &str = ".assets";
 const MAX_RELATIVE_PATH_BYTES: usize = 1_024;
@@ -105,7 +106,8 @@ pub struct WorkspaceScan {
 #[serde(rename_all = "camelCase")]
 pub struct NoteDocument {
     pub path: String,
-    pub content: String,
+    pub title: String,
+    pub body: String,
     pub revision: String,
     pub updated_at: u64,
     pub size: u64,
@@ -478,6 +480,81 @@ fn strip_note_extension(name: &str) -> &str {
     }
 }
 
+fn normalize_note_title(value: &str) -> String {
+    let mut title = String::new();
+    let mut pending_space = false;
+    for character in value.chars() {
+        if character.is_control() || character.is_whitespace() {
+            if !title.is_empty() {
+                pending_space = true;
+            }
+            continue;
+        }
+        if pending_space {
+            title.push(' ');
+            pending_space = false;
+        }
+        title.push(character);
+        if title.chars().count() == NOTE_TITLE_MAX_CHARS {
+            break;
+        }
+    }
+    title
+}
+
+fn is_untitled_stem(value: &str) -> bool {
+    if value.eq_ignore_ascii_case("Sin título") {
+        return true;
+    }
+    value.strip_prefix("Sin título ").is_some_and(|suffix| {
+        !suffix.is_empty() && suffix.chars().all(|character| character.is_ascii_digit())
+    })
+}
+
+fn title_from_path(relative_path: &str) -> String {
+    let file_name = relative_path.rsplit('/').next().unwrap_or(relative_path);
+    let stem = strip_note_extension(file_name);
+    if is_untitled_stem(stem) {
+        String::new()
+    } else {
+        normalize_note_title(stem)
+    }
+}
+
+fn markdown_heading(line: &str) -> Option<&str> {
+    if line == "#" {
+        return Some("");
+    }
+    let value = line.strip_prefix('#')?;
+    if value.starts_with(' ') || value.starts_with('\t') {
+        Some(value)
+    } else {
+        None
+    }
+}
+
+fn split_note_content(relative_path: &str, content: &str) -> (String, String) {
+    let source = content.strip_prefix('\u{feff}').unwrap_or(content);
+    let (first_line, remainder) = source.split_once('\n').unwrap_or((source, ""));
+    let first_line = first_line.strip_suffix('\r').unwrap_or(first_line);
+    let Some(raw_title) = markdown_heading(first_line) else {
+        return (title_from_path(relative_path), source.to_string());
+    };
+    let body = remainder
+        .strip_prefix("\r\n")
+        .or_else(|| remainder.strip_prefix('\n'))
+        .unwrap_or(remainder);
+    (normalize_note_title(raw_title), body.to_string())
+}
+
+fn serialize_note_content(title: &str, body: &str) -> String {
+    let body = body
+        .strip_prefix("\r\n")
+        .or_else(|| body.strip_prefix('\n'))
+        .unwrap_or(body);
+    format!("# {}\n\n{body}", normalize_note_title(title))
+}
+
 fn normalized_note_name(input: &str) -> Result<String, VaultError> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
@@ -494,6 +571,23 @@ fn normalized_note_name(input: &str) -> Result<String, VaultError> {
         return Err(invalid_path("la nota necesita un nombre además de `.md`"));
     }
     Ok(name)
+}
+
+fn next_untitled_note_name(parent: &Path) -> Result<String, VaultError> {
+    for index in 1..=100_000_u32 {
+        let name = if index == 1 {
+            "Sin título.md".to_string()
+        } else {
+            format!("Sin título {index}.md")
+        };
+        if !path_exists_case_insensitive(parent, &name) {
+            return Ok(name);
+        }
+    }
+    Err(VaultError::new(
+        "alreadyExists",
+        "no se pudo crear una nota sin título",
+    ))
 }
 
 fn normalized_folder_name(input: &str) -> Result<String, VaultError> {
@@ -540,10 +634,12 @@ fn read_note_blocking(root: PathBuf, relative_path: String) -> Result<NoteDocume
         .map_err(|_| VaultError::new("invalidEncoding", "la nota no es UTF-8 válida"))?;
     let revision = revision_for(content.as_bytes());
     let updated_at = modified_millis(&metadata).unwrap_or_else(current_millis);
+    let (title, body) = split_note_content(&relative_path, &content);
 
     Ok(NoteDocument {
         path: relative_path,
-        content,
+        title,
+        body,
         revision,
         updated_at,
         size: metadata.len(),
@@ -749,12 +845,51 @@ fn read_asset_blocking(
     })
 }
 
+fn update_asset_blocking(
+    root: PathBuf,
+    note_path: String,
+    asset_path: String,
+    data_base64: String,
+) -> Result<AssetPayload, VaultError> {
+    if data_base64.len() > MAX_ASSET_BYTES.saturating_mul(2) {
+        return Err(VaultError::new("tooLarge", "el asset es demasiado grande"));
+    }
+    let bytes = BASE64
+        .decode(data_base64.as_bytes())
+        .map_err(|_| invalid_path("el asset no contiene base64 válido"))?;
+    if bytes.is_empty() || bytes.len() > MAX_ASSET_BYTES {
+        return Err(VaultError::new("tooLarge", "el asset es demasiado grande"));
+    }
+
+    let path = asset_file_path(&root, &note_path, &asset_path, true)?;
+    let extension = path
+        .extension()
+        .and_then(OsStr::to_str)
+        .ok_or_else(|| invalid_path("el asset no tiene extensión"))?
+        .to_ascii_lowercase();
+    let extension = match extension.as_str() {
+        "jpeg" => "jpg",
+        value => value,
+    };
+    let mime = detect_asset_mime(&bytes, &extension)?;
+    if extension == "svg" {
+        validate_svg_asset(&bytes)?;
+    }
+    write_bytes_atomically(&path, &bytes)?;
+    Ok(AssetPayload {
+        mime: mime.to_string(),
+        data_base64: BASE64.encode(&bytes),
+    })
+}
+
 fn write_note_blocking(
     root: PathBuf,
     relative_path: String,
-    content: String,
+    title: String,
+    body: String,
     expected_revision: String,
 ) -> Result<WriteAcknowledgement, VaultError> {
+    let content = serialize_note_content(&title, &body);
     if content.len() as u64 > MAX_NOTE_BYTES {
         return Err(VaultError::new(
             "tooLarge",
@@ -786,11 +921,14 @@ fn write_note_blocking(
 fn create_note_blocking(
     root: PathBuf,
     parent: String,
-    input_name: String,
+    input_name: Option<String>,
 ) -> Result<CreateNoteResult, VaultError> {
     relative_components(&parent, true)?;
-    let name = normalized_note_name(&input_name)?;
     let parent_path = resolve_directory(&root, &parent)?;
+    let name = match input_name.as_deref() {
+        Some(value) => normalized_note_name(value)?,
+        None => next_untitled_note_name(&parent_path)?,
+    };
     if path_exists_case_insensitive(&parent_path, &name) {
         return Err(VaultError::new(
             "alreadyExists",
@@ -800,8 +938,11 @@ fn create_note_blocking(
 
     let relative_path = relative_join(&parent, &name);
     let path = safe_new_note_path(&root, &relative_path)?;
-    let stem = strip_note_extension(&name);
-    let initial_content = format!("# {stem}\n\n");
+    let title = input_name
+        .as_deref()
+        .map(|value| strip_note_extension(value.trim()))
+        .unwrap_or_default();
+    let initial_content = serialize_note_content(title, "");
     if initial_content.len() as u64 > MAX_NOTE_BYTES {
         return Err(VaultError::new(
             "tooLarge",
@@ -1111,15 +1252,31 @@ pub async fn read_asset(
 }
 
 #[tauri::command]
+pub async fn update_asset(
+    state: State<'_, VaultState>,
+    note_path: String,
+    asset_path: String,
+    data_base64: String,
+) -> Result<AssetPayload, VaultError> {
+    let root = root_from_state(&state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        update_asset_blocking(root, note_path, asset_path, data_base64)
+    })
+    .await
+    .map_err(|_| join_error())?
+}
+
+#[tauri::command]
 pub async fn write_note(
     state: State<'_, VaultState>,
     relative_path: String,
-    content: String,
+    title: String,
+    body: String,
     expected_revision: String,
 ) -> Result<WriteAcknowledgement, VaultError> {
     let root = root_from_state(&state)?;
     tauri::async_runtime::spawn_blocking(move || {
-        write_note_blocking(root, relative_path, content, expected_revision)
+        write_note_blocking(root, relative_path, title, body, expected_revision)
     })
     .await
     .map_err(|_| join_error())?
@@ -1129,7 +1286,7 @@ pub async fn write_note(
 pub async fn create_note(
     state: State<'_, VaultState>,
     parent: String,
-    name: String,
+    name: Option<String>,
 ) -> Result<CreateNoteResult, VaultError> {
     let root = root_from_state(&state)?;
     tauri::async_runtime::spawn_blocking(move || create_note_blocking(root, parent, name))
@@ -1204,13 +1361,15 @@ mod tests {
         let root = directory.path().to_path_buf();
 
         let created =
-            create_note_blocking(root.clone(), String::new(), "Nota".into()).expect("create");
+            create_note_blocking(root.clone(), String::new(), Some("Nota".into())).expect("create");
         assert_eq!(created.entry.path, "Nota.md");
-        assert_eq!(created.document.content, "# Nota\n\n");
+        assert_eq!(created.document.title, "Nota");
+        assert_eq!(created.document.body, "");
 
         let first_write = write_note_blocking(
             root.clone(),
             created.entry.path.clone(),
+            "Nuevo título".into(),
             "contenido nuevo".into(),
             created.document.revision.clone(),
         )
@@ -1218,6 +1377,7 @@ mod tests {
         let conflict_error = write_note_blocking(
             root.clone(),
             created.entry.path.clone(),
+            "Otro título".into(),
             "otro contenido".into(),
             created.document.revision,
         )
@@ -1225,8 +1385,22 @@ mod tests {
         assert_eq!(conflict_error.code, "conflict");
 
         let current = read_note_blocking(root, created.entry.path).expect("read");
-        assert_eq!(current.content, "contenido nuevo");
+        assert_eq!(current.title, "Nuevo título");
+        assert_eq!(current.body, "contenido nuevo");
         assert_eq!(current.revision, first_write.revision);
+    }
+
+    #[test]
+    fn crea_notas_sin_titulo_sin_requerir_nombre_de_archivo() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let root = directory.path().to_path_buf();
+
+        let first = create_note_blocking(root.clone(), String::new(), None).expect("first");
+        let second = create_note_blocking(root, String::new(), None).expect("second");
+        assert_eq!(first.entry.path, "Sin título.md");
+        assert_eq!(second.entry.path, "Sin título 2.md");
+        assert_eq!(first.document.title, "");
+        assert_eq!(first.document.body, "");
     }
 
     #[test]
@@ -1280,6 +1454,36 @@ mod tests {
         let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" data-xenner-asset="safe"></svg>"#;
         assert!(validate_svg_asset(svg.as_bytes()).is_ok());
         assert!(validate_svg_asset(br#"<svg><script>alert(1)</script></svg>"#).is_err());
+    }
+
+    #[test]
+    fn actualiza_un_asset_existente_sin_crear_una_ruta_nueva() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let root = directory.path().to_path_buf();
+        let note =
+            create_note_blocking(root.clone(), String::new(), Some("Nota".into())).expect("create");
+        let first_svg = r#"<svg xmlns="http://www.w3.org/2000/svg" data-xenner-asset="safe"><rect x="1" y="2" width="3" height="4" /></svg>"#;
+        let first = BASE64.encode(first_svg.as_bytes());
+        let imported = import_asset_blocking(
+            root.clone(),
+            note.entry.path.clone(),
+            "drawing.svg".into(),
+            first,
+        )
+        .expect("import");
+        let second_svg = r#"<svg xmlns="http://www.w3.org/2000/svg" data-xenner-asset="safe"><circle cx="5" cy="6" r="2" /></svg>"#;
+        let updated = update_asset_blocking(
+            root,
+            note.entry.path,
+            imported.relative_path.clone(),
+            BASE64.encode(second_svg.as_bytes()),
+        )
+        .expect("update");
+        assert_eq!(updated.mime, "image/svg+xml");
+        assert_eq!(
+            BASE64.decode(updated.data_base64).expect("decode"),
+            second_svg.as_bytes()
+        );
     }
 
     #[test]

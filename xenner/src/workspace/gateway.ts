@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 
 import { joinPath, parentPath, replacePathName } from "./tree";
+import { serializeNoteContent, splitNoteContent } from "./note";
 import type {
   CreateNoteResult,
   CreatedEntry,
@@ -20,12 +21,14 @@ export interface WorkspaceGateway {
   readNote(relativePath: string): Promise<NoteDocument>;
   importAsset(notePath: string, fileName: string, dataBase64: string): Promise<ImportedAsset>;
   readAsset(notePath: string, assetPath: string): Promise<AssetPayload>;
+  updateAsset(notePath: string, assetPath: string, dataBase64: string): Promise<AssetPayload>;
   writeNote(
     relativePath: string,
-    content: string,
+    title: string,
+    body: string,
     expectedRevision: string,
   ): Promise<WriteAcknowledgement>;
-  createNote(parent: string, name: string): Promise<CreateNoteResult>;
+  createNote(parent: string, name?: string): Promise<CreateNoteResult>;
   createFolder(parent: string, name: string): Promise<CreatedEntry>;
   renameEntry(relativePath: string, name: string): Promise<string>;
   deleteEntry(relativePath: string): Promise<void>;
@@ -89,16 +92,21 @@ class TauriWorkspaceGateway implements WorkspaceGateway {
     return invokeWorkspace("read_asset", { notePath, assetPath });
   }
 
-  writeNote(
-    relativePath: string,
-    content: string,
-    expectedRevision: string,
-  ): Promise<WriteAcknowledgement> {
-    return invokeWorkspace("write_note", { relativePath, content, expectedRevision });
+  updateAsset(notePath: string, assetPath: string, dataBase64: string): Promise<AssetPayload> {
+    return invokeWorkspace("update_asset", { notePath, assetPath, dataBase64 });
   }
 
-  createNote(parent: string, name: string): Promise<CreateNoteResult> {
-    return invokeWorkspace("create_note", { parent, name });
+  writeNote(
+    relativePath: string,
+    title: string,
+    body: string,
+    expectedRevision: string,
+  ): Promise<WriteAcknowledgement> {
+    return invokeWorkspace("write_note", { relativePath, title, body, expectedRevision });
+  }
+
+  createNote(parent: string, name?: string): Promise<CreateNoteResult> {
+    return invokeWorkspace("create_note", { parent, name: name ?? null });
   }
 
   createFolder(parent: string, name: string): Promise<CreatedEntry> {
@@ -241,6 +249,18 @@ function normalizedPreviewName(input: string, note: boolean): string {
   return name;
 }
 
+function nextUntitledPreviewName(state: PreviewState, parent: string): string {
+  for (let index = 1; index <= 100_000; index += 1) {
+    const name = index === 1 ? "Sin título.md" : `Sin título ${index}.md`;
+    const path = joinPath(parent, name);
+    const exists = state.entries.some(
+      (entry) => entry.path.toLocaleLowerCase("es") === path.toLocaleLowerCase("es"),
+    );
+    if (!exists) return name;
+  }
+  throw vaultError("alreadyExists", "No se pudo crear una nota sin título");
+}
+
 function previewEntry(state: PreviewState, path: string): VaultEntry {
   const entry = state.entries.find((candidate) => candidate.path === path);
   if (!entry) throw vaultError("notFound", "La entrada no existe en la vista previa");
@@ -283,9 +303,11 @@ class PreviewWorkspaceGateway implements WorkspaceGateway {
     if (entry.kind !== "note") throw vaultError("invalidPath", "La entrada no es una nota");
     const document = state.documents[relativePath];
     if (!document) throw vaultError("notFound", "No se encontró el contenido de la nota");
+    const parts = splitNoteContent(relativePath, document.content);
     return {
       path: relativePath,
-      content: document.content,
+      title: parts.title,
+      body: parts.body,
       revision: document.revision,
       updatedAt: document.updatedAt,
       size: new TextEncoder().encode(document.content).byteLength,
@@ -324,12 +346,28 @@ class PreviewWorkspaceGateway implements WorkspaceGateway {
     return asset;
   }
 
+  async updateAsset(notePath: string, assetPath: string, dataBase64: string): Promise<AssetPayload> {
+    assertSafeRelativePath(notePath);
+    const state = readPreviewState();
+    const normalized = assetPath.startsWith("./") ? assetPath.slice(2) : assetPath;
+    const key = state.assets[`./${normalized}`] ? `./${normalized}` : normalized;
+    const current = state.assets[key];
+    if (!current) throw vaultError("notFound", "El asset no existe en la vista previa");
+    const extension = key.slice(key.lastIndexOf(".") + 1).toLocaleLowerCase("es");
+    const mime = extension === "svg" ? "image/svg+xml" : `image/${extension}`;
+    const next = { mime, dataBase64 };
+    writePreviewState({ ...state, assets: { ...state.assets, [key]: next } });
+    return next;
+  }
+
   async writeNote(
     relativePath: string,
-    content: string,
+    title: string,
+    body: string,
     expectedRevision: string,
   ): Promise<WriteAcknowledgement> {
     assertSafeRelativePath(relativePath);
+    const content = serializeNoteContent(title, body);
     if (new TextEncoder().encode(content).byteLength > MAX_PREVIEW_NOTE_LENGTH) {
       throw vaultError("tooLarge", "La nota es demasiado grande");
     }
@@ -353,16 +391,19 @@ class PreviewWorkspaceGateway implements WorkspaceGateway {
     return { path: relativePath, revision, updatedAt };
   }
 
-  async createNote(parent: string, name: string): Promise<CreateNoteResult> {
+  async createNote(parent: string, name?: string): Promise<CreateNoteResult> {
     assertSafeRelativePath(parent, true);
-    const normalized = normalizedPreviewName(name, true);
     const state = readPreviewState();
     assertPreviewParent(state, parent);
+    const normalized = name === undefined
+      ? nextUntitledPreviewName(state, parent)
+      : normalizedPreviewName(name, true);
     const path = joinPath(parent, normalized);
     if (state.entries.some((entry) => entry.path.toLocaleLowerCase("es") === path.toLocaleLowerCase("es"))) {
       throw vaultError("alreadyExists", "Ya existe una nota con ese nombre");
     }
-    const content = `# ${normalized.slice(0, -3)}\n\n`;
+    const title = name === undefined ? "" : normalized.slice(0, -3);
+    const content = serializeNoteContent(title, "");
     const updatedAt = Date.now();
     const revision = previewRevision(content);
     const entry: VaultEntry = {
@@ -381,7 +422,8 @@ class PreviewWorkspaceGateway implements WorkspaceGateway {
       entry,
       document: {
         path,
-        content,
+        title,
+        body: "",
         revision,
         updatedAt,
         size: entry.size ?? new TextEncoder().encode(content).byteLength,

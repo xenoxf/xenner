@@ -20,8 +20,8 @@ interface SettingsModalProps {
 
 const themeModes: { id: ThemeMode; label: string; description: string }[] = [
   { id: "system", label: "Sistema", description: "Sigue el sistema" },
-  { id: "light", label: "Claro", description: "Material light" },
-  { id: "dark", label: "Oscuro", description: "Material dark" },
+  { id: "light", label: "Claro", description: "Superficies neutras" },
+  { id: "dark", label: "Oscuro", description: "Superficies neutras" },
 ];
 
 const sections: { id: SettingsSection; label: string; description: string }[] = [
@@ -58,7 +58,6 @@ export function SettingsModal(props: SettingsModalProps) {
       >
         <aside class="settings-nav" aria-label="Configuración">
           <div class="settings-brand">
-            <span class="settings-brand-mark">x</span>
             <div>
               <strong>Configuración</strong>
               <span>xenner</span>
@@ -106,8 +105,8 @@ export function SettingsModal(props: SettingsModalProps) {
                 when={props.activeSkin === ""}
                 fallback={
                   <div class="settings-notice">
-                    El modo claro/oscuro pertenece a la skin Material embebida. Actívala para
-                    alternar entre ambos modos.
+                    El modo claro/oscuro pertenece a la skin base embebida. Actívala
+                    para alternar entre ambos modos.
                   </div>
                 }
               >
@@ -242,7 +241,7 @@ export function SettingsModal(props: SettingsModalProps) {
                 >
                   <span class="skin-preview default-preview" />
                   <span>
-                    <strong>Material (embebida)</strong>
+                    <strong>Xenner (embebida)</strong>
                     <small>Claro y oscuro</small>
                   </span>
                 </button>

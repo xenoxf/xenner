@@ -2,8 +2,8 @@
 
 > Fuente de verdad del formato. Si el código y este doc discrepan, se corrige
 > el código. Regla: **una skin rota o ausente jamás cuelga la app**: siempre se
-> resuelve contra la skin Material embebida en el código, con su paleta del
-> modo claro u oscuro activo.
+> resuelve contra la skin base embebida en el código, con su paleta del modo
+> claro u oscuro activo.
 
 ## 1. Dónde viven las skins
 
@@ -96,21 +96,20 @@ en default. Así una skin puede ser de un solo TXT y seguir funcionando.
 4. Los componentes SolidJS **solo** usan esas variables, nunca colores
    hardcodeados. Cambiar un TXT + recargar = nueva apariencia.
 
-## 6. Skin default embebida (Material 3)
+## 6. Skin base embebida
 
-Vive en el código (`src/skin/defaultSkin.ts`) y tiene dos paletas del sistema
-Material Design 3, una clara y otra oscura. La selección de modo se hace desde
-**Apariencia** y solo modifica la skin embebida; las claves ausentes de una skin
-de usuario reciben el fallback del modo activo.
+Vive en el código (`src/skin/defaultSkin.ts`) y tiene dos paletas neutras, una
+clara y otra oscura. La selección de modo se hace desde **Apariencia** y solo
+modifica la skin embebida; las claves ausentes de una skin de usuario reciben
+el fallback del modo activo.
 
-Los valores baseline se derivan de los tokens Material Web v0.192:
+La interfaz prioriza lectura y jerarquía antes que decoración:
 
-- Light usa `neutral98` como superficie, `neutral10` como texto y `primary40`
-  (`#6750a4`) como acento.
-- Dark usa `neutral6` como superficie, `neutral90` como texto y `primary80`
-  (`#d0bcff`) como acento.
-- Las formas principales usan la escala Material: botones `20px`, superficies
-  grandes `16px`, superficies compactas `12px` y superficies mínimas `8px`.
+- superficies blancas o gris carbón;
+- texto principal de alto contraste y texto secundario atenuado;
+- un único acento azul para selección, foco y enlaces;
+- bordes sutiles, sombras reservadas para capas flotantes y controles de 6–10 px;
+- controles planos que solo muestran superficie al pasar el cursor o recibir foco.
 
 La skin de ejemplo `skins/glass-default/` se conserva como skin sistémica de
 vidrio, pero ya no es el fallback default de la aplicación.
@@ -132,7 +131,7 @@ vidrio, pero ya no es el fallback default de la aplicación.
 
 ## 8. Transparencia de ventana y alcance del glass
 
-La skin Material default es opaca y no necesita transparencia. La transparencia
+La skin base embebida es opaca y no necesita transparencia. La transparencia
 sigue siendo una característica opcional de las skins sistémicas de vidrio.
 
 Para que una skin glassmorphism muestre el escritorio hacen falta **dos**

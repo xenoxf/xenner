@@ -22,7 +22,8 @@ export interface WorkspaceScan {
 
 export interface NoteDocument {
   path: string;
-  content: string;
+  title: string;
+  body: string;
   revision: string;
   updatedAt: number;
   size: number;

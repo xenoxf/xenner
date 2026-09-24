@@ -11,7 +11,8 @@
 - En el primer inicio se ofrece una biblioteca interna de Xenner; después puede
   abrirse o cambiarse otra con el selector de carpeta.
 - El explorador ocupa la izquierda y el editor ocupa todo el espacio restante.
-- Las carpetas organizan notas; el nombre de archivo identifica la nota.
+- Las carpetas organizan notas; el título se escribe en el editor y el nombre
+  físico del archivo es un detalle interno de la biblioteca.
 - El contenido enriquecido se escribe como Markdown, no como JSON oculto.
 - Imágenes y dibujos se guardan como recursos relativos a la biblioteca.
 - Los dibujos visuales usan SVG editable. El Markdown solo contiene una
@@ -36,13 +37,15 @@ pueden mostrar como enlaces, pero no se incrustan de origen.
 ## 3. Flujo de una nota
 
 1. La persona pulsa **Nueva nota**.
-2. Aparece un campo de nombre en el explorer, con comportamiento similar al
-   diálogo de nombre de archivo de VS Code.
-3. Xenner normaliza el nombre, añade `.md` cuando falta y rechaza colisiones.
-4. Rust crea el archivo de forma exclusiva dentro de la biblioteca seleccionada.
-5. El explorer selecciona el archivo y el editor visual recibe su Markdown.
-6. Cada cambio se serializa a Markdown y se autoguarda con debounce.
-7. Antes de cambiar de nota se vacía la cola de guardado para evitar cruces.
+2. Xenner crea internamente un `.md` único y abre directamente el editor; no se
+   solicita un nombre de archivo.
+3. El campo superior de la página representa el título. El título se conserva
+   como primer H1 Markdown y el cuerpo se edita sin duplicarlo.
+4. Si la biblioteca está vacía, la aplicación crea y abre automáticamente una
+   nota sin título al entrar para que el editor esté siempre listo.
+5. Cada cambio de título o cuerpo se serializa a Markdown y se autoguarda con
+   debounce.
+6. Antes de cambiar de nota se vacía la cola de guardado para evitar cruces.
 
 La nota no depende de una entrada `localStorage`: ese formato anterior solo se
 usará una vez como origen de migración y se conservará como respaldo.
@@ -85,8 +88,9 @@ Se usará **Milkdown + Crepe**:
   imágenes, tablas, código, barra de formato y LaTeX.
 - Milkdown documenta una receta para SolidJS usando su API vanilla; Solid no
   requiere una dependencia React.
-- El flujo interno es Markdown → Remark AST → ProseMirror → Markdown. El JSON
-  del editor es solo estado de sesión; el archivo `.md` es la fuente de verdad.
+- El flujo interno es Markdown → Remark AST → ProseMirror → Markdown. El primer
+  H1 se separa como título de página y no se duplica dentro del cuerpo visual.
+  El JSON del editor es solo estado de sesión; el archivo `.md` es la fuente de verdad.
 
 Cada instancia de editor se destruye al cambiar de nota para evitar que un
 listener antiguo escriba sobre el archivo nuevo.
@@ -125,22 +129,22 @@ La sección **Apariencia** controla opciones ortogonales a la skin:
 - densidad de interfaz.
 
 Las preferencias se guardan de forma validada y se aplican como variables CSS.
-El modo claro/oscuro solo altera la skin Material embebida; una skin de usuario
+El modo claro/oscuro solo altera la skin base embebida; una skin de usuario
 declara su propio modo para evitar результаados ambiguos.
 
-### 7.2 Skin Material predeterminada
+### 7.2 Skin base predeterminada
 
-La skin embebida se basará en los roles de color, escala tipográfica y escala de
-formas de Material Design 3. Tendrá dos paletas oficialmente derivadas:
+La skin embebida usa una interfaz neutra inspirada en herramientas de escritura
+moderna, no en una superficie decorativa:
 
-- Material light: superficies `neutral98/94/92`, texto `neutral10`, primario
-  `primary40` (`#6750a4`);
-- Material dark: superficies `neutral6/12/17`, texto `neutral90`, primario
-  `primary80` (`#d0bcff`).
+- superficies blancas o gris carbón;
+- texto principal de alto contraste y texto secundario atenuado;
+- un único acento azul para selección, foco y enlaces;
+- bordes discretos y sombras reservadas para menús y barras flotantes;
+- controles de 6–10 px que ganan superficie únicamente al interactuar.
 
-La interfaz no mostrará estados sin contraste suficiente. La
-selección de colores se hace por roles (`surface`, `onSurface`, `primary`,
-`outline`, etc.), no por colores arbitrarios repetidos en CSS.
+La selección de colores sigue pasando por variables de skin, nunca por colores
+hardcodeados en los componentes.
 
 ### 7.3 Catálogo
 
@@ -158,8 +162,8 @@ permite CSS arbitrario. El resultado sigue siendo editable como archivos TXT.
 
 ## 8. Modal de configuración
 
-El acceso principal es un botón con icono de engranaje en la esquina inferior
-izquierda. El modal:
+El acceso principal es un botón con icono de engranaje en la esquina superior
+del explorador. El modal:
 
 - es una superficie grande centrada;
 - tiene navegación izquierda;
@@ -174,19 +178,20 @@ izquierda. El modal:
 
 - Backend seguro y biblioteca local elegible.
 - Scanner jerárquico de carpetas y `.md`.
-- Explorer, creación inline, selección, rename/delete y autoguardado atómico.
+- Explorer, creación inmediata de páginas sin título, selección y autoguardado atómico.
 - Migración única y no destructiva desde `xenner:notes:v1`.
 
 ### Fase B — Editor
 
 - Milkdown/Crepe y serialización Markdown.
-- Bloques y comandos slash, listas, tareas, enlaces, tablas, código e imágenes.
+- Superficie de lectura con título arriba y barra flotante de assets abajo.
+- Acciones de inserción accesibles por icono y menú `+` para imagen, figura y SVG.
 - Cola de guardado y recuperación de errores.
 
-### Fase C — Configuración y Material
+### Fase C — Configuración y skin base
 
 - Modal y preferencias de apariencia.
-- Skin Material light/dark y modo sistema.
+- Skin base light/dark y modo sistema.
 - Galería separada entre skins del sistema y de usuario.
 
 ### Fase D — Skins de usuario
@@ -210,15 +215,6 @@ izquierda. El modal:
 - Tauri dialog plugin v2: <https://v2.tauri.app/plugin/dialog/>
 - Tauri file-system plugin v2: <https://v2.tauri.app/plugin/file-system/>
 - Tauri state management v2: <https://v2.tauri.app/develop/state-management/>
-- Material 3 color roles: <https://m3.material.io/styles/color/roles>
-- Material Web system colors, tokens v0.192:
-  <https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-color.scss>
-- Material Web reference palette, tokens v0.192:
-  <https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-ref-palette.scss>
-- Material Web type scale, tokens v0.192:
-  <https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-typescale.scss>
-- Material Web shape scale, tokens v0.192:
-  <https://github.com/material-components/material-web/blob/main/tokens/versions/v0_192/_md-sys-shape.scss>
 
 ## 11. Criterios de aceptación
 

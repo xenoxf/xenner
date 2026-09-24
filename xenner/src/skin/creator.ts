@@ -20,7 +20,7 @@ export interface SkinDraft {
 }
 
 const FONT_STACKS: Record<string, string> = {
-  system: 'Roboto, "Noto Sans", system-ui, sans-serif',
+  system: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   serif: 'Georgia, "Noto Serif", serif',
   mono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
 };
@@ -45,21 +45,21 @@ export function buildSkinComponents(draft: SkinDraft): CreateSkinRequest["compon
   const accent = draft.accent;
   const radius = Math.round(draft.radius);
   const font = FONT_STACKS[draft.font] ?? FONT_STACKS.system;
-  const background = dark ? "#141218" : "#fef7ff";
-  const surface = dark ? "#211f26" : "#fffbff";
-  const surfaceContainer = dark ? "#2b2930" : "#f3edf7";
-  const onSurface = dark ? "#e6e0e9" : "#1d1b20";
-  const dim = dark ? "#cac4d0" : "#49454f";
-  const outline = dark ? "#938f99" : "#605d66";
-  const primaryContainer = dark ? "#4f378b" : "#eaddff";
-  const onPrimary = dark ? "#e8def8" : "#21005d";
-  const hover = dark ? "#36343b" : "#ece6f0";
-  const shadow = dark ? "0 1px 3px rgba(0,0,0,0.34)" : "0 1px 3px rgba(29,27,32,0.12)";
+  const background = dark ? "#191919" : "#ffffff";
+  const surface = dark ? "#202020" : "#ffffff";
+  const surfaceContainer = dark ? "#252525" : "#f7f7f5";
+  const onSurface = dark ? "#e7e7e4" : "#2f2f2f";
+  const dim = dark ? "#9b9b98" : "#787774";
+  const outline = dark ? "#3c3c39" : "#e3e2e0";
+  const primaryContainer = dark ? "#343431" : "#e7e7e4";
+  const onPrimary = dark ? "#e7e7e4" : "#2f2f2f";
+  const hover = dark ? "#2b2b2a" : "#efefed";
+  const shadow = dark ? "0 8px 28px rgba(0,0,0,0.28)" : "0 8px 28px rgba(15,15,15,0.10)";
 
   return {
     background: component({
       background,
-      overlay: `linear-gradient(145deg, ${surface}, ${primaryContainer})`,
+      overlay: "none",
       text: onSurface,
       textDim: dim,
       border: `1px solid ${outline}`,
@@ -70,11 +70,11 @@ export function buildSkinComponents(draft: SkinDraft): CreateSkinRequest["compon
       font,
     }),
     button: component({
-      background: primaryContainer,
+      background: "transparent",
       backgroundHover: hover,
       text: onPrimary,
-      textHover: onPrimary,
-      border: `1px solid ${accent}`,
+      textHover: onSurface,
+      border: "1px solid transparent",
       borderHover: `1px solid ${accent}`,
       radius: `${radius}px`,
       blur: "0px",

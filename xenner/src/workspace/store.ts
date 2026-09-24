@@ -1,6 +1,7 @@
 import { createMemo, createSignal } from "solid-js";
 
 import { getWorkspaceGateway } from "./gateway";
+import { serializeNoteContent } from "./note";
 import { buildWorkspaceTree, isPathInside } from "./tree";
 import type { Note } from "../notes/model";
 import type {
@@ -12,10 +13,12 @@ import type {
 } from "./types";
 
 const SAVE_DELAY_MS = 300;
+const WORKSPACE_WATCH_INTERVAL_MS = 2_500;
 
 interface PendingSave {
   path: string;
-  content: string;
+  title: string;
+  body: string;
   revision: string;
 }
 
@@ -37,6 +40,9 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saveInFlight: Promise<boolean> | null = null;
 let selectionRequest = 0;
 let initialization: Promise<void> | null = null;
+let watchTimer: ReturnType<typeof setInterval> | null = null;
+let watchInFlight = false;
+let watchTick = 0;
 
 function errorMessage(error: unknown): VaultErrorShape {
   if (error && typeof error === "object") {
@@ -73,19 +79,94 @@ async function refreshWorkspace(): Promise<WorkspaceScan> {
   return scan;
 }
 
+export function stopWorkspaceWatcher(): void {
+  if (watchTimer !== null) {
+    clearInterval(watchTimer);
+    watchTimer = null;
+  }
+}
+
+export function startWorkspaceWatcher(): () => void {
+  if (watchTimer !== null) return stopWorkspaceWatcher;
+
+  const poll = async (): Promise<void> => {
+    if (
+      watchInFlight ||
+      (typeof document !== "undefined" && document.visibilityState === "hidden") ||
+      documentLoading() ||
+      pendingSave ||
+      saveInFlight
+    ) {
+      return;
+    }
+
+    watchInFlight = true;
+    const path = selectedPath();
+    const before = path ? selectedDocument() : null;
+    try {
+      if (path && before?.path === path) {
+        const diskDocument = await gateway.readNote(path);
+        const current = selectedDocument();
+        if (
+          selectedPath() === path &&
+          current?.path === path &&
+          current.revision === before.revision &&
+          !pendingSave &&
+          !saveInFlight
+        ) {
+          if (diskDocument.revision !== current.revision) {
+            if (saveStatus() === "clean" || saveStatus() === "saved") {
+              setSelectedDocument(diskDocument);
+              setDocumentReloadToken((token) => token + 1);
+              setSaveStatus("clean");
+              setWorkspaceError(null);
+            } else {
+              setSaveStatus("conflict");
+              setWorkspaceError({
+                code: "conflict",
+                message: "La nota cambió fuera de Xenner mientras había cambios pendientes",
+              });
+            }
+          }
+        }
+      }
+
+      watchTick += 1;
+      if (watchTick % 4 === 0) {
+        setWorkspace(await gateway.scan());
+      }
+    } catch (error) {
+      if (!pendingSave && !saveInFlight) setWorkspaceError(errorMessage(error));
+    } finally {
+      watchInFlight = false;
+    }
+  };
+
+  watchTimer = setInterval(() => void poll(), WORKSPACE_WATCH_INTERVAL_MS);
+  return stopWorkspaceWatcher;
+}
+
 async function persist(item: PendingSave): Promise<boolean> {
   setSaveStatus("saving");
   setWorkspaceError(null);
   try {
-    const acknowledgement = await gateway.writeNote(item.path, item.content, item.revision);
+    const acknowledgement = await gateway.writeNote(
+      item.path,
+      item.title,
+      item.body,
+      item.revision,
+    );
     setSelectedDocument((current) => {
       if (!current || current.path !== acknowledgement.path) return current;
+      const title = current.title === item.title ? item.title : current.title;
+      const body = current.body === item.body ? item.body : current.body;
       return {
         ...current,
-        content: current.content === item.content ? item.content : current.content,
+        title,
+        body,
         revision: acknowledgement.revision,
         updatedAt: acknowledgement.updatedAt,
-        size: new TextEncoder().encode(current.content).byteLength,
+        size: new TextEncoder().encode(serializeNoteContent(title, body)).byteLength,
       };
     });
     if (pendingSave?.path === acknowledgement.path) {
@@ -123,9 +204,9 @@ export async function flushPendingSave(): Promise<boolean> {
   return runSaveLoop();
 }
 
-function scheduleSave(path: string, content: string, revision: string): void {
+function scheduleSave(path: string, title: string, body: string, revision: string): void {
   if (selectedPath() !== path) return;
-  pendingSave = { path, content, revision };
+  pendingSave = { path, title, body, revision };
   setSaveStatus("dirty");
   clearSaveTimer();
   saveTimer = setTimeout(() => {
@@ -194,6 +275,7 @@ export function initializeWorkspace(): Promise<void> {
       const scan = await refreshWorkspace();
       const firstNote = scan.entries.find((entry) => entry.kind === "note");
       if (firstNote) await selectNote(firstNote.path);
+      else await createNote("");
     } catch (error) {
       setWorkspaceError(errorMessage(error));
     } finally {
@@ -228,16 +310,28 @@ export async function selectNote(path: string): Promise<boolean> {
   }
 }
 
-export function updateSelectedDocument(content: string): void {
+export function updateSelectedDocument(body: string): void {
   const current = selectedDocument();
   const path = selectedPath();
-  if (!current || !path) return;
+  if (!current || !path || current.body === body) return;
   setSelectedDocument({
     ...current,
-    content,
-    size: new TextEncoder().encode(content).byteLength,
+    body,
+    size: new TextEncoder().encode(serializeNoteContent(current.title, body)).byteLength,
   });
-  scheduleSave(path, content, current.revision);
+  scheduleSave(path, current.title, body, current.revision);
+}
+
+export function updateSelectedTitle(title: string): void {
+  const current = selectedDocument();
+  const path = selectedPath();
+  if (!current || !path || current.title === title) return;
+  setSelectedDocument({
+    ...current,
+    title,
+    size: new TextEncoder().encode(serializeNoteContent(title, current.body)).byteLength,
+  });
+  scheduleSave(path, title, current.body, current.revision);
 }
 
 export async function retryPendingSave(): Promise<boolean> {
@@ -267,7 +361,7 @@ export async function reloadSelectedDocument(): Promise<boolean> {
   }
 }
 
-export async function createNote(parent: string, name: string): Promise<string | null> {
+export async function createNote(parent: string, name?: string): Promise<string | null> {
   if (!(await flushPendingSave())) return null;
   try {
     const result = await gateway.createNote(parent, name);
@@ -342,7 +436,7 @@ export async function importLegacyNotes(notes: Note[]): Promise<number> {
     const name = `${legacySlug(note.title, note.id)}.md`;
     try {
       const result = await gateway.createNote(parent, name);
-      await gateway.writeNote(result.entry.path, note.body, result.document.revision);
+      await gateway.writeNote(result.entry.path, note.title, note.body, result.document.revision);
       importedIds.add(note.id);
       imported += 1;
     } catch (error) {
@@ -350,7 +444,7 @@ export async function importLegacyNotes(notes: Note[]): Promise<number> {
         const retryName = `${legacySlug(note.title, note.id)}-${Date.now().toString(36)}.md`;
         try {
           const result = await gateway.createNote(parent, retryName);
-          await gateway.writeNote(result.entry.path, note.body, result.document.revision);
+          await gateway.writeNote(result.entry.path, note.title, note.body, result.document.revision);
           importedIds.add(note.id);
           imported += 1;
         } catch (retryError) {
@@ -402,12 +496,7 @@ export async function deleteEntry(path: string): Promise<boolean> {
         ...flatEntries.slice(0, Math.max(index, 0)),
       ].find((entry) => entry.kind === "note")?.path;
       if (next) await selectNote(next);
-      else {
-        selectionRequest += 1;
-        setSelectedPath(null);
-        setSelectedDocument(null);
-        setSaveStatus("clean");
-      }
+      else await createNote("");
     }
     setWorkspaceError(null);
     return true;
@@ -432,6 +521,7 @@ export async function chooseWorkspace(): Promise<boolean> {
     setWorkspaceError(null);
     const firstNote = scan.entries.find((entry) => entry.kind === "note");
     if (firstNote) await selectNote(firstNote.path);
+    else await createNote("");
     return true;
   } catch (error) {
     if (gateway.canChooseWorkspace) setWorkspaceError(errorMessage(error));

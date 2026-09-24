@@ -11,6 +11,12 @@ export interface ImportedEditorAsset {
   relativePath: string;
 }
 
+export interface SelectedEditorAsset {
+  dataUrl: string;
+  relativePath: string;
+  alt?: string;
+}
+
 import { resolveAssetReference } from "./asset-paths";
 
 export { resolveAssetReference } from "./asset-paths";
@@ -73,6 +79,30 @@ async function fileToBase64(file: File): Promise<string> {
     binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
   }
   return btoa(binary);
+}
+
+function base64ToText(dataBase64: string): string {
+  const binary = atob(dataBase64);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+export async function readAssetForEditor(notePath: string, relativePath: string): Promise<string> {
+  const payload = await getWorkspaceGateway().readAsset(notePath, relativePath);
+  return base64ToText(payload.dataBase64);
+}
+
+export async function updateAssetForEditor(
+  notePath: string,
+  relativePath: string,
+  file: File,
+): Promise<ImportedEditorAsset> {
+  const dataBase64 = await fileToBase64(file);
+  const updated = await getWorkspaceGateway().updateAsset(notePath, relativePath, dataBase64);
+  return {
+    dataUrl: `data:${updated.mime};base64,${updated.dataBase64}`,
+    relativePath,
+  };
 }
 
 export async function importImageForEditor(

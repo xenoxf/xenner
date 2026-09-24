@@ -10,9 +10,9 @@ interface SkinCreatorProps {
 export function SkinCreator(props: SkinCreatorProps) {
   const [draft, setDraft] = createSignal<SkinDraft>({
     name: "Mi skin",
-    accent: "#6750a4",
+    accent: "#2383e2",
     mode: "dark",
-    radius: 16,
+    radius: 10,
     font: "system",
   });
   const [busy, setBusy] = createSignal(false);
@@ -129,7 +129,7 @@ export function SkinCreator(props: SkinCreatorProps) {
           value={draft().font}
           onChange={(event) => update("font", event.currentTarget.value)}
         >
-          <option value="system">Roboto / sistema</option>
+          <option value="system">Sistema</option>
           <option value="serif">Editorial serif</option>
           <option value="mono">Monoespaciada</option>
         </select>

@@ -23,6 +23,7 @@ pub fn run() {
             vault::read_note,
             vault::import_asset,
             vault::read_asset,
+            vault::update_asset,
             vault::write_note,
             vault::create_note,
             vault::create_folder,

@@ -24,6 +24,9 @@ interface Shape {
 }
 
 interface DrawingModalProps {
+  initialSvg?: string;
+  title?: string;
+  submitLabel?: string;
   onSave(svg: string): void | Promise<void>;
   onClose(): void;
 }
@@ -135,11 +138,137 @@ function svgDocument(shapes: Shape[]): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" data-xenner-asset="safe"><defs>${markers}</defs>${body}</svg>`;
 }
 
+function numberAttribute(element: Element, name: string, fallback = 0): number {
+  const value = Number.parseFloat(element.getAttribute(name) ?? "");
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function bounded(value: number, maximum = CANVAS_WIDTH): number {
+  return Math.max(0, Math.min(maximum, value));
+}
+
+function safeColor(value: string | null, fallback: string): string {
+  return value && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+}
+
+function parsePoints(value: string | null): Point[] {
+  if (!value) return [];
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((pair) => pair.split(",").map((part) => Number.parseFloat(part)))
+    .filter((pair): pair is [number, number] =>
+      pair.length >= 2 && Number.isFinite(pair[0]) && Number.isFinite(pair[1]),
+    )
+    .map(([x, y]) => ({ x: bounded(x), y: bounded(y, CANVAS_HEIGHT) }));
+}
+
+export function parseDrawingSvg(svg: string): Shape[] {
+  if (!svg || typeof DOMParser === "undefined") return [];
+  const parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
+  if (parsed.querySelector("parsererror")) return [];
+  const root = parsed.documentElement;
+  if (
+    root.tagName.toLowerCase() !== "svg" ||
+    root.getAttribute("data-xenner-asset")?.toLowerCase() !== "safe"
+  ) {
+    return [];
+  }
+
+  const shapes: Shape[] = [];
+  root.querySelectorAll("rect, ellipse, line, polyline, text").forEach((element) => {
+    const tag = element.tagName.toLowerCase();
+    const stroke = safeColor(element.getAttribute("stroke"), DEFAULT_COLOR);
+    const width = Math.max(1, Math.min(16, numberAttribute(element, "stroke-width", 4)));
+    const base: Omit<Shape, "kind" | "x1" | "y1" | "x2" | "y2" | "points" | "text"> = {
+      id: nextId(),
+      color: stroke,
+      width,
+    };
+    let shape: Shape | null = null;
+
+    if (tag === "rect") {
+      const x = bounded(numberAttribute(element, "x"));
+      const y = bounded(numberAttribute(element, "y"), CANVAS_HEIGHT);
+      const rectWidth = Math.max(2, Math.abs(numberAttribute(element, "width", 2)));
+      const rectHeight = Math.max(2, Math.abs(numberAttribute(element, "height", 2)));
+      shape = {
+        ...base,
+        kind: "rect",
+        x1: x,
+        y1: y,
+        x2: bounded(x + rectWidth),
+        y2: bounded(y + rectHeight, CANVAS_HEIGHT),
+        points: [],
+        text: "",
+      };
+    } else if (tag === "ellipse") {
+      const cx = bounded(numberAttribute(element, "cx"));
+      const cy = bounded(numberAttribute(element, "cy"), CANVAS_HEIGHT);
+      const rx = Math.max(1, Math.abs(numberAttribute(element, "rx", 1)));
+      const ry = Math.max(1, Math.abs(numberAttribute(element, "ry", 1)));
+      shape = {
+        ...base,
+        kind: "ellipse",
+        x1: bounded(cx - rx),
+        y1: bounded(cy - ry, CANVAS_HEIGHT),
+        x2: bounded(cx + rx),
+        y2: bounded(cy + ry, CANVAS_HEIGHT),
+        points: [],
+        text: "",
+      };
+    } else if (tag === "line") {
+      const isArrow = element.getAttribute("marker-end")?.includes("arrowhead") ?? false;
+      shape = {
+        ...base,
+        kind: isArrow ? "arrow" : "line",
+        x1: bounded(numberAttribute(element, "x1")),
+        y1: bounded(numberAttribute(element, "y1"), CANVAS_HEIGHT),
+        x2: bounded(numberAttribute(element, "x2")),
+        y2: bounded(numberAttribute(element, "y2"), CANVAS_HEIGHT),
+        points: [],
+        text: "",
+      };
+    } else if (tag === "polyline") {
+      const points = parsePoints(element.getAttribute("points"));
+      if (points.length >= 2) {
+        shape = {
+          ...base,
+          kind: "path",
+          x1: points[0].x,
+          y1: points[0].y,
+          x2: points[points.length - 1].x,
+          y2: points[points.length - 1].y,
+          points,
+          text: "",
+        };
+      }
+    } else if (tag === "text") {
+      const text = element.textContent?.trim() ?? "";
+      if (text) {
+        shape = {
+          ...base,
+          kind: "text",
+          x1: bounded(numberAttribute(element, "x")),
+          y1: bounded(numberAttribute(element, "y"), CANVAS_HEIGHT),
+          x2: bounded(numberAttribute(element, "x")),
+          y2: bounded(numberAttribute(element, "y"), CANVAS_HEIGHT),
+          points: [],
+          text,
+        };
+      }
+    }
+    if (shape) shapes.push(shape);
+  });
+  return shapes;
+}
+
 export function DrawingModal(props: DrawingModalProps) {
+  const initialShapes = parseDrawingSvg(props.initialSvg ?? "");
   const [tool, setTool] = createSignal<Tool>("select");
-  const [color, setColor] = createSignal(DEFAULT_COLOR);
-  const [width, setWidth] = createSignal(4);
-  const [shapes, setShapes] = createSignal<Shape[]>([]);
+  const [color, setColor] = createSignal(initialShapes[0]?.color ?? DEFAULT_COLOR);
+  const [width, setWidth] = createSignal(initialShapes[0]?.width ?? 4);
+  const [shapes, setShapes] = createSignal<Shape[]>(initialShapes);
   const [selectedId, setSelectedId] = createSignal<string | null>(null);
   const [draft, setDraft] = createSignal<Shape | null>(null);
   const [drag, setDrag] = createSignal<{ id: string; start: Point; original: Shape } | null>(null);
@@ -304,7 +433,7 @@ export function DrawingModal(props: DrawingModalProps) {
         <header class="drawing-header">
           <div>
             <p>Objeto visual</p>
-            <h2 id="drawing-title">Nuevo dibujo</h2>
+            <h2 id="drawing-title">{props.title ?? "Nuevo dibujo"}</h2>
           </div>
           <button type="button" class="icon-button" aria-label="Cerrar dibujo" onClick={props.onClose}>
             <CloseIcon />
@@ -407,7 +536,7 @@ export function DrawingModal(props: DrawingModalProps) {
               Cancelar
             </button>
             <button type="button" class="button primary" onClick={() => void props.onSave(svgDocument(shapes()))}>
-              Insertar dibujo
+              {props.submitLabel ?? "Insertar dibujo"}
             </button>
           </div>
         </footer>

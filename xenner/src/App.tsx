@@ -42,8 +42,10 @@ import {
   renameEntry,
   retryPendingSave,
   selectNote,
+  startWorkspaceWatcher,
   toggleFolder,
   updateSelectedDocument,
+  updateSelectedTitle,
   workspaceSupportsFolderPicker,
 } from "./workspace/store";
 
@@ -96,6 +98,7 @@ function App() {
   }
 
   onMount(() => {
+    const stopWatchingWorkspace = startWorkspaceWatcher();
     const initialAppearance = appearance();
     const initialScheme = applyAppearance(initialAppearance);
     void changeSkin(undefined, initialScheme);
@@ -120,10 +123,22 @@ function App() {
       if (appearance().mode === "system") void changeSkin(activeSkin(), scheme);
     });
     onCleanup(stopWatchingSystem);
+    onCleanup(stopWatchingWorkspace);
   });
+
+  async function createUntitledNote(parent = ""): Promise<void> {
+    if (creating()) return;
+    setCreating(true);
+    await createNote(parent);
+    setCreating(false);
+  }
 
   function startCreation(kind: CreationKind, parent = ""): void {
     if (parent) expandFolder(parent);
+    if (kind === "note") {
+      void createUntitledNote(parent);
+      return;
+    }
     setCreation({ kind, parent });
   }
 
@@ -131,10 +146,7 @@ function App() {
     const draft = creation();
     if (!draft || creating()) return;
     setCreating(true);
-    const result =
-      draft.kind === "note"
-        ? await createNote(draft.parent, name)
-        : await createFolder(draft.parent, name);
+    const result = await createFolder(draft.parent, name);
     setCreating(false);
     if (result) setCreation(null);
   }
@@ -174,44 +186,43 @@ function App() {
     <div class="app-shell">
       <aside class="explorer-sidebar" aria-label="Explorador de archivos">
         <header class="explorer-header">
-          <div class="brand-row">
-            <div class="brand-mark" aria-hidden="true">
-              x
+          <div class="explorer-title-row">
+            <div class="explorer-title-copy">
+              <span>Explorador</span>
+              <strong title={getWorkspace()?.info.root ?? ""}>
+                {baseName(getWorkspace()?.info.root ?? "Biblioteca")}
+              </strong>
             </div>
-            <div class="brand-copy">
-              <strong>xenner</strong>
-              <span>{baseName(getWorkspace()?.info.root ?? "Biblioteca")}</span>
+            <div class="explorer-window-actions">
+              <button
+                type="button"
+                class="icon-button"
+                disabled={!workspaceSupportsFolderPicker()}
+                aria-label="Abrir otra biblioteca"
+                title={workspaceSupportsFolderPicker() ? "Abrir carpeta" : "El selector de carpetas requiere la app desktop"}
+                onClick={() => void chooseWorkspace()}
+              >
+                <FolderOpenIcon />
+              </button>
+              <button
+                type="button"
+                class="icon-button"
+                aria-label="Actualizar explorador"
+                title="Actualizar"
+                onClick={() => void refreshWorkspaceTree()}
+              >
+                <RefreshIcon />
+              </button>
+              <button
+                type="button"
+                class="icon-button"
+                aria-label="Configuración"
+                title="Configuración"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <GearIcon />
+              </button>
             </div>
-            <button
-              type="button"
-              class="icon-button"
-              aria-label="Configuración"
-              title="Configuración"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <GearIcon />
-            </button>
-          </div>
-          <div class="workspace-actions">
-            <button
-              type="button"
-              class="compact-button"
-              disabled={!workspaceSupportsFolderPicker()}
-              title={workspaceSupportsFolderPicker() ? "Abrir otra biblioteca" : "El selector de carpetas requiere la app desktop"}
-              onClick={() => void chooseWorkspace()}
-            >
-              <FolderOpenIcon />
-              <span>Abrir carpeta</span>
-            </button>
-            <button
-              type="button"
-              class="icon-button"
-              aria-label="Actualizar explorador"
-              title="Actualizar"
-              onClick={() => void refreshWorkspaceTree()}
-            >
-              <RefreshIcon />
-            </button>
           </div>
           <div class="explorer-toolbar">
             <button type="button" class="toolbar-primary" onClick={() => startCreation("note")}>
@@ -227,7 +238,13 @@ function App() {
             >
               <FolderPlusIcon />
             </button>
-            <span class="explorer-count">{getWorkspace()?.info.noteCount ?? 0}</span>
+            <span
+              class="explorer-count"
+              title={`${getWorkspace()?.info.noteCount ?? 0} notas`}
+              aria-label={`${getWorkspace()?.info.noteCount ?? 0} notas`}
+            >
+              {getWorkspace()?.info.noteCount ?? 0}
+            </span>
           </div>
         </header>
 
@@ -285,6 +302,7 @@ function App() {
             <Explorer
               nodes={getWorkspaceTree()}
               selectedPath={getSelectedPath()}
+              selectedTitle={getSelectedDocument()?.title ?? ""}
               expandedPaths={getExpandedPaths()}
               creation={creation()}
               busy={creating()}
@@ -300,10 +318,7 @@ function App() {
         </div>
 
         <footer class="explorer-footer">
-          <button type="button" class="settings-button" onClick={() => setSettingsOpen(true)}>
-            <GearIcon />
-            <span>Configuración</span>
-          </button>
+          <strong>xenner</strong>
           <span title={getWorkspace()?.info.root ?? ""}>
             {getWorkspace()?.info.truncated ? "Explorer limitado" : "Markdown local"}
           </span>
@@ -313,15 +328,13 @@ function App() {
       <EditorPane
         document={getSelectedDocument()}
         status={getSaveStatus()}
+        initializing={getWorkspaceLoading()}
         loading={getDocumentLoading()}
         reloadToken={getDocumentReloadToken()}
         error={getWorkspaceError()}
         onChange={updateSelectedDocument}
+        onTitleChange={updateSelectedTitle}
         onCreate={() => startCreation("note")}
-        onRename={() => {
-          const path = getSelectedPath();
-          if (path) void rename(path);
-        }}
         onDelete={() => {
           const path = getSelectedPath();
           if (path) void remove(path);

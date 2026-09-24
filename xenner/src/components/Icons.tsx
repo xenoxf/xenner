@@ -88,6 +88,24 @@ export function PencilIcon(props: IconProps) {
   );
 }
 
+export function ShapesIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="3" y="4" width="11" height="11" rx="2" />
+      <circle cx="17" cy="17" r="4" />
+      <path d="M14 4h7v7" />
+    </svg>
+  );
+}
+
+export function MarkdownIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M8 9 4 12l4 3M16 9l4 3-4 3M14 5l-4 14" />
+    </svg>
+  );
+}
+
 export function TrashIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

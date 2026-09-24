@@ -1,4 +1,5 @@
 import type { Crepe as CrepeInstance } from "@milkdown/crepe";
+import { editorViewCtx } from "@milkdown/kit/core";
 import { insert, replaceAll } from "@milkdown/kit/utils";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
@@ -7,11 +8,23 @@ import {
   prepareMarkdownForEditor,
   serializeMarkdownFromEditor,
   type PreparedMarkdown,
+  type SelectedEditorAsset,
 } from "../editor/assets";
 
 export interface MarkdownEditorHandle {
   insertAsset(dataUrl: string, relativePath: string, alt?: string): void;
+  getSelectedAsset(): SelectedEditorAsset | null;
+  replaceAsset(
+    previousDataUrl: string,
+    nextDataUrl: string,
+    relativePath: string,
+  ): boolean;
 }
+
+type ImageNode = {
+  type: { name: string };
+  attrs: Record<string, unknown>;
+};
 
 interface MarkdownEditorProps {
   notePath: string;
@@ -75,10 +88,76 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           if (!disposed) props.onChange(serializeMarkdownFromEditor(markdown, prepared.replacements));
         });
       });
+      const isImageNode = (value: unknown): value is ImageNode => {
+        if (!value || typeof value !== "object") return false;
+        const candidate = value as { type?: { name?: unknown }; attrs?: unknown };
+        return (
+          (candidate.type?.name === "image" || candidate.type?.name === "image-block") &&
+          !!candidate.attrs &&
+          typeof candidate.attrs === "object"
+        );
+      };
+
+      const findImage = (source?: string): { position: number; node: ImageNode } | null => {
+        const view = instance.editor.ctx.get(editorViewCtx);
+        const state = view.state;
+        const selection = state.selection as typeof state.selection & { node?: unknown };
+        const from = selection.$from;
+        const candidates: Array<{ position: number; node: unknown }> = [
+          { position: selection.from, node: selection.node },
+        ];
+        if (from.nodeAfter) candidates.push({ position: selection.from, node: from.nodeAfter });
+        if (from.nodeBefore) {
+          candidates.push({ position: selection.from - from.nodeBefore.nodeSize, node: from.nodeBefore });
+        }
+        for (const candidate of candidates) {
+          if (isImageNode(candidate.node)) {
+            if (!source || candidate.node.attrs.src === source) {
+              return { position: candidate.position, node: candidate.node };
+            }
+          }
+        }
+        if (source) {
+          let match: { position: number; node: ImageNode } | null = null;
+          state.doc.descendants((node, position) => {
+            if (isImageNode(node) && node.attrs.src === source) {
+              match = { position, node };
+              return false;
+            }
+            return !match;
+          });
+          return match;
+        }
+        return null;
+      };
+
       props.onReady?.({
         insertAsset(dataUrl, relativePath, alt = "Dibujo") {
           prepared.replacements.set(dataUrl, relativePath);
           instance.editor.action(insert(`![${alt}](${dataUrl})`));
+        },
+        getSelectedAsset() {
+          const target = findImage();
+          if (!target || typeof target.node.attrs.src !== "string") return null;
+          const dataUrl = target.node.attrs.src;
+          const relativePath = prepared.replacements.get(dataUrl);
+          if (!relativePath) return null;
+          const alt =
+            typeof target.node.attrs.alt === "string"
+              ? target.node.attrs.alt
+              : typeof target.node.attrs.caption === "string"
+                ? target.node.attrs.caption
+                : undefined;
+          return { dataUrl, relativePath, alt };
+        },
+        replaceAsset(previousDataUrl, nextDataUrl, relativePath) {
+          const target = findImage(previousDataUrl);
+          if (!target) return false;
+          prepared.replacements.delete(previousDataUrl);
+          prepared.replacements.set(nextDataUrl, relativePath);
+          const view = instance.editor.ctx.get(editorViewCtx);
+          view.dispatch(view.state.tr.setNodeAttribute(target.position, "src", nextDataUrl));
+          return true;
         },
       });
       setReady(true);

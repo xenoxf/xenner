@@ -20,6 +20,7 @@ export interface CreationDraft {
 interface ExplorerProps {
   nodes: WorkspaceTreeNode[];
   selectedPath: string | null;
+  selectedTitle: string;
   expandedPaths: ReadonlySet<string>;
   creation: CreationDraft | null;
   busy: boolean;
@@ -37,11 +38,21 @@ interface NodeProps extends ExplorerProps {
   depth: number;
 }
 
+function displayNodeName(name: string, kind: WorkspaceTreeNode["kind"]): string {
+  if (kind !== "note") return name;
+  const title = name.replace(/\.md$/i, "");
+  return /^Sin título(?: \d+)?$/i.test(title) ? "Sin título" : title;
+}
+
 function ExplorerNode(props: NodeProps) {
   const expanded = () => props.expandedPaths.has(props.node.path);
   const activeCreation = () =>
     props.creation?.parent === props.node.path ? props.creation : null;
   const hasCreation = () => activeCreation() !== null;
+  const label = () =>
+    props.node.path === props.selectedPath
+      ? props.selectedTitle.trim() || "Sin título"
+      : displayNodeName(props.node.name, props.node.kind);
 
   return (
     <div class="explorer-node" role="treeitem" aria-expanded={props.node.kind === "directory" ? expanded() : undefined}>
@@ -53,7 +64,7 @@ function ExplorerNode(props: NodeProps) {
         <button
           type="button"
           class="explorer-main"
-          aria-label={props.node.kind === "directory" ? `Abrir carpeta ${props.node.name}` : `Abrir nota ${props.node.name}`}
+          aria-label={props.node.kind === "directory" ? `Abrir carpeta ${label()}` : `Abrir nota ${label()}`}
           aria-current={props.node.path === props.selectedPath ? "page" : undefined}
           onClick={() => {
             if (props.node.kind === "directory") props.onToggle(props.node.path);
@@ -70,14 +81,14 @@ function ExplorerNode(props: NodeProps) {
               <FolderIcon />
             </Show>
           </span>
-          <span class="explorer-name">{props.node.name}</span>
+          <span class="explorer-name">{label()}</span>
         </button>
         <div class="explorer-actions">
           <Show when={props.node.kind === "directory"}>
             <button
               type="button"
               class="icon-button"
-              aria-label={`Crear nota en ${props.node.name}`}
+              aria-label={`Crear nota en ${label()}`}
               title="Nueva nota"
               onClick={() => props.onStartCreation("note", props.node.path)}
             >
@@ -86,26 +97,28 @@ function ExplorerNode(props: NodeProps) {
             <button
               type="button"
               class="icon-button"
-              aria-label={`Crear carpeta en ${props.node.name}`}
+              aria-label={`Crear carpeta en ${label()}`}
               title="Nueva carpeta"
               onClick={() => props.onStartCreation("folder", props.node.path)}
             >
               <FolderPlusIcon />
             </button>
           </Show>
-          <button
-            type="button"
-            class="icon-button"
-            aria-label={`Renombrar ${props.node.name}`}
-            title="Renombrar"
-            onClick={() => props.onRename(props.node.path)}
-          >
-            <PencilIcon />
-          </button>
+          <Show when={props.node.kind === "directory"}>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label={`Renombrar ${label()}`}
+              title="Renombrar"
+              onClick={() => props.onRename(props.node.path)}
+            >
+              <PencilIcon />
+            </button>
+          </Show>
           <button
             type="button"
             class="icon-button danger"
-            aria-label={`Eliminar ${props.node.name}`}
+            aria-label={`Eliminar ${label()}`}
             title="Eliminar"
             onClick={() => props.onDelete(props.node.path)}
           >

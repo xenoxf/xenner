@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
 import "./App.css";
 import { CreationRow, type CreationKind } from "./components/CreationRow";
@@ -6,6 +6,7 @@ import { EditorPane } from "./components/EditorPane";
 import { Explorer, type CreationDraft } from "./components/Explorer";
 import { FolderOpenIcon, FolderPlusIcon, GearIcon, PlusIcon, RefreshIcon } from "./components/Icons";
 import { SettingsModal } from "./components/SettingsModal";
+import { notifyError, notifySuccess, notifyWarning, ToastRegion } from "./components/ToastRegion";
 import { readLegacyNotes } from "./notes/legacy";
 import type { Note } from "./notes/model";
 import { loadSkin, type SkinInfo } from "./skin/loader";
@@ -25,6 +26,7 @@ import {
   createNote,
   deleteEntry,
   expandFolder,
+  flushPendingSave,
   getDocumentLoading,
   getDocumentReloadToken,
   getExpandedPaths,
@@ -65,6 +67,9 @@ function App() {
   const [legacyNotes, setLegacyNotes] = createSignal<Note[]>([]);
   const [legacyIssue, setLegacyIssue] = createSignal<string | null>(null);
   let skinRequest = 0;
+  let saveShortcutBusy = false;
+  let lastWorkspaceIssue = "";
+  let lastLegacyIssue = "";
 
   async function changeSkin(
     id?: string,
@@ -97,6 +102,26 @@ function App() {
     void changeSkin(skin.id);
   }
 
+  createEffect(() => {
+    const error = getWorkspaceError();
+    if (!error) {
+      lastWorkspaceIssue = "";
+      return;
+    }
+    const issue = `${error.code}:${error.message}`;
+    if (issue === lastWorkspaceIssue) return;
+    lastWorkspaceIssue = issue;
+    const title = error.code === "conflict" ? "Conflicto de archivo" : "No se pudo completar la operación";
+    notifyError(title, error.message);
+  });
+
+  createEffect(() => {
+    const issue = legacyIssue();
+    if (!issue || issue === lastLegacyIssue) return;
+    lastLegacyIssue = issue;
+    notifyWarning("Importación antigua incompleta", issue);
+  });
+
   onMount(() => {
     const stopWatchingWorkspace = startWorkspaceWatcher();
     const initialAppearance = appearance();
@@ -122,6 +147,20 @@ function App() {
     const stopWatchingSystem = watchSystemColorScheme((scheme) => {
       if (appearance().mode === "system") void changeSkin(activeSkin(), scheme);
     });
+    const saveWithShortcut = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s" || saveShortcutBusy) return;
+      event.preventDefault();
+      saveShortcutBusy = true;
+      void flushPendingSave()
+        .then((saved) => {
+          if (saved) notifySuccess("Cambios guardados");
+        })
+        .finally(() => {
+          saveShortcutBusy = false;
+        });
+    };
+    document.addEventListener("keydown", saveWithShortcut);
+    onCleanup(() => document.removeEventListener("keydown", saveWithShortcut));
     onCleanup(stopWatchingSystem);
     onCleanup(stopWatchingWorkspace);
   });
@@ -129,8 +168,12 @@ function App() {
   async function createUntitledNote(parent = ""): Promise<void> {
     if (creating()) return;
     setCreating(true);
-    await createNote(parent);
-    setCreating(false);
+    try {
+      const path = await createNote(parent);
+      if (path) notifySuccess("Nota creada", baseName(path));
+    } finally {
+      setCreating(false);
+    }
   }
 
   function startCreation(kind: CreationKind, parent = ""): void {
@@ -146,9 +189,15 @@ function App() {
     const draft = creation();
     if (!draft || creating()) return;
     setCreating(true);
-    const result = await createFolder(draft.parent, name);
-    setCreating(false);
-    if (result) setCreation(null);
+    try {
+      const result = await createFolder(draft.parent, name);
+      if (result) {
+        setCreation(null);
+        notifySuccess("Carpeta creada", baseName(result.path));
+      }
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function importOldNotes(): Promise<void> {
@@ -162,6 +211,7 @@ function App() {
     if (imported > 0) {
       setLegacyNotes([]);
       setLegacyIssue(null);
+      notifySuccess("Notas importadas", `${imported} ${imported === 1 ? "nota" : "notas"}`);
     }
   }
 
@@ -169,7 +219,8 @@ function App() {
     const currentName = path.slice(path.lastIndexOf("/") + 1);
     const nextName = window.prompt("Nuevo nombre", currentName)?.trim();
     if (!nextName || nextName === currentName) return;
-    await renameEntry(path, nextName);
+    const renamed = await renameEntry(path, nextName);
+    if (renamed) notifySuccess("Elemento renombrado", baseName(renamed));
   }
 
   async function remove(path: string): Promise<void> {
@@ -179,7 +230,10 @@ function App() {
         ? `¿Eliminar “${name}”? Esta acción no se puede deshacer.`
         : `¿Eliminar la carpeta “${name}”? Solo se puede eliminar si está vacía.`,
     );
-    if (confirmed) await deleteEntry(path);
+    if (confirmed) {
+      const deleted = await deleteEntry(path);
+      if (deleted) notifySuccess("Elemento eliminado", name);
+    }
   }
 
   return (
@@ -250,7 +304,7 @@ function App() {
 
         <Show when={getWorkspaceError()}>
           {(error) => (
-            <div class="workspace-alert" role="alert">
+            <div class="workspace-alert" role="group" aria-label="Error de biblioteca">
               <div>
                 <strong>{error().code === "conflict" ? "Conflicto" : "Biblioteca"}</strong>
                 <span>{error().message}</span>
@@ -351,6 +405,7 @@ function App() {
           onClose={() => setSettingsOpen(false)}
         />
       </Show>
+      <ToastRegion />
     </div>
   );
 }

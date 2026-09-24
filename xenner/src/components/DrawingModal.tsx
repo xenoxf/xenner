@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
 import { CloseIcon, TrashIcon } from "./Icons";
 
@@ -29,6 +29,7 @@ interface DrawingModalProps {
   initialTool?: DrawingTool;
   title?: string;
   submitLabel?: string;
+  busy?: boolean;
   onSave(svg: string): void | Promise<void>;
   onClose(): void;
 }
@@ -278,8 +279,13 @@ export function DrawingModal(props: DrawingModalProps) {
   const [redoStack, setRedoStack] = createSignal<Shape[][]>([]);
   let canvas: SVGSVGElement | undefined;
   let modal: HTMLDivElement | undefined;
+  let previousFocus: HTMLElement | null = null;
 
-  onMount(() => queueMicrotask(() => modal?.focus()));
+  onMount(() => {
+    previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    queueMicrotask(() => modal?.focus());
+  });
+  onCleanup(() => previousFocus?.focus());
 
   function pointFromEvent(event: PointerEvent): Point {
     const rect = canvas!.getBoundingClientRect();
@@ -415,7 +421,12 @@ export function DrawingModal(props: DrawingModalProps) {
   ];
 
   return (
-    <div class="modal-backdrop drawing-backdrop">
+    <div
+      class="modal-backdrop drawing-backdrop"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) props.onClose();
+      }}
+    >
       <div
         ref={(element) => (modal = element)}
         class="drawing-modal"
@@ -424,6 +435,23 @@ export function DrawingModal(props: DrawingModalProps) {
         aria-labelledby="drawing-title"
         tabindex={-1}
         onKeyDown={(event) => {
+          if (event.key === "Tab") {
+            const focusable = [
+              ...(modal?.querySelectorAll<HTMLElement>(
+                "button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex='-1'])",
+              ) ?? []),
+            ];
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const atBoundary = event.shiftKey
+              ? document.activeElement === first || document.activeElement === modal
+              : document.activeElement === last;
+            if (first && last && atBoundary) {
+              event.preventDefault();
+              (event.shiftKey ? last : first).focus();
+            }
+            return;
+          }
           if (event.key === "Escape") props.onClose();
           if (event.key === "Delete" || event.key === "Backspace") deleteSelected();
           if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
@@ -537,8 +565,13 @@ export function DrawingModal(props: DrawingModalProps) {
             <button type="button" class="button" onClick={props.onClose}>
               Cancelar
             </button>
-            <button type="button" class="button primary" onClick={() => void props.onSave(svgDocument(shapes()))}>
-              {props.submitLabel ?? "Insertar dibujo"}
+            <button
+              type="button"
+              class="button primary"
+              disabled={props.busy}
+              onClick={() => void props.onSave(svgDocument(shapes()))}
+            >
+              {props.busy ? "Insertando…" : props.submitLabel ?? "Insertar dibujo"}
             </button>
           </div>
         </footer>

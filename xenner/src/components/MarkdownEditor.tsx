@@ -10,10 +10,13 @@ import {
   type PreparedMarkdown,
   type SelectedEditorAsset,
 } from "../editor/assets";
+import { normalizeTextColor, textColorMark, textColorRemark } from "../editor/text-color";
+import { notifyError, notifySuccess } from "./ToastRegion";
 
 export interface MarkdownEditorHandle {
   focus(): void;
   insertAsset(dataUrl: string, relativePath: string, alt?: string): void;
+  applyTextColor(color: string | null): boolean;
   getSelectedAsset(): SelectedEditorAsset | null;
   replaceAsset(
     previousDataUrl: string,
@@ -33,6 +36,7 @@ interface MarkdownEditorProps {
   reloadToken: number;
   onChange(markdown: string): void;
   onReady?(handle: MarkdownEditorHandle): void;
+  onDispose?(): void;
 }
 
 export function MarkdownEditor(props: MarkdownEditorProps) {
@@ -69,20 +73,30 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
             mode: "doc",
           },
           [Crepe.Feature.BlockEdit]: {
+            blockHandle: {
+              getOffset: () => 6,
+            },
             advancedGroup: {
               image: null,
             },
           },
           [Crepe.Feature.ImageBlock]: {
             onUpload: async (file) => {
-              const imported = await importImageForEditor(props.notePath, file);
-              prepared.replacements.set(imported.dataUrl, imported.relativePath);
-              return imported.dataUrl;
+              try {
+                const imported = await importImageForEditor(props.notePath, file);
+                prepared.replacements.set(imported.dataUrl, imported.relativePath);
+                notifySuccess("Imagen insertada", file.name);
+                return imported.dataUrl;
+              } catch (error) {
+                notifyError("No se pudo insertar la imagen", error);
+                throw error;
+              }
             },
             proxyDomURL: (url) => url,
           },
         },
       });
+      instance.editor.use(textColorRemark).use(textColorMark);
       crepe = instance;
       await instance.create();
       if (disposed) {
@@ -143,7 +157,24 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         },
         insertAsset(dataUrl, relativePath, alt = "Dibujo") {
           prepared.replacements.set(dataUrl, relativePath);
+          const view = instance.editor.ctx.get(editorViewCtx);
+          if (!view.hasFocus()) view.focus();
           instance.editor.action(insert(`![${alt}](${dataUrl})`));
+        },
+        applyTextColor(color) {
+          const view = instance.editor.ctx.get(editorViewCtx);
+          const { from, to } = view.state.selection;
+          if (from === to) return false;
+          const normalized = color === null ? null : normalizeTextColor(color);
+          if (color !== null && !normalized) return false;
+          const markType = textColorMark.type(instance.editor.ctx);
+          const transaction = view.state.tr.removeMark(from, to, markType);
+          if (normalized) {
+            transaction.addMark(from, to, markType.create({ color: normalized }));
+          }
+          view.dispatch(transaction.scrollIntoView());
+          view.focus();
+          return true;
         },
         getSelectedAsset() {
           const target = findImage();
@@ -172,7 +203,9 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
       setReady(true);
     } catch (cause) {
       if (!disposed) {
-        setError(cause instanceof Error ? cause.message : "No se pudo iniciar el editor");
+        const message = cause instanceof Error ? cause.message : "No se pudo iniciar el editor";
+        setError(message);
+        notifyError("No se pudo abrir el editor", message);
       }
     }
   });
@@ -195,6 +228,7 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
 
   onCleanup(() => {
     disposed = true;
+    props.onDispose?.();
     if (crepe) void crepe.destroy();
   });
 

@@ -33,6 +33,7 @@ export interface ImportedAsset {
   relativePath: string;
   mime: string;
   dataBase64: string;
+  fileName: string;
 }
 
 export interface AssetPayload {

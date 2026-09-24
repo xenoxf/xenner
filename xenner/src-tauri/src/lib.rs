@@ -22,6 +22,7 @@ pub fn run() {
             vault::scan_workspace,
             vault::read_note,
             vault::import_asset,
+            vault::choose_image_asset,
             vault::read_asset,
             vault::update_asset,
             vault::write_note,

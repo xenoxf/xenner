@@ -133,6 +133,7 @@ pub struct ImportedAsset {
     pub relative_path: String,
     pub mime: String,
     pub data_base64: String,
+    pub file_name: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -811,6 +812,7 @@ fn import_asset_blocking(
         relative_path,
         mime: mime.to_string(),
         data_base64: BASE64.encode(&bytes),
+        file_name,
     })
 }
 
@@ -1234,6 +1236,51 @@ pub async fn import_asset(
     let root = root_from_state(&state)?;
     tauri::async_runtime::spawn_blocking(move || {
         import_asset_blocking(root, note_path, file_name, data_base64)
+    })
+    .await
+    .map_err(|_| join_error())?
+}
+
+#[tauri::command]
+pub async fn choose_image_asset(
+    app: AppHandle,
+    state: State<'_, VaultState>,
+    note_path: String,
+) -> Result<Option<ImportedAsset>, VaultError> {
+    let root = root_from_state(&state)?;
+    let dialog_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let selected = dialog_app
+            .dialog()
+            .file()
+            .set_title("Insertar imagen")
+            .add_filter("Imágenes", &["png", "jpg", "jpeg", "gif", "webp"])
+            .blocking_pick_file()
+            .map(|file| {
+                file.into_path()
+                    .map_err(|error| invalid_path(format!("ruta de imagen inválida: {error}")))
+            })
+            .transpose()?;
+        let Some(selected) = selected else {
+            return Ok(None);
+        };
+        if !is_plain_file(&selected) {
+            return Err(invalid_path(
+                "la imagen seleccionada no es un archivo normal",
+            ));
+        }
+        let metadata = fs::metadata(&selected)?;
+        if metadata.len() > MAX_ASSET_BYTES as u64 {
+            return Err(VaultError::new("tooLarge", "la imagen es demasiado grande"));
+        }
+        let file_name = selected
+            .file_name()
+            .and_then(OsStr::to_str)
+            .filter(|name| !name.is_empty())
+            .ok_or_else(|| invalid_path("la imagen no tiene un nombre válido"))?
+            .to_string();
+        let data_base64 = BASE64.encode(fs::read(&selected)?);
+        import_asset_blocking(root, note_path, file_name, data_base64).map(Some)
     })
     .await
     .map_err(|_| join_error())?

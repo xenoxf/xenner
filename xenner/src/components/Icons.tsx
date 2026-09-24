@@ -114,6 +114,33 @@ export function TextIcon(props: IconProps) {
   );
 }
 
+export function TextColorIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M5 5h14M12 5v9M8.5 18h7" />
+      <path d="M6.5 15.5h11" stroke-width="2.4" />
+    </svg>
+  );
+}
+
+export function InfoIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6M12 7.5h.01" />
+    </svg>
+  );
+}
+
+export function AlertIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M10.3 4.4 2.8 17.5A1.7 1.7 0 0 0 4.3 20h15.4a1.7 1.7 0 0 0 1.5-2.5L13.7 4.4a1.9 1.9 0 0 0-3.4 0Z" />
+      <path d="M12 9v4M12 16.5h.01" />
+    </svg>
+  );
+}
+
 export function SquareIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

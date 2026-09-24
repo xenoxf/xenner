@@ -16,10 +16,12 @@ import type {
 
 export interface WorkspaceGateway {
   readonly canChooseWorkspace: boolean;
+  readonly canChooseImageAsset: boolean;
   scan(): Promise<WorkspaceScan>;
   chooseWorkspace(): Promise<WorkspaceScan | null>;
   readNote(relativePath: string): Promise<NoteDocument>;
   importAsset(notePath: string, fileName: string, dataBase64: string): Promise<ImportedAsset>;
+  chooseImageAsset(notePath: string): Promise<ImportedAsset | null>;
   readAsset(notePath: string, assetPath: string): Promise<AssetPayload>;
   updateAsset(notePath: string, assetPath: string, dataBase64: string): Promise<AssetPayload>;
   writeNote(
@@ -71,6 +73,7 @@ async function invokeWorkspace<T>(command: string, args?: Record<string, unknown
 
 class TauriWorkspaceGateway implements WorkspaceGateway {
   readonly canChooseWorkspace = true;
+  readonly canChooseImageAsset = true;
 
   scan(): Promise<WorkspaceScan> {
     return invokeWorkspace("scan_workspace");
@@ -86,6 +89,10 @@ class TauriWorkspaceGateway implements WorkspaceGateway {
 
   importAsset(notePath: string, fileName: string, dataBase64: string): Promise<ImportedAsset> {
     return invokeWorkspace("import_asset", { notePath, fileName, dataBase64 });
+  }
+
+  chooseImageAsset(notePath: string): Promise<ImportedAsset | null> {
+    return invokeWorkspace("choose_image_asset", { notePath });
   }
 
   readAsset(notePath: string, assetPath: string): Promise<AssetPayload> {
@@ -287,6 +294,7 @@ function previewScan(state: PreviewState): WorkspaceScan {
 
 class PreviewWorkspaceGateway implements WorkspaceGateway {
   readonly canChooseWorkspace = false;
+  readonly canChooseImageAsset = false;
 
   async scan(): Promise<WorkspaceScan> {
     return previewScan(readPreviewState());
@@ -334,7 +342,11 @@ class PreviewWorkspaceGateway implements WorkspaceGateway {
     const relativePath = `./.assets/${previewRevision(dataBase64).slice(-16)}.${extension}`;
     state.assets[relativePath] = { mime, dataBase64 };
     writePreviewState(state);
-    return { relativePath, mime, dataBase64 };
+    return { relativePath, mime, dataBase64, fileName };
+  }
+
+  async chooseImageAsset(): Promise<ImportedAsset | null> {
+    return null;
   }
 
   async readAsset(notePath: string, assetPath: string): Promise<AssetPayload> {

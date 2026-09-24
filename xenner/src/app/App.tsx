@@ -43,7 +43,6 @@ export default function App() {
         canChooseWorkspace={workspaceSupportsFolderPicker()}
         error={getWorkspaceError()}
         selectedPath={getSelectedPath()}
-        selectedTitle={getSelectedDocument()?.title ?? ""}
         expandedPaths={getExpandedPaths()}
         creation={explorer.creation()}
         creating={explorer.creating()}

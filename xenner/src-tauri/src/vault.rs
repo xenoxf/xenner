@@ -485,43 +485,22 @@ fn strip_note_extension(name: &str) -> &str {
 
 fn normalize_note_title(value: &str) -> String {
     let mut title = String::new();
-    let mut pending_space = false;
     for character in value.chars() {
-        if character.is_control() || character.is_whitespace() {
-            if !title.is_empty() {
-                pending_space = true;
-            }
-            continue;
-        }
-        if pending_space {
+        if character.is_control() {
             title.push(' ');
-            pending_space = false;
+        } else {
+            title.push(character);
         }
-        title.push(character);
         if title.chars().count() == NOTE_TITLE_MAX_CHARS {
             break;
         }
     }
-    title
-}
-
-fn is_untitled_stem(value: &str) -> bool {
-    if value.eq_ignore_ascii_case("Sin título") {
-        return true;
-    }
-    value.strip_prefix("Sin título ").is_some_and(|suffix| {
-        !suffix.is_empty() && suffix.chars().all(|character| character.is_ascii_digit())
-    })
+    title.trim().to_string()
 }
 
 fn title_from_path(relative_path: &str) -> String {
     let file_name = relative_path.rsplit('/').next().unwrap_or(relative_path);
-    let stem = strip_note_extension(file_name);
-    if is_untitled_stem(stem) {
-        String::new()
-    } else {
-        normalize_note_title(stem)
-    }
+    strip_note_extension(file_name).to_string()
 }
 
 fn markdown_heading(line: &str) -> Option<&str> {
@@ -540,14 +519,15 @@ fn split_note_content(relative_path: &str, content: &str) -> (String, String) {
     let source = content.strip_prefix('\u{feff}').unwrap_or(content);
     let (first_line, remainder) = source.split_once('\n').unwrap_or((source, ""));
     let first_line = first_line.strip_suffix('\r').unwrap_or(first_line);
-    let Some(raw_title) = markdown_heading(first_line) else {
-        return (title_from_path(relative_path), source.to_string());
-    };
+    let title = title_from_path(relative_path);
+    if markdown_heading(first_line).is_none() {
+        return (title, source.to_string());
+    }
     let body = remainder
         .strip_prefix("\r\n")
         .or_else(|| remainder.strip_prefix('\n'))
         .unwrap_or(remainder);
-    (normalize_note_title(raw_title), body.to_string())
+    (title, body.to_string())
 }
 
 fn serialize_note_content(title: &str, body: &str) -> String {
@@ -920,10 +900,10 @@ fn delete_asset_blocking(
 fn write_note_blocking(
     root: PathBuf,
     relative_path: String,
-    title: String,
     body: String,
     expected_revision: String,
 ) -> Result<WriteAcknowledgement, VaultError> {
+    let title = title_from_path(&relative_path);
     let content = serialize_note_content(&title, &body);
     if content.len() as u64 > MAX_NOTE_BYTES {
         return Err(VaultError::new(
@@ -973,11 +953,8 @@ fn create_note_blocking(
 
     let relative_path = relative_join(&parent, &name);
     let path = safe_new_note_path(&root, &relative_path)?;
-    let title = input_name
-        .as_deref()
-        .map(|value| strip_note_extension(value.trim()))
-        .unwrap_or_default();
-    let initial_content = serialize_note_content(title, "");
+    let title = title_from_path(&relative_path);
+    let initial_content = serialize_note_content(&title, "");
     if initial_content.len() as u64 > MAX_NOTE_BYTES {
         return Err(VaultError::new(
             "tooLarge",
@@ -1363,13 +1340,12 @@ pub async fn delete_asset(
 pub async fn write_note(
     state: State<'_, VaultState>,
     relative_path: String,
-    title: String,
     body: String,
     expected_revision: String,
 ) -> Result<WriteAcknowledgement, VaultError> {
     let root = root_from_state(&state)?;
     tauri::async_runtime::spawn_blocking(move || {
-        write_note_blocking(root, relative_path, title, body, expected_revision)
+        write_note_blocking(root, relative_path, body, expected_revision)
     })
     .await
     .map_err(|_| join_error())?
@@ -1462,7 +1438,6 @@ mod tests {
         let first_write = write_note_blocking(
             root.clone(),
             created.entry.path.clone(),
-            "Nuevo título".into(),
             "contenido nuevo".into(),
             created.document.revision.clone(),
         )
@@ -1470,7 +1445,6 @@ mod tests {
         let conflict_error = write_note_blocking(
             root.clone(),
             created.entry.path.clone(),
-            "Otro título".into(),
             "otro contenido".into(),
             created.document.revision,
         )
@@ -1478,9 +1452,33 @@ mod tests {
         assert_eq!(conflict_error.code, "conflict");
 
         let current = read_note_blocking(root, created.entry.path).expect("read");
-        assert_eq!(current.title, "Nuevo título");
+        assert_eq!(current.title, "Nota");
         assert_eq!(current.body, "contenido nuevo");
         assert_eq!(current.revision, first_write.revision);
+    }
+
+    #[test]
+    fn el_titulo_siempre_toma_el_nombre_del_archivo() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let root = directory.path().to_path_buf();
+        let path = root.join("Nombre real.md");
+        fs::write(&path, "# Otro título\n\nContenido\n").expect("note");
+
+        let document = read_note_blocking(root.clone(), "Nombre real.md".into()).expect("read");
+        assert_eq!(document.title, "Nombre real");
+        assert_eq!(document.body, "Contenido\n");
+
+        write_note_blocking(
+            root.clone(),
+            "Nombre real.md".into(),
+            "Contenido\n".into(),
+            document.revision,
+        )
+        .expect("write");
+        assert_eq!(
+            fs::read_to_string(path).expect("read content"),
+            "# Nombre real\n\nContenido\n"
+        );
     }
 
     #[test]
@@ -1492,7 +1490,8 @@ mod tests {
         let second = create_note_blocking(root, String::new(), None).expect("second");
         assert_eq!(first.entry.path, "Sin título.md");
         assert_eq!(second.entry.path, "Sin título 2.md");
-        assert_eq!(first.document.title, "");
+        assert_eq!(first.document.title, "Sin título");
+        assert_eq!(second.document.title, "Sin título 2");
         assert_eq!(first.document.body, "");
     }
 

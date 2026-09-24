@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 
 import {
   chooseImageForEditor,
@@ -34,7 +34,7 @@ export interface EditorPaneProps {
   reloadToken: number;
   error: VaultErrorShape | null;
   onChange(body: string): void;
-  onTitleChange(title: string): void;
+  onTitleChange(title: string): void | boolean | Promise<void | boolean>;
   onCreate(): void;
   onRetry(): void;
   onReload(): void;
@@ -67,8 +67,71 @@ export function EditorPane(props: EditorPaneProps) {
   const [imageBusy, setImageBusy] = createSignal(false);
   const [editorReady, setEditorReady] = createSignal(false);
   const [whiteboardBusy, setWhiteboardBusy] = createSignal(false);
+  const [titleDraft, setTitleDraft] = createSignal("");
   let editorHandle: MarkdownEditorHandle | null = null;
   let imageInput: HTMLInputElement | undefined;
+  let lastDocumentPath: string | undefined;
+  let lastDocumentTitle: string | undefined;
+  let titleCommitTask: Promise<void> = Promise.resolve();
+  let titleTimer: ReturnType<typeof setTimeout> | null = null;
+
+  createEffect(() => {
+    const document = props.document;
+    if (!document) {
+      lastDocumentPath = undefined;
+      lastDocumentTitle = undefined;
+      return;
+    }
+    if (document.path === lastDocumentPath && document.title === lastDocumentTitle) {
+      return;
+    }
+    lastDocumentPath = document.path;
+    lastDocumentTitle = document.title;
+    setTitleDraft(document.title);
+  });
+
+  function clearTitleTimer(): void {
+    if (!titleTimer) return;
+    clearTimeout(titleTimer);
+    titleTimer = null;
+  }
+
+  function commitTitle(): Promise<void> {
+    const documentPath = props.document?.path;
+    const task = titleCommitTask.then(async () => {
+      if (!documentPath || props.document?.path !== documentPath) return;
+      const currentTitle = props.document?.title ?? "";
+      const nextTitle = titleDraft().trim().replace(/\.md$/i, "").trim();
+      if (!nextTitle) {
+        setTitleDraft(currentTitle);
+        return;
+      }
+      if (nextTitle === currentTitle) {
+        setTitleDraft(currentTitle);
+        return;
+      }
+
+      try {
+        const result = await props.onTitleChange(nextTitle);
+        if (result === false) setTitleDraft(currentTitle);
+        else setTitleDraft(nextTitle);
+      } catch {
+        setTitleDraft(currentTitle);
+      }
+    });
+    titleCommitTask = task.catch(() => undefined);
+    return task;
+  }
+
+  function scheduleTitleCommit(): void {
+    clearTitleTimer();
+    titleTimer = setTimeout(() => {
+      titleTimer = null;
+      void commitTitle();
+    }, 500);
+  }
+
+  onCleanup(clearTitleTimer);
 
   function applyBlockType(type: EditorBlockType): void {
     if (!editorHandle || !editorReady() || props.loading) return;
@@ -173,7 +236,7 @@ export function EditorPane(props: EditorPaneProps) {
           </div>
         }
       >
-        {(document) => (
+        {(_document) => (
           <Show when={props.document?.path} keyed>
             {(documentPath) => (
               <div
@@ -198,16 +261,31 @@ export function EditorPane(props: EditorPaneProps) {
                       </div>
                       <input
                         class={styles.titleInput}
-                        value={document().title}
+                        value={titleDraft()}
                         placeholder="Título"
-                        aria-label="Título de la nota"
+                        aria-label="Nombre y título de la nota"
                         maxlength={NOTE_TITLE_MAX_LENGTH}
                         spellcheck={false}
-                        onInput={(event) => props.onTitleChange(event.currentTarget.value)}
+                        onInput={(event) => {
+                           setTitleDraft(event.currentTarget.value);
+                           scheduleTitleCommit();
+                         }}
+                        onBlur={() => {
+                           clearTitleTimer();
+                           void commitTitle();
+                         }}
                         onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            clearTitleTimer();
+                            setTitleDraft(props.document?.title ?? "");
+                            event.currentTarget.blur();
+                            return;
+                          }
                           if (event.key !== "Enter") return;
                           event.preventDefault();
-                          editorHandle?.focus();
+                          clearTitleTimer();
+                          void commitTitle().then(() => editorHandle?.focus());
                         }}
                       />
                     </div>

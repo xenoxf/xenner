@@ -3,6 +3,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  min-height: 0;
   margin: 20px 0;
   overflow: hidden;
   background-color: var(--skin-note-background);
@@ -16,21 +17,38 @@
   z-index: var(--z-drawing-modal);
   inset: 24px;
   display: flex;
+  width: auto;
+  height: auto;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
   flex-direction: column;
   margin: 0;
+  overflow: hidden;
   background-color: var(--skin-note-background);
 }
 
+.expanded .canvasWrap {
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
 .expanded .canvasStage {
-  width: 100% !important;
+  width: min(100%, var(--canvas-editor-width));
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: var(--canvas-editor-ratio);
 }
 
 .expanded .canvas {
   width: 100% !important;
+  height: 100% !important;
 }
 
 .toolbar {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   min-height: 48px;
   align-items: center;
@@ -202,6 +220,8 @@
   flex: 0 0 auto;
   min-width: 0;
   max-width: 100%;
+  width: min(100%, var(--canvas-editor-width));
+  aspect-ratio: var(--canvas-editor-ratio);
 }
 
 .canvasStage .canvas {
@@ -269,5 +289,7 @@
 @media (max-width: 760px) {
   .expanded {
     inset: 8px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
   }
 }

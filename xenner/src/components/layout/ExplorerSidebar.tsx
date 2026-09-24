@@ -15,7 +15,6 @@ export interface ExplorerSidebarProps {
   canChooseWorkspace: boolean;
   error: VaultErrorShape | null;
   selectedPath: string | null;
-  selectedTitle: string;
   expandedPaths: ReadonlySet<string>;
   creation: CreationDraft | null;
   creating: boolean;
@@ -151,7 +150,6 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
           <Explorer
             nodes={props.tree}
             selectedPath={props.selectedPath}
-            selectedTitle={props.selectedTitle}
             expandedPaths={props.expandedPaths}
             creation={props.creation}
             busy={props.creating}

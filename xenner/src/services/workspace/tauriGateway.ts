@@ -68,11 +68,10 @@ export class TauriWorkspaceGateway implements WorkspaceGateway {
 
   writeNote(
     relativePath: string,
-    title: string,
     body: string,
     expectedRevision: string,
   ): Promise<WriteAcknowledgement> {
-    return invokeWorkspace("write_note", { relativePath, title, body, expectedRevision });
+    return invokeWorkspace("write_note", { relativePath, body, expectedRevision });
   }
 
   createNote(parent: string, name?: string): Promise<CreateNoteResult> {

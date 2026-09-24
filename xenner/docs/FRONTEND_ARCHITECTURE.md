@@ -81,7 +81,8 @@ convierten en clases globales de aplicación.
 
 ## 4. Estado y servicios
 
-- `workspace/store.ts` conserva el estado reactivo y la cola de autoguardado.
+- `workspace/store.ts` conserva el estado reactivo y la cola de autoguardado; el
+  nombre del archivo es la fuente del título y el input superior lo renombra.
 - `services/workspace/` separa selección de gateway, adaptador Tauri, preview
   browser, estado preview y normalización de errores.
 - `services/skinLoader.ts` mantiene la cadena de fallback y publica variables

@@ -10,7 +10,7 @@ import type {
 } from "../types/workspace";
 import { getWorkspaceGateway } from "../services/workspace/gateway";
 import { getActiveWhiteboard, leaveEditor } from "../services/editorSession";
-import { serializeNoteContent } from "./note";
+import { noteTitleFromPath, serializeNoteContent } from "./note";
 import { buildWorkspaceTree, isPathInside } from "./tree";
 
 const SAVE_DELAY_MS = 300;
@@ -18,7 +18,6 @@ const WORKSPACE_WATCH_INTERVAL_MS = 2_500;
 
 interface PendingSave {
   path: string;
-  title: string;
   body: string;
   revision: string;
 }
@@ -153,21 +152,18 @@ async function persist(item: PendingSave): Promise<boolean> {
   try {
     const acknowledgement = await gateway.writeNote(
       item.path,
-      item.title,
       item.body,
       item.revision,
     );
     setSelectedDocument((current) => {
       if (!current || current.path !== acknowledgement.path) return current;
-      const title = current.title === item.title ? item.title : current.title;
       const body = current.body === item.body ? item.body : current.body;
       return {
         ...current,
-        title,
         body,
         revision: acknowledgement.revision,
         updatedAt: acknowledgement.updatedAt,
-        size: new TextEncoder().encode(serializeNoteContent(title, body)).byteLength,
+        size: new TextEncoder().encode(serializeNoteContent(current.title, body)).byteLength,
       };
     });
     if (pendingSave?.path === acknowledgement.path) {
@@ -205,9 +201,9 @@ export async function flushPendingSave(): Promise<boolean> {
   return runSaveLoop();
 }
 
-function scheduleSave(path: string, title: string, body: string, revision: string): void {
+function scheduleSave(path: string, body: string, revision: string): void {
   if (selectedPath() !== path) return;
-  pendingSave = { path, title, body, revision };
+  pendingSave = { path, body, revision };
   setSaveStatus("dirty");
   clearSaveTimer();
   saveTimer = setTimeout(() => {
@@ -321,19 +317,22 @@ export function updateSelectedDocument(body: string): void {
     body,
     size: new TextEncoder().encode(serializeNoteContent(current.title, body)).byteLength,
   });
-  scheduleSave(path, current.title, body, current.revision);
+  scheduleSave(path, body, current.revision);
 }
 
-export function updateSelectedTitle(title: string): void {
+export async function updateSelectedTitle(title: string): Promise<boolean> {
   const current = selectedDocument();
   const path = selectedPath();
-  if (!current || !path || current.title === title) return;
-  setSelectedDocument({
-    ...current,
-    title,
-    size: new TextEncoder().encode(serializeNoteContent(title, current.body)).byteLength,
-  });
-  scheduleSave(path, title, current.body, current.revision);
+  if (!current || !path) return false;
+
+  const nextTitle = title.trim().replace(/\.md$/i, "").trim();
+  if (!nextTitle) {
+    setWorkspaceError({ code: "invalidPath", message: "El nombre de la nota no puede estar vacío" });
+    return false;
+  }
+  if (nextTitle === noteTitleFromPath(path)) return true;
+
+  return (await renameEntry(path, nextTitle)) !== null;
 }
 
 export async function retryPendingSave(): Promise<boolean> {
@@ -440,7 +439,7 @@ export async function importLegacyNotes(notes: LegacyNote[]): Promise<number> {
     const name = `${legacySlug(note.title, note.id)}.md`;
     try {
       const result = await gateway.createNote(parent, name);
-      await gateway.writeNote(result.entry.path, note.title, note.body, result.document.revision);
+      await gateway.writeNote(result.entry.path, note.body, result.document.revision);
       importedIds.add(note.id);
       imported += 1;
     } catch (error) {
@@ -448,7 +447,7 @@ export async function importLegacyNotes(notes: LegacyNote[]): Promise<number> {
         const retryName = `${legacySlug(note.title, note.id)}-${Date.now().toString(36)}.md`;
         try {
           const result = await gateway.createNote(parent, retryName);
-          await gateway.writeNote(result.entry.path, note.title, note.body, result.document.revision);
+          await gateway.writeNote(result.entry.path, note.body, result.document.revision);
           importedIds.add(note.id);
           imported += 1;
         } catch (retryError) {
@@ -472,12 +471,27 @@ export async function renameEntry(path: string, name: string): Promise<string | 
   if (!(await leaveEditor())) return null;
   if (!(await flushPendingSave())) return null;
   const previousSelection = selectedPath();
+  const renamedEntry = workspace()?.entries.find((entry) => entry.path === path);
+  const renamedNote = renamedEntry?.kind === "note" || path.toLocaleLowerCase("es").endsWith(".md");
   try {
     const nextPath = await gateway.renameEntry(path, name);
     await refreshWorkspace();
     if (previousSelection === path || (previousSelection && isPathInside(previousSelection, path))) {
       const suffix = previousSelection.slice(path.length);
-      await selectNote(`${nextPath}${suffix}`);
+      const nextSelectedPath = `${nextPath}${suffix}`;
+      const selected = await selectNote(nextSelectedPath);
+      if (selected && renamedNote) {
+        const nextDocument = getSelectedDocument();
+        if (nextDocument?.path === nextSelectedPath) {
+          // El H1 se conserva como metadato portable, pero se sincroniza con
+          // el nuevo nombre para que archivo y titulo nunca se separen.
+          scheduleSave(
+            nextSelectedPath,
+            nextDocument.body,
+            nextDocument.revision,
+          );
+        }
+      }
     }
     setWorkspaceError(null);
     return nextPath;

@@ -27,6 +27,7 @@ export interface WorkspaceTreeNode extends VaultEntry {
 
 export interface NoteDocument {
   path: string;
+  /** Nombre del archivo sin la extensión técnica `.md`. */
   title: string;
   body: string;
   revision: string;
@@ -86,9 +87,9 @@ export interface WorkspaceGateway {
     expectedRevision?: string,
   ): Promise<AssetPayload>;
   deleteAsset(notePath: string, assetPath: string): Promise<void>;
+  /** El título se deriva de `relativePath`; el gateway solo recibe el cuerpo. */
   writeNote(
     relativePath: string,
-    title: string,
     body: string,
     expectedRevision: string,
   ): Promise<WriteAcknowledgement>;

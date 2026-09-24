@@ -11,8 +11,9 @@
 - En el primer inicio se ofrece una biblioteca interna de Xenner; después puede
   abrirse o cambiarse otra con el selector de carpeta.
 - El explorador ocupa la izquierda y el editor ocupa todo el espacio restante.
-- Las carpetas organizan notas; el título se escribe en el editor y el nombre
-  físico del archivo es un detalle interno de la biblioteca.
+- Las carpetas organizan notas; el título de una nota es exactamente el nombre
+  de su archivo Markdown, sin la extensión técnica `.md`. Editar el título
+  renombra el archivo.
 - El contenido enriquecido se escribe como Markdown, no como JSON oculto.
 - Imágenes y dibujos se guardan como recursos relativos a la biblioteca.
 - Los dibujos visuales usan SVG editable. El Markdown solo contiene una
@@ -39,12 +40,13 @@ pueden mostrar como enlaces, pero no se incrustan de origen.
 1. La persona pulsa **Nueva nota**.
 2. Xenner crea internamente un `.md` único y abre directamente el editor; no se
    solicita un nombre de archivo.
-3. El campo superior de la página representa el título. El título se conserva
-   como primer H1 Markdown y el cuerpo se edita sin duplicarlo.
+3. El campo superior de la página representa el nombre del archivo. Al
+   confirmarlo, el archivo se renombra y el título visible se actualiza con él.
 4. Si la biblioteca está vacía, la aplicación crea y abre automáticamente una
    nota sin título al entrar para que el editor esté siempre listo.
-5. Cada cambio de título o cuerpo se serializa a Markdown y se autoguarda con
-   debounce.
+5. El nombre del archivo es la única fuente del título. El primer H1 se conserva
+   como espejo Markdown para mantener el formato portable, pero nunca como
+   metadato independiente del nombre.
 6. Antes de cambiar de nota se vacía la cola de guardado para evitar cruces.
 
 La nota no depende de una entrada `localStorage`: ese formato anterior solo se
@@ -89,8 +91,9 @@ Se usará **Milkdown + Crepe**:
 - Milkdown documenta una receta para SolidJS usando su API vanilla; Solid no
   requiere una dependencia React.
 - El flujo interno es Markdown → Remark AST → ProseMirror → Markdown. El primer
-  H1 se separa como título de página y no se duplica dentro del cuerpo visual.
-  El JSON del editor es solo estado de sesión; el archivo `.md` es la fuente de verdad.
+  H1 se conserva como espejo del nombre del archivo y no se edita dentro del
+  cuerpo visual. El JSON del editor es solo estado de sesión; el archivo `.md`
+  es la fuente de verdad.
   Las pizarras mutables incluyen un `drawingId` estable dentro del SVG y se
   copian al guardar si se detectan pizarras antiguas sin identidad. El cambio de
   nota o a Markdown espera a que la sesión de pizarra termine de guardar.

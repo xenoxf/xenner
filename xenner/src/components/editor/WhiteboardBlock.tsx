@@ -1,8 +1,10 @@
 import {
+  createEffect,
   createMemo,
   createSignal,
   createUniqueId,
   For,
+  onCleanup,
   onMount,
   Show,
 } from "solid-js";
@@ -231,16 +233,59 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
   const markerPrefix = `inline-arrowhead-${createUniqueId()}`;
   let block: HTMLElement | undefined;
   let canvas: SVGSVGElement | undefined;
+  let canvasWrap: HTMLDivElement | undefined;
+  let canvasStage: HTMLDivElement | undefined;
   let textInput: HTMLInputElement | undefined;
+  let expandedCanvasObserver: ResizeObserver | null = null;
   let styleBefore: DrawingShape[] | null = null;
   let textBefore: DrawingShape[] | null = null;
 
   const selectedShape = createMemo(() => shapes().find((shape) => shape.id === selectedId()) ?? null);
   const zoomPercent = createMemo(() => Math.round((initialEditor.width / view().width) * 100));
 
-  onMount(() =>
-    queueMicrotask(() => block?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true })),
-  );
+  function fitExpandedCanvas(): void {
+    if (!expanded() || !canvasWrap || !canvasStage) return;
+    const style = getComputedStyle(canvasWrap);
+    const availableWidth = Math.max(
+      1,
+      canvasWrap.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+    );
+    const availableHeight = Math.max(
+      1,
+      canvasWrap.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom),
+    );
+    const ratio = initialEditor.width / Math.max(1, initialEditor.height);
+    const width = Math.max(1, Math.floor(Math.min(availableWidth, availableHeight * ratio)));
+    canvasStage.style.width = `${width}px`;
+    canvasStage.style.height = `${width / ratio}px`;
+  }
+
+  function resetExpandedCanvasSize(): void {
+    if (!canvasStage) return;
+    if (expanded()) {
+      fitExpandedCanvas();
+      return;
+    }
+    canvasStage.style.width = "";
+    canvasStage.style.height = "";
+  }
+
+  onMount(() => {
+    queueMicrotask(() => block?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true }));
+    if (typeof ResizeObserver !== "undefined" && canvasWrap) {
+      expandedCanvasObserver = new ResizeObserver(() => {
+        if (expanded()) fitExpandedCanvas();
+      });
+      expandedCanvasObserver.observe(canvasWrap);
+    }
+  });
+
+  createEffect(() => {
+    expanded();
+    queueMicrotask(resetExpandedCanvasSize);
+  });
+
+  onCleanup(() => expandedCanvasObserver?.disconnect());
 
   function capturePointer(event: PointerEvent): void {
     try {
@@ -830,6 +875,7 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
         </div>
       </div>
       <div
+        ref={(element) => (canvasWrap = element)}
         class={`${styles.canvasWrap} ${gridVisible() ? styles.grid : ""}`}
         onWheel={(event) => {
           event.preventDefault();
@@ -837,8 +883,9 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
         }}
       >
         <div
+          ref={(element) => (canvasStage = element)}
           class={styles.canvasStage}
-          style={`width: min(100%, ${initialEditor.width}px); aspect-ratio: ${initialEditor.width} / ${initialEditor.height};`}
+          style={`--canvas-editor-width: ${initialEditor.width}px; --canvas-editor-ratio: ${initialEditor.width} / ${initialEditor.height};`}
         >
           <svg
             ref={(element) => (canvas = element)}

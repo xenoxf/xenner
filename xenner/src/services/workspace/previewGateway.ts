@@ -10,7 +10,7 @@ import type {
   WriteAcknowledgement,
 } from "../../types/workspace";
 import { joinPath, replacePathName } from "../../workspace/tree";
-import { serializeNoteContent, splitNoteContent } from "../../workspace/note";
+import { noteTitleFromPath, serializeNoteContent, splitNoteContent } from "../../workspace/note";
 import { vaultError } from "./errors";
 import {
   assertPreviewParent,
@@ -129,12 +129,11 @@ export class PreviewWorkspaceGateway implements WorkspaceGateway {
 
   async writeNote(
     relativePath: string,
-    title: string,
     body: string,
     expectedRevision: string,
   ): Promise<WriteAcknowledgement> {
     assertSafeRelativePath(relativePath);
-    const content = serializeNoteContent(title, body);
+    const content = serializeNoteContent(noteTitleFromPath(relativePath), body);
     if (new TextEncoder().encode(content).byteLength > MAX_PREVIEW_NOTE_LENGTH) {
       throw vaultError("tooLarge", "La nota es demasiado grande");
     }
@@ -169,7 +168,7 @@ export class PreviewWorkspaceGateway implements WorkspaceGateway {
     if (state.entries.some((entry) => entry.path.toLocaleLowerCase("es") === path.toLocaleLowerCase("es"))) {
       throw vaultError("alreadyExists", "Ya existe una nota con ese nombre");
     }
-    const title = name === undefined ? "" : normalized.slice(0, -3);
+    const title = noteTitleFromPath(path);
     const content = serializeNoteContent(title, "");
     const updatedAt = Date.now();
     const revision = previewRevision(content);

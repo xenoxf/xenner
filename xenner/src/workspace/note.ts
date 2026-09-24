@@ -5,36 +5,36 @@ export interface NoteParts {
 
 export const NOTE_TITLE_MAX_LENGTH = 240;
 
-function titleFromPath(path: string): string {
+/** El nombre de la nota es el nombre del archivo, sin la extensión técnica `.md`. */
+export function noteTitleFromPath(path: string): string {
   const fileName = path.slice(path.lastIndexOf("/") + 1);
-  const stem = fileName.replace(/\.md$/i, "");
-  return /^Sin título(?: \d+)?$/i.test(stem) ? "" : stem;
+  return fileName.replace(/\.md$/i, "");
 }
 
 export function normalizeNoteTitle(value: string): string {
   const normalized = value
     .replace(/[\u0000-\u001f\u007f]+/g, " ")
-    .replace(/\s+/g, " ")
     .trim();
   return Array.from(normalized).slice(0, NOTE_TITLE_MAX_LENGTH).join("");
 }
 
-/** El título de la página vive en el primer H1 y el editor recibe solo el cuerpo. */
+/** El primer H1 conserva el formato Markdown; su título visible sale del archivo. */
 export function splitNoteContent(path: string, content: string): NoteParts {
   const source = content.startsWith("\uFEFF") ? content.slice(1) : content;
   const firstLineEnd = source.indexOf("\n");
   const firstLine = (firstLineEnd < 0 ? source : source.slice(0, firstLineEnd)).replace(/\r$/, "");
   const heading = /^#(?:[ \t]+(.*)|[ \t]*)$/.exec(firstLine);
+  const title = noteTitleFromPath(path);
 
   if (!heading) {
-    return { title: titleFromPath(path), body: source };
+    return { title, body: source };
   }
 
   const body = firstLineEnd < 0 ? "" : source.slice(firstLineEnd + 1).replace(/^\r?\n/, "");
-  return { title: normalizeNoteTitle(heading[1] ?? ""), body };
+  return { title, body };
 }
 
-/** Serializa la página como un único Markdown portable, incluso sin título. */
+/** Serializa la página como un único Markdown portable, incluso sin H1. */
 export function serializeNoteContent(title: string, body: string): string {
   const normalizedTitle = normalizeNoteTitle(title);
   const normalizedBody = body.replace(/^\r?\n/, "");

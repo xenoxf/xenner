@@ -22,7 +22,6 @@ export interface CreationDraft {
 interface ExplorerProps {
   nodes: WorkspaceTreeNode[];
   selectedPath: string | null;
-  selectedTitle: string;
   expandedPaths: ReadonlySet<string>;
   creation: CreationDraft | null;
   busy: boolean;
@@ -42,8 +41,7 @@ interface NodeProps extends ExplorerProps {
 
 function displayNodeName(name: string, kind: WorkspaceTreeNode["kind"]): string {
   if (kind !== "note") return name;
-  const title = name.replace(/\.md$/i, "");
-  return /^Sin título(?: \d+)?$/i.test(title) ? "Sin título" : title;
+  return name.replace(/\.md$/i, "");
 }
 
 function ExplorerNode(props: NodeProps) {
@@ -51,10 +49,7 @@ function ExplorerNode(props: NodeProps) {
   const activeCreation = () =>
     props.creation?.parent === props.node.path ? props.creation : null;
   const hasCreation = () => activeCreation() !== null;
-  const label = () =>
-    props.node.path === props.selectedPath
-      ? props.selectedTitle.trim() || "Sin título"
-      : displayNodeName(props.node.name, props.node.kind);
+  const label = () => displayNodeName(props.node.name, props.node.kind);
 
   return (
     <div
@@ -107,16 +102,14 @@ function ExplorerNode(props: NodeProps) {
               <FolderPlusIcon />
             </IconButton>
           </Show>
-          <Show when={props.node.kind === "directory"}>
-            <IconButton
-              size="small"
-              aria-label={`Renombrar ${label()}`}
-              title="Renombrar"
-              onClick={() => props.onRename(props.node.path)}
-            >
-              <PencilIcon />
-            </IconButton>
-          </Show>
+          <IconButton
+            size="small"
+            aria-label={`Renombrar ${label()}`}
+            title="Renombrar"
+            onClick={() => props.onRename(props.node.path)}
+          >
+            <PencilIcon />
+          </IconButton>
           <IconButton
             size="small"
             tone="danger"

@@ -48,8 +48,7 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
       <header class={styles.header}>
         <div class={styles.titleRow}>
           <div class={styles.titleCopy}>
-            <span>Explorador</span>
-            <strong title={root()}>{baseName(root() || "Biblioteca")}</strong>
+            <strong title={root()}>Notas</strong>
           </div>
           <div class={styles.windowActions}>
             <IconButton

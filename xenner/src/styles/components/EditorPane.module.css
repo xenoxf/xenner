@@ -2,12 +2,9 @@
   display: flex;
   min-width: 0;
   min-height: 0;
-  margin: 12px 12px 12px 0;
   overflow: hidden;
   color: var(--skin-note-text);
   background-color: var(--skin-note-background);
-  border: var(--skin-note-border);
-  border-radius: var(--skin-note-radius);
   box-shadow: var(--skin-note-shadow);
 }
 

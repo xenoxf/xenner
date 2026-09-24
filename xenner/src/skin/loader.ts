@@ -8,7 +8,11 @@
 // Regla: loadSkin() nunca lanza excepción sin capturar.
 
 import { invoke } from "@tauri-apps/api/core";
-import { parseSkinTxt } from "./parse";
+import {
+  parseSkinComponent,
+  parseSkinConfig,
+  parseSkinManifest,
+} from "./parse";
 import { DEFAULT_SKIN, type SkinVars } from "./defaultSkin";
 
 export const SKIN_COMPONENTS = [
@@ -72,7 +76,7 @@ function bundleSkins(): SkinInfo[] {
     const m = path.match(re);
     if (!m) continue;
     const id = m[1];
-    const manifest = parseSkinTxt(raw);
+    const manifest = parseSkinManifest(raw);
     infos.push({
       id,
       name: manifest.name || id,
@@ -125,7 +129,7 @@ export async function loadSkin(preferredId?: string): Promise<LoadedSkin> {
 
     let cfg = await tauriReadConfig();
     if (cfg === null) cfg = bundleConfig();
-    const configId = parseSkinTxt(cfg).skinPath ?? "";
+    const configId = parseSkinConfig(cfg).skinPath ?? "";
     const activeId = preferredId ?? configId;
 
     const vars: Record<string, SkinVars> = {};
@@ -134,7 +138,7 @@ export async function loadSkin(preferredId?: string): Promise<LoadedSkin> {
       // solo sobreescribe lo que define y el resto queda en default.
       const merged: SkinVars = { ...DEFAULT_SKIN[component] };
       const text = await readComponentText(activeId, component);
-      if (text !== null) Object.assign(merged, parseSkinTxt(text));
+      if (text !== null) Object.assign(merged, parseSkinComponent(component, text));
       vars[component] = merged;
     }
     applyVars(vars);

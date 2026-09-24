@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-scan-skins"
+description = "Enables the scan_skins command without any pre-configured scope."
+commands.allow = ["scan_skins"]
+
+[[permission]]
+identifier = "deny-scan-skins"
+description = "Denies the scan_skins command without any pre-configured scope."
+commands.deny = ["scan_skins"]

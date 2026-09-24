@@ -4,7 +4,8 @@
   "description": "Capability for the main window",
   "windows": ["main"],
   "permissions": [
-    "core:default",
-    "opener:default"
+    "allow-scan-skins",
+    "allow-read-skin-file",
+    "allow-read-config"
   ]
 }

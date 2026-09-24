@@ -42,7 +42,10 @@ skinPath="webcore"
 - Sin secciones, sin tipos, sin imports. Todo es texto.
 - Clave duplicada → **gana la última**.
 - Clave desconocida → **se ignora** (permite experimentar sin romper nada).
-- Valor con `!important`, `;` o llaves → se ignora (higiene mínima anti-CSS-injection).
+- Valor con `!important`, `;`, llaves, `url(...)`, `expression(...)`, `@import`,
+  `javascript:`, `data:` o caracteres de control → se ignora. La v1 no
+  permite cargar recursos ni estilos por red desde una skin.
+- Claves que no pertenezcan al componente → se ignoran antes de crear variables CSS.
 
 Ejemplo `note.txt`:
 
@@ -64,7 +67,7 @@ Compartidas por todos: `background`, `text`, `border`, `radius`, `blur`,
 
 | Fichero          | Claves propias extra                              |
 |------------------|---------------------------------------------------|
-| `background.txt` | `image` (url o ruta, opcional), `overlay`         |
+| `background.txt` | `overlay`                                            |
 | `button.txt`     | `backgroundHover`, `textHover`, `borderHover`     |
 | `note.txt`       | `backgroundHover`, `accent` (borde lateral/fecha) |
 | `sidebar.txt`    | `itemHover`, `itemActive`, `textDim`              |
@@ -97,7 +100,8 @@ para ver lo que hay detrás del desktop.
 
 ## 7. Límites v1 (declarados, no bugs)
 
-- Sin imágenes externas salvo `background.image` (ruta/URL tal cual en CSS).
+- Sin imágenes ni recursos externos. `url(...)` se rechaza en el parser y la CSP
+  de Tauri bloquea orígenes remotos. Una imagen local es trabajo futuro.
 - Sin expresiones ni `calc()` con variables ajenas: el valor se inyecta tal cual.
 - Recarga de skins con reinicio (hot-reload en fase futura).
 - Skins de usuario fuera del bundle (AppData) → fase futura (Rust ya expone

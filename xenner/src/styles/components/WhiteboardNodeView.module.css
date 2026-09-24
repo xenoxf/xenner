@@ -15,6 +15,11 @@
   outline-offset: 3px;
 }
 
+.node.dragging .preview {
+  cursor: grabbing;
+  opacity: 0.72;
+}
+
 .preview {
   position: relative;
   display: inline-flex;
@@ -27,7 +32,7 @@
   background: transparent;
   border: 0;
   border-radius: 0;
-  cursor: pointer;
+  cursor: grab;
   vertical-align: top;
 }
 
@@ -48,6 +53,10 @@
 .preview:focus-visible {
   outline: 2px solid var(--skin-input-focus);
   outline-offset: 3px;
+}
+
+.preview:active {
+  cursor: grabbing;
 }
 
 .editorHost:empty {

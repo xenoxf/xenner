@@ -167,8 +167,7 @@ El modal de configuración tendrá tres secciones:
 Las skins sistémicas son de solo lectura. Las de usuario viven en AppData, se generan
 como carpetas TXT y conservan la validación y el fallback del SkinEngine actual.
 
-El creador ofrece una base, color de acento, tipografía, radio y densidad. No
-permite CSS arbitrario. El resultado sigue siendo editable como archivos TXT.
+El creador ofrece una base clara/oscura, paletas completas, presets, color de acento, tipografía, radio, desenfoque, grosor de borde y sombra. El preview se actualiza en vivo y el resultado sigue siendo editable como archivos TXT; no permite CSS arbitrario.
 
 ## 8. Modal de configuración
 

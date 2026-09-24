@@ -16,9 +16,8 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
   inline: false,
   group: "block",
   selectable: true,
-  // The drawing is edited in place. Native node dragging makes pointer
-  // gestures leak into the note and can move the whole document.
-  draggable: false,
+  // El bloque se puede mover dentro de la nota sin entrar en la pizarra.
+  draggable: true,
   isolating: true,
   marks: "",
   atom: true,

@@ -74,16 +74,26 @@ class WhiteboardNodeView implements NodeView {
     this.dom = document.createElement("div");
     this.dom.className = styles.node;
     this.dom.contentEditable = "false";
-    this.dom.draggable = false;
+    this.dom.draggable = view.editable;
 
     this.preview = document.createElement("button");
     this.preview.type = "button";
     this.preview.className = styles.preview;
     this.preview.disabled = !view.editable;
-    this.preview.draggable = false;
-    this.preview.title = "Editar dibujo";
-    this.preview.setAttribute("aria-label", "Editar dibujo");
-    this.preview.addEventListener("click", () => queueMicrotask(() => void this.startEditing()));
+    this.preview.draggable = view.editable;
+    this.preview.title = "Doble clic para editar · arrastrar para mover";
+    this.preview.setAttribute("aria-label", "Doble clic para editar el dibujo");
+    this.preview.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      queueMicrotask(() => void this.startEditing());
+    });
+    this.preview.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      queueMicrotask(() => void this.startEditing());
+    });
+    this.dom.addEventListener("dragstart", () => this.dom.classList.add(styles.dragging));
+    this.dom.addEventListener("dragend", () => this.dom.classList.remove(styles.dragging));
 
     this.image = document.createElement("img");
     this.image.alt = "Dibujo";
@@ -101,6 +111,8 @@ class WhiteboardNodeView implements NodeView {
     if (node.type !== this.currentNode.type) return false;
     this.currentNode = node;
     this.preview.disabled = !this.view.editable;
+    this.dom.draggable = this.view.editable;
+    this.preview.draggable = this.view.editable;
     if (node.attrs.draft && !this.editing && !this.starting) queueMicrotask(() => void this.startEditing());
     if (!this.editing) this.updatePreview();
     return true;
@@ -116,9 +128,22 @@ class WhiteboardNodeView implements NodeView {
 
   stopEvent(event: Event): boolean {
     if (this.editing) return true;
-    // Before editing, allow ProseMirror to select the atom so it can still be
-    // managed from the note. Once the canvas is open, isolate every event.
-    return !(event.target instanceof Node && this.preview.contains(event.target));
+    if (event.type === "keydown" && event.target === this.preview) {
+      const key = (event as KeyboardEvent).key;
+      if (key === "Enter" || key === " ") return true;
+    }
+    if (event.type === "dragstart") {
+      const dragEvent = event as DragEvent;
+      // Copiar un nodo whiteboard compartiría su asset y drawingId. Por ahora
+      // el gesto disponible es mover, no duplicar.
+      if (dragEvent.ctrlKey || dragEvent.metaKey || dragEvent.altKey) {
+        event.preventDefault();
+        return true;
+      }
+    }
+    // Antes de editar dejamos que ProseMirror gestione el arrastre del nodo;
+    // una vez abierto el lienzo, aislamos todos sus eventos.
+    return !(event.target instanceof Node && this.dom.contains(event.target));
   }
 
   ignoreMutation(): boolean {

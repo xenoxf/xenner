@@ -1,14 +1,8 @@
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import type { JSX } from "solid-js";
 
-import { DrawingModal } from "./DrawingModal";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./MarkdownEditor";
-import {
-  importImageForEditor,
-  readAssetForEditor,
-  updateAssetForEditor,
-  type SelectedEditorAsset,
-} from "../editor/assets";
+import { importImageForEditor } from "../editor/assets";
 import {
   ArrowIcon,
   CheckIcon,
@@ -115,15 +109,10 @@ function displayName(path: string): string {
 }
 
 export function EditorPane(props: EditorPaneProps) {
-  const [drawingOpen, setDrawingOpen] = createSignal(false);
-  const [drawingTool, setDrawingTool] = createSignal<"select" | "pen">("select");
   const [shapePopoverOpen, setShapePopoverOpen] = createSignal(false);
   const [shapeTool, setShapeTool] = createSignal<ShapeTool>("rect");
   const [shapeColor, setShapeColor] = createSignal<ShapeColor>("#5b9bd5");
   const [shapeBusy, setShapeBusy] = createSignal(false);
-  const [editingDrawing, setEditingDrawing] = createSignal<SelectedEditorAsset | null>(null);
-  const [drawingInitialSvg, setDrawingInitialSvg] = createSignal<string | undefined>(undefined);
-  const [drawingBusy, setDrawingBusy] = createSignal(false);
   const [drawingError, setDrawingError] = createSignal<string | null>(null);
   const [imageBusy, setImageBusy] = createSignal(false);
   const [imageError, setImageError] = createSignal<string | null>(null);
@@ -205,75 +194,6 @@ export function EditorPane(props: EditorPaneProps) {
     } finally {
       setImageBusy(false);
       if (imageInput) imageInput.value = "";
-    }
-  }
-
-  async function insertDrawing(svg: string): Promise<void> {
-    const document = props.document;
-    if (!document || !editorHandle || drawingBusy()) return;
-    setDrawingBusy(true);
-    setDrawingError(null);
-    try {
-      const file = new File([svg], "drawing.svg", { type: "image/svg+xml" });
-      const imported = await importImageForEditor(document.path, file);
-      editorHandle.insertAsset(imported.dataUrl, imported.relativePath, "Dibujo");
-      setEditingDrawing(null);
-      setDrawingInitialSvg(undefined);
-      setDrawingOpen(false);
-    } catch (error) {
-      setDrawingError(error instanceof Error ? error.message : "No se pudo insertar el dibujo");
-    } finally {
-      setDrawingBusy(false);
-    }
-  }
-
-  async function openDrawingEditor(): Promise<void> {
-    const document = props.document;
-    if (!document || !editorHandle || drawingBusy()) return;
-    closeInsertMenu();
-    const selected = editorHandle.getSelectedAsset();
-    if (!selected || !selected.relativePath.toLowerCase().endsWith(".svg")) {
-      setDrawingError("Selecciona un dibujo SVG dentro de la nota para editarlo");
-      return;
-    }
-    setDrawingBusy(true);
-    setDrawingError(null);
-    try {
-      const svg = await readAssetForEditor(document.path, selected.relativePath);
-      setDrawingTool("select");
-      setEditingDrawing(selected);
-      setDrawingInitialSvg(svg);
-      setDrawingOpen(true);
-    } catch (error) {
-      setDrawingError(error instanceof Error ? error.message : "No se pudo abrir el dibujo");
-    } finally {
-      setDrawingBusy(false);
-    }
-  }
-
-  async function saveDrawing(svg: string): Promise<void> {
-    const target = editingDrawing();
-    if (!target) {
-      await insertDrawing(svg);
-      return;
-    }
-    const document = props.document;
-    if (!document || !editorHandle || drawingBusy()) return;
-    setDrawingBusy(true);
-    setDrawingError(null);
-    try {
-      const file = new File([svg], "drawing.svg", { type: "image/svg+xml" });
-      const updated = await updateAssetForEditor(document.path, target.relativePath, file);
-      if (!editorHandle.replaceAsset(target.dataUrl, updated.dataUrl, target.relativePath)) {
-        throw new Error("La selección del dibujo cambió; ciérralo y vuelve a intentarlo");
-      }
-      setEditingDrawing(null);
-      setDrawingInitialSvg(undefined);
-      setDrawingOpen(false);
-    } catch (error) {
-      setDrawingError(error instanceof Error ? error.message : "No se pudo actualizar el dibujo");
-    } finally {
-      setDrawingBusy(false);
     }
   }
 
@@ -419,21 +339,11 @@ export function EditorPane(props: EditorPaneProps) {
                             type="button"
                             class="asset-menu-item"
                             role="menuitem"
-                            disabled={props.loading || drawingBusy() || sourceMode()}
+                            disabled={props.loading || shapeBusy() || sourceMode()}
                             onClick={() => openShapeToolbar("rect")}
                           >
                             <span><ShapesIcon /></span>
                             Figura
-                          </button>
-                          <button
-                            type="button"
-                            class="asset-menu-item"
-                            role="menuitem"
-                            disabled={props.loading || drawingBusy() || sourceMode()}
-                            onClick={() => void openDrawingEditor()}
-                          >
-                            <span><PencilIcon /></span>
-                            Editar SVG
                           </button>
                         </div>
                       </Show>
@@ -462,8 +372,8 @@ export function EditorPane(props: EditorPaneProps) {
                     <button
                       type="button"
                       class="asset-dock-button"
-                      classList={{ busy: drawingBusy() }}
-                      disabled={props.loading || drawingBusy() || sourceMode()}
+                      classList={{ busy: shapeBusy() }}
+                      disabled={props.loading || shapeBusy() || sourceMode()}
                       aria-label="Dibujar"
                       title="Dibujar"
                       onClick={() => openShapeToolbar("pen")}
@@ -473,8 +383,8 @@ export function EditorPane(props: EditorPaneProps) {
                     <button
                       type="button"
                       class="asset-dock-button"
-                      classList={{ busy: drawingBusy() }}
-                      disabled={props.loading || drawingBusy() || sourceMode()}
+                      classList={{ busy: shapeBusy() }}
+                      disabled={props.loading || shapeBusy() || sourceMode()}
                       aria-label="Añadir figura"
                       title="Añadir figura"
                       onClick={() => openShapeToolbar("rect")}
@@ -566,20 +476,6 @@ export function EditorPane(props: EditorPaneProps) {
             </Show>
           </>
         )}
-      </Show>
-      <Show when={drawingOpen()}>
-        <DrawingModal
-          initialSvg={drawingInitialSvg()}
-          initialTool={drawingTool()}
-          title={editingDrawing() ? "Editar dibujo" : "Nuevo dibujo"}
-          submitLabel={editingDrawing() ? "Guardar cambios" : "Insertar dibujo"}
-          onSave={saveDrawing}
-          onClose={() => {
-            setDrawingOpen(false);
-            setEditingDrawing(null);
-            setDrawingInitialSvg(undefined);
-          }}
-        />
       </Show>
     </main>
   );

@@ -1,6 +1,7 @@
 import { $nodeSchema, $remark } from "@milkdown/kit/utils";
 
 import {
+  isWhiteboardSource,
   transformWhiteboardAst,
   WHITEBOARD_CAPTION,
 } from "./whiteboard";
@@ -28,8 +29,10 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
       tag: 'div[data-type="whiteboard"]',
       getAttrs: (dom) => {
         if (!(dom instanceof HTMLElement)) return false;
+        const src = dom.dataset.src ?? "";
+        if (!isWhiteboardSource(src)) return false;
         return {
-          src: dom.dataset.src ?? "",
+          src,
           tool: dom.dataset.tool ?? "select",
           draft: dom.dataset.draft === "true",
         };
@@ -48,8 +51,10 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
   parseMarkdown: {
     match: ({ type }) => type === "whiteboard",
     runner: (state, node, type) => {
+      const src = typeof node.url === "string" ? node.url : "";
+      if (!isWhiteboardSource(src)) return;
       state.addNode(type, {
-        src: typeof node.url === "string" ? node.url : "",
+        src,
         tool: "select",
         draft: false,
       });
@@ -62,7 +67,7 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
       state.addNode("image", undefined, undefined, {
         title: WHITEBOARD_CAPTION,
         url: node.attrs.src,
-        alt: "1.00",
+        alt: "Pizarra",
       });
       state.closeNode();
     },

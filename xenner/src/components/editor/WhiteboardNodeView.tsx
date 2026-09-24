@@ -1,5 +1,9 @@
 import type { Node as ProseNode } from "@milkdown/kit/prose/model";
-import type { EditorView, NodeView } from "@milkdown/kit/prose/view";
+import type {
+  EditorView,
+  NodeView,
+  ViewMutationRecord,
+} from "@milkdown/kit/prose/view";
 import { $view } from "@milkdown/kit/utils";
 import { lazy, Suspense } from "solid-js";
 import { render } from "solid-js/web";
@@ -47,6 +51,7 @@ class WhiteboardNodeView implements NodeView {
     this.preview = document.createElement("button");
     this.preview.type = "button";
     this.preview.className = styles.preview;
+    this.preview.disabled = !view.editable;
     this.preview.setAttribute("aria-label", "Editar pizarra");
     this.preview.addEventListener("click", () => this.startEditing());
 
@@ -68,6 +73,7 @@ class WhiteboardNodeView implements NodeView {
   update(node: ProseNode): boolean {
     if (node.type !== this.currentNode.type) return false;
     this.currentNode = node;
+    this.preview.disabled = !this.view.editable;
     if (node.attrs.draft && !this.editing) queueMicrotask(() => this.startEditing());
     if (!this.editing) this.updatePreview();
     return true;
@@ -85,8 +91,8 @@ class WhiteboardNodeView implements NodeView {
     return this.editing && event.target instanceof Node && this.editorHost.contains(event.target);
   }
 
-  ignoreMutation(): boolean {
-    return true;
+  ignoreMutation(mutation: ViewMutationRecord): boolean {
+    return mutation.type !== "selection";
   }
 
   destroy(): void {
@@ -102,7 +108,7 @@ class WhiteboardNodeView implements NodeView {
 
   private startEditing(): void {
     const src = typeof this.currentNode.attrs.src === "string" ? this.currentNode.attrs.src : "";
-    if (this.editing || !src) return;
+    if (this.editing || !src || !this.view.editable || this.view.isDestroyed) return;
     this.editing = true;
     this.preview.hidden = true;
     const tool = this.currentNode.attrs.tool;
@@ -133,6 +139,7 @@ class WhiteboardNodeView implements NodeView {
   private async save(svg: string): Promise<void> {
     const currentSrc = this.currentNode.attrs.src;
     const nextSrc = await this.onSave(svg, currentSrc);
+    if (this.view.isDestroyed) return;
     const pos = this.getPos();
     if (pos === undefined) return;
     const liveNode = this.view.state.doc.nodeAt(pos);

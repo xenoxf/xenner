@@ -30,7 +30,7 @@ function App() {
   // Opción "" = skin default embebida (fuerza el caso "inexistente → default").
   const skinOptions = (): SkinInfo[] => {
     const opts: SkinInfo[] = [
-      { id: "", name: "Glass default (embebida)", version: "", author: "" },
+      { id: "", name: "Frosted Glass (embebida)", version: "", author: "" },
       ...skins(),
     ];
     const active = activeSkin();

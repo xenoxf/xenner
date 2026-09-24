@@ -86,12 +86,12 @@ en default. Así una skin puede ser de un solo TXT y seguir funcionando.
 4. Los componentes SolidJS **solo** usan esas variables, nunca colores
    hardcodeados. Cambiar un TXT + recargar = nueva apariencia.
 
-## 6. Skin default embebida (glassmorphism)
+## 6. Skin default embebida (vidrio esmerilado)
 
 Vive en el código (`src/skin/defaultSkin.ts`) y es idéntica al ejemplo
-`skins/glass-default/`. Estilo: superficies `rgba(255,255,255,0.08–0.14)`,
-`backdrop-filter: blur(...)`, bordes `1px solid rgba(255,255,255,0.18)`,
-texto `#ffffff`, acento `#7dd3fc`. Requiere ventana transparente
+`skins/glass-default/`. Usa una paleta de humo frío, superficies translúcidas
+y lechosas, `backdrop-filter: blur(...)`, bordes claros finos, sombras
+difusas e iluminación interior sutil. Requiere ventana transparente
 (`tauri.conf.json → "transparent": true` + `html,body{background:transparent}`)
 para ver lo que hay detrás del desktop.
 

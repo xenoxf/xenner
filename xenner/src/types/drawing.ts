@@ -1,5 +1,13 @@
-export type DrawingTool = "select" | "pen" | "rect" | "ellipse" | "line" | "arrow" | "text";
-export type ShapeKind = Exclude<DrawingTool, "select"> | "path";
+export type DrawingTool =
+  | "select"
+  | "hand"
+  | "pen"
+  | "rect"
+  | "ellipse"
+  | "line"
+  | "arrow"
+  | "text";
+export type ShapeKind = Exclude<DrawingTool, "select" | "hand"> | "path";
 
 export interface Point {
   x: number;

@@ -103,6 +103,7 @@ export function buildSkinComponents(draft: SkinDraft): CreateSkinRequest["compon
     }),
     toolbar: component({
       background: surfaceContainer,
+      backgroundHover: hover,
       text: onSurface,
       textDim: dim,
       border: `1px solid ${outline}`,

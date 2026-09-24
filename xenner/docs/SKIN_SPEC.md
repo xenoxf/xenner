@@ -77,7 +77,7 @@ Compartidas por todos: `background`, `text`, `border`, `radius`, `blur`,
 | `note.txt`       | `backgroundHover`, `accent` (borde lateral/fecha) |
 | `sidebar.txt`    | `itemHover`, `itemActive`, `textDim`              |
 | `input.txt`      | `placeholder`, `focus` (color borde en foco)      |
-| `toolbar.txt`    | `textDim`                                         |
+| `toolbar.txt`    | `textDim`, `backgroundHover`                       |
 | `skin.txt`       | `name`, `version`, `author` (manifiesto, no estilo)|
 
 Toda clave ausente en la skin activa se toma de la **default embebida**.

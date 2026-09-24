@@ -24,13 +24,14 @@ export async function prepareMarkdownForEditor(
     if (resolveAssetReference(notePath, source)) sources.add(source);
   }
 
-  const loaded = new Map<string, string>();
+  const loaded = new Map<string, { dataUrl: string; revision: string }>();
   await Promise.all(
     [...sources].map(async (source) => {
       const assetPath = resolveAssetReference(notePath, source);
       if (!assetPath) return;
       try {
-        loaded.set(source, dataUrl(await getWorkspaceGateway().readAsset(notePath, assetPath)));
+        const payload = await getWorkspaceGateway().readAsset(notePath, assetPath);
+        loaded.set(source, { dataUrl: dataUrl(payload), revision: payload.revision });
       } catch {
         // Un asset roto no impide abrir el Markdown; se conserva la referencia.
       }
@@ -38,13 +39,15 @@ export async function prepareMarkdownForEditor(
   );
 
   const replacements = new Map<string, string>();
+  const revisions = new Map<string, string>();
   let content = markdown.replace(IMAGE_MARKDOWN, (full, prefix, source, suffix) => {
-    const displayUrl = loaded.get(source);
-    if (!displayUrl) return full;
-    replacements.set(displayUrl, source);
-    return `${prefix}${displayUrl}${suffix}`;
+    const asset = loaded.get(source);
+    if (!asset) return full;
+    replacements.set(asset.dataUrl, source);
+    revisions.set(asset.dataUrl, asset.revision);
+    return `${prefix}${asset.dataUrl}${suffix}`;
   });
-  return { content, replacements };
+  return { content, replacements, revisions };
 }
 
 export function serializeMarkdownFromEditor(
@@ -83,13 +86,24 @@ export async function updateAssetForEditor(
   notePath: string,
   relativePath: string,
   file: File,
+  expectedRevision?: string,
 ): Promise<ImportedEditorAsset> {
   const dataBase64 = await fileToBase64(file);
-  const updated = await getWorkspaceGateway().updateAsset(notePath, relativePath, dataBase64);
+  const updated = await getWorkspaceGateway().updateAsset(
+    notePath,
+    relativePath,
+    dataBase64,
+    expectedRevision,
+  );
   return {
     dataUrl: `data:${updated.mime};base64,${updated.dataBase64}`,
     relativePath,
+    revision: updated.revision,
   };
+}
+
+export async function deleteAssetForEditor(notePath: string, relativePath: string): Promise<void> {
+  await getWorkspaceGateway().deleteAsset(notePath, relativePath);
 }
 
 export function editorSupportsNativeImagePicker(): boolean {
@@ -102,6 +116,7 @@ export async function chooseImageForEditor(notePath: string): Promise<ImportedEd
   return {
     dataUrl: `data:${imported.mime};base64,${imported.dataBase64}`,
     relativePath: imported.relativePath,
+    revision: imported.revision,
     fileName: imported.fileName,
   };
 }
@@ -119,6 +134,7 @@ export async function importImageForEditor(
   return {
     dataUrl: `data:${imported.mime};base64,${imported.dataBase64}`,
     relativePath: imported.relativePath,
+    revision: imported.revision,
     fileName: imported.fileName,
   };
 }

@@ -9,23 +9,34 @@ import {
   wrapInOrderedListCommand,
 } from "@milkdown/kit/preset/commonmark";
 import { createParagraphNear } from "@milkdown/kit/prose/commands";
-import { insert, replaceAll } from "@milkdown/kit/utils";
+import { replaceAll } from "@milkdown/kit/utils";
+import { imageBlockSchema } from "@milkdown/kit/component/image-block";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
 import {
+  deleteAssetForEditor,
   importImageForEditor,
   prepareMarkdownForEditor,
   serializeMarkdownFromEditor,
   updateAssetForEditor,
 } from "../../services/editorAssets";
 import { notifyError, notifySuccess } from "../../services/toastService";
-import { serializeDrawing } from "../../editor/drawing";
+import { createDrawingId, serializeDrawing } from "../../editor/drawing";
 import { DEFAULT_TEXT_COLOR, normalizeTextColor, textColorMark, textColorRemark } from "../../editor/text-color";
 import { whiteboardNode, whiteboardRemark } from "../../editor/whiteboard-node";
 import styles from "../../styles/components/MarkdownEditor.module.css";
 import type { DrawingTool } from "../../types/drawing";
 import type { MarkdownEditorHandle, PreparedMarkdown } from "../../types/editor";
 import { createWhiteboardView } from "./WhiteboardNodeView";
+
+const WHITEBOARD_SLASH_ICON = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 5h16v12H4z" />
+    <path d="m7 14 3-3 2 2 2-2 3 3" />
+    <path d="M7 9h.01" />
+  </svg>
+`;
 
 const TEXT_COLOR_TOOLBAR_ICON = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -51,7 +62,13 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   let textColorInput: HTMLInputElement | undefined;
   let disposed = false;
   let lastReloadToken = props.reloadToken;
-  let prepared: PreparedMarkdown = { content: props.initialValue, replacements: new Map() };
+  let prepared: PreparedMarkdown = {
+    content: props.initialValue,
+    replacements: new Map(),
+    revisions: new Map(),
+  };
+  let insertWhiteboardCommand: ((tool: DrawingTool) => Promise<void>) | null = null;
+  let insertingWhiteboard = false;
 
   function applyTextColorValue(value: string): boolean {
     if (!crepe) return false;
@@ -79,7 +96,44 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         import("@milkdown/crepe/theme/frame.css"),
       ]);
       if (disposed) return;
-      const instance = new Crepe({
+      let instance: CrepeInstance;
+      const insertWhiteboard = async (tool: DrawingTool): Promise<void> => {
+        if (insertingWhiteboard) return;
+        insertingWhiteboard = true;
+        let imported: Awaited<ReturnType<typeof importImageForEditor>> | null = null;
+        try {
+          const drawingId = createDrawingId();
+          const file = new File([serializeDrawing([], drawingId)], "pizarra.svg", {
+            type: "image/svg+xml",
+          });
+          imported = await importImageForEditor(props.notePath, file);
+          prepared.replacements.set(imported.dataUrl, imported.relativePath);
+                if (imported.revision) prepared.revisions.set(imported.dataUrl, imported.revision);
+          const node = whiteboardNode.type(instance.editor.ctx).create({
+            src: imported.dataUrl,
+            tool,
+            draft: true,
+            drawingId,
+          });
+          const commands = instance.editor.ctx.get(commandsCtx);
+          const inserted = commands.call(addBlockTypeCommand.key, { nodeType: node });
+          if (!inserted) throw new Error("No se pudo insertar el bloque de pizarra");
+          const view = instance.editor.ctx.get(editorViewCtx);
+          createParagraphNear(view.state, view.dispatch);
+          view.focus();
+        } catch (error) {
+          if (imported) {
+            await deleteAssetForEditor(props.notePath, imported.relativePath).catch(() => undefined);
+            prepared.replacements.delete(imported.dataUrl);
+            prepared.revisions.delete(imported.dataUrl);
+          }
+          throw error;
+        } finally {
+          insertingWhiteboard = false;
+        }
+      };
+      insertWhiteboardCommand = insertWhiteboard;
+      instance = new Crepe({
         root,
         defaultValue: prepared.content,
         features: {
@@ -123,6 +177,19 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
               table: { label: "Tabla" },
               math: { label: "Fórmula" },
             },
+            buildMenu(builder) {
+              builder.addGroup("media", "Medio").addItem("whiteboard", {
+                icon: WHITEBOARD_SLASH_ICON,
+                label: "Pizarra",
+                onRun: () => {
+                  const command = insertWhiteboardCommand;
+                  if (!command) return;
+                  void command("pen").catch((error) => {
+                    notifyError("No se pudo crear la pizarra", error);
+                  });
+                },
+              });
+            },
           },
           [Crepe.Feature.Placeholder]: {
             text: "Escribe tu nota…",
@@ -143,6 +210,7 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
               try {
                 const imported = await importImageForEditor(props.notePath, file);
                 prepared.replacements.set(imported.dataUrl, imported.relativePath);
+                if (imported.revision) prepared.revisions.set(imported.dataUrl, imported.revision);
                 notifySuccess("Imagen insertada", file.name);
                 return imported.dataUrl;
               } catch (error) {
@@ -160,20 +228,41 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         .use(whiteboardNode)
         .use(whiteboardRemark)
         .use(createWhiteboardView({
-          onSave: async (svg, currentSrc) => {
+          onSave: async (svg, currentSrc, saveOptions) => {
             try {
               const file = new File([svg], "pizarra.svg", { type: "image/svg+xml" });
               const relativePath = prepared.replacements.get(currentSrc);
-              const saved = relativePath
-                ? await updateAssetForEditor(props.notePath, relativePath, file)
+              const saved = relativePath && !saveOptions?.copy
+                ? await updateAssetForEditor(
+                    props.notePath,
+                    relativePath,
+                    file,
+                    prepared.revisions.get(currentSrc),
+                  )
                 : await importImageForEditor(props.notePath, file);
               prepared.replacements.delete(currentSrc);
+              prepared.revisions.delete(currentSrc);
               prepared.replacements.set(saved.dataUrl, saved.relativePath);
-              notifySuccess(relativePath ? "Pizarra actualizada" : "Pizarra guardada");
+              if (saved.revision) prepared.revisions.set(saved.dataUrl, saved.revision);
+              if (saveOptions?.notify !== false) {
+                notifySuccess(relativePath ? "Pizarra actualizada" : "Pizarra guardada");
+              }
               return saved.dataUrl;
             } catch (error) {
               notifyError("No se pudo guardar la pizarra", error);
               return null;
+            }
+          },
+          onDeleteAsset: async (currentSrc) => {
+            const relativePath = prepared.replacements.get(currentSrc);
+            if (!relativePath) return;
+            try {
+              await deleteAssetForEditor(props.notePath, relativePath);
+              prepared.replacements.delete(currentSrc);
+              prepared.revisions.delete(currentSrc);
+            } catch (error) {
+              notifyError("No se pudo eliminar la pizarra", error);
+              throw error;
             }
           },
         }));
@@ -203,27 +292,27 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           instance.editor.ctx.get(editorViewCtx).focus();
         },
         async insertWhiteboard(tool: DrawingTool) {
-          const file = new File([serializeDrawing([])], "pizarra.svg", {
-            type: "image/svg+xml",
-          });
-          const imported = await importImageForEditor(props.notePath, file);
-          prepared.replacements.set(imported.dataUrl, imported.relativePath);
-          const node = whiteboardNode.type(instance.editor.ctx).create({
-            src: imported.dataUrl,
-            tool,
-            draft: true,
-          });
+          await insertWhiteboard(tool);
+        },
+        async insertAsset(dataUrl, relativePath, alt = "Imagen", revision) {
+          prepared.replacements.set(dataUrl, relativePath);
+          if (revision) prepared.revisions.set(dataUrl, revision);
           const commands = instance.editor.ctx.get(commandsCtx);
-          commands.call(addBlockTypeCommand.key, { nodeType: node });
+          const node = imageBlockSchema.type(instance.editor.ctx).create({
+            src: dataUrl,
+            caption: alt,
+            ratio: 1,
+          });
+          const inserted = commands.call(addBlockTypeCommand.key, { nodeType: node });
+          if (!inserted) {
+            await deleteAssetForEditor(props.notePath, relativePath).catch(() => undefined);
+            prepared.replacements.delete(dataUrl);
+            prepared.revisions.delete(dataUrl);
+            throw new Error("No se pudo insertar el bloque de imagen");
+          }
           const view = instance.editor.ctx.get(editorViewCtx);
           createParagraphNear(view.state, view.dispatch);
           view.focus();
-        },
-        insertAsset(dataUrl, relativePath, alt = "Dibujo") {
-          prepared.replacements.set(dataUrl, relativePath);
-          const view = instance.editor.ctx.get(editorViewCtx);
-          if (!view.hasFocus()) view.focus();
-          instance.editor.action(insert(`![${alt}](${dataUrl})`));
         },
       });
       setReady(true);

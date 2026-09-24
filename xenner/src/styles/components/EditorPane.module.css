@@ -7,7 +7,7 @@
   color: var(--skin-note-text);
   background-color: var(--skin-note-background);
   border: var(--skin-note-border);
-  border-radius: 0;
+  border-radius: var(--skin-note-radius);
   box-shadow: var(--skin-note-shadow);
 }
 
@@ -37,7 +37,7 @@
 .documentColumn {
   width: min(var(--skin-content-width, 860px), 100%);
   min-height: 100%;
-  margin: 0;
+  margin-inline: auto;
   padding: clamp(42px, 6vw, 72px) 54px 132px;
   text-align: left;
 }
@@ -47,12 +47,36 @@
   margin-bottom: clamp(12px, 2vw, 22px);
 }
 
+.headingMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 18px;
+  margin-bottom: 7px;
+  color: var(--skin-toolbar-textDim);
+  font-size: 10px;
+}
+
+.headingMeta > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saveStatus {
+  color: var(--skin-toolbar-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .titleInput {
   display: block;
   width: 100%;
   min-width: 0;
   padding: 0 0 4px;
-  color: var(--skin-toolbar-text);
+  color: var(--skin-note-text);
   background: transparent;
   border: 0;
   outline: 0;

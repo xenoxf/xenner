@@ -25,6 +25,7 @@ pub fn run() {
             vault::choose_image_asset,
             vault::read_asset,
             vault::update_asset,
+            vault::delete_asset,
             vault::write_note,
             vault::create_note,
             vault::create_folder,

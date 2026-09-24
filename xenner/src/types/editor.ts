@@ -5,11 +5,13 @@ export type EditorBlockType = "paragraph" | "heading1" | "heading2" | "bullet" |
 export interface PreparedMarkdown {
   content: string;
   replacements: Map<string, string>;
+  revisions: Map<string, string>;
 }
 
 export interface ImportedEditorAsset {
   dataUrl: string;
   relativePath: string;
+  revision?: string;
   fileName?: string;
 }
 
@@ -17,5 +19,10 @@ export interface MarkdownEditorHandle {
   focus(): void;
   setBlockType(type: EditorBlockType): void;
   insertWhiteboard(tool: DrawingTool): Promise<void>;
-  insertAsset(dataUrl: string, relativePath: string, alt?: string): void;
+  insertAsset(
+    dataUrl: string,
+    relativePath: string,
+    alt?: string,
+    revision?: string,
+  ): void | Promise<void>;
 }

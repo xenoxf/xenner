@@ -20,7 +20,7 @@ export const COMPONENT_KEYS = {
   note: [...SHARED_KEYS, "backgroundHover"],
   sidebar: [...SHARED_KEYS, "itemHover", "itemActive", "textDim"],
   input: [...SHARED_KEYS, "placeholder", "focus"],
-  toolbar: [...SHARED_KEYS, "textDim"],
+  toolbar: [...SHARED_KEYS, "textDim", "backgroundHover"],
 } as const;
 
 const MANIFEST_KEYS = ["name", "version", "author"] as const;

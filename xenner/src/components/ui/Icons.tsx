@@ -155,6 +155,43 @@ export function SelectIcon(props: IconProps) {
   );
 }
 
+export function HandIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M7 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1V4.5a1.5 1.5 0 0 1 3 0V10m0-1V5.5a1.5 1.5 0 0 1 3 0V12m0-2.5a1.5 1.5 0 0 1 3 0V15c0 3.3-2.7 6-6 6h-1.5c-2.1 0-3.5-.8-4.7-2.4L4 14.7a1.6 1.6 0 0 1 2.5-2L7 13.5V11Z" />
+    </svg>
+  );
+}
+
+export function CopyIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+    </svg>
+  );
+}
+
+export function ExpandIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5" />
+      <path d="m3 3 6 6M21 3l-6 6M3 21l6-6M21 21l-6-6" />
+    </svg>
+  );
+}
+
+export function GridIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="4" y="4" width="6" height="6" rx="1" />
+      <rect x="14" y="4" width="6" height="6" rx="1" />
+      <rect x="4" y="14" width="6" height="6" rx="1" />
+      <rect x="14" y="14" width="6" height="6" rx="1" />
+    </svg>
+  );
+}
+
 export function InfoIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

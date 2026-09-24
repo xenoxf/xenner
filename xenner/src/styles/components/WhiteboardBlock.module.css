@@ -1,105 +1,181 @@
 .block {
+  position: relative;
   width: 100%;
   margin: 20px 0;
   overflow: hidden;
   background-color: var(--skin-note-background);
   border: var(--skin-input-border);
   border-radius: calc(var(--skin-note-radius) * 0.8);
+  box-shadow: var(--skin-note-shadow);
+}
+
+.expanded {
+  position: fixed;
+  z-index: var(--z-drawing-modal);
+  inset: 24px;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  background-color: var(--skin-note-background);
 }
 
 .toolbar {
   display: flex;
-  min-height: 42px;
+  flex-wrap: wrap;
+  min-height: 48px;
   align-items: center;
-  gap: 4px;
-  padding: 5px 7px;
+  gap: 8px;
+  padding: 6px 8px;
   overflow-x: auto;
   background-color: var(--skin-toolbar-background);
   border-bottom: var(--skin-toolbar-border);
+  box-shadow: var(--skin-toolbar-shadow);
+  font-family: var(--skin-toolbar-font, var(--skin-ui-font, inherit));
 }
 
-.toolbar > button:not([class]) {
-  min-height: 28px;
-  padding: 4px 7px;
-  color: var(--skin-button-text);
+.toolGroup,
+.styleControls,
+.canvasControls,
+.toolbarActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+}
+
+.toolGroup {
+  padding-right: 6px;
+  border-right: 1px solid var(--skin-toolbar-border);
+}
+
+.styleControls {
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.canvasControls {
+  padding-left: 6px;
+  border-left: 1px solid var(--skin-toolbar-border);
+}
+
+.toolbarActions {
+  gap: 4px;
+  margin-left: auto;
+  padding-left: 8px;
+  border-left: 1px solid var(--skin-toolbar-border);
+}
+
+.toolButton,
+.active,
+.toolbar button,
+.toolbarActions > button {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px 6px;
+  color: var(--skin-toolbar-textDim);
   background: transparent;
   border: 1px solid transparent;
   border-radius: calc(var(--skin-button-radius) * 0.7);
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
   cursor: pointer;
 }
 
-.toolbar > button:not([class]):hover:not(:disabled) {
-  color: var(--skin-button-textHover);
-  background-color: var(--skin-button-backgroundHover);
+.toolButton,
+.toolbarActions > button {
+  display: grid;
+  place-items: center;
 }
 
-.toolbar > button.active {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
-  padding: 0;
-  place-items: center;
+.toolbar button:hover:not(:disabled),
+.toolbar button:focus-visible,
+.toolbar button.active,
+.toolbar button.activeControl {
   color: var(--skin-toolbar-accent);
   background-color: var(--skin-button-backgroundHover);
   border-color: var(--skin-toolbar-accent);
-  border-radius: calc(var(--skin-button-radius) * 0.7);
-  cursor: pointer;
 }
 
-.toolbar > button svg {
-  width: 15px;
-  height: 15px;
+.toolbar button:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 1px;
 }
 
-.toolbar > button.deleteButton {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
-  padding: 0;
-  place-items: center;
-  color: var(--skin-note-accent);
-  background: transparent;
-  border: 0;
-  border-radius: calc(var(--skin-button-radius) * 0.7);
-  cursor: pointer;
+.toolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.toolbar button.active {
+  border-color: var(--skin-toolbar-accent);
+}
+
+.toolbar button svg {
+  width: 17px;
+  height: 17px;
 }
 
 .color,
 .widthControl {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   color: var(--skin-toolbar-textDim);
-  font-size: 9px;
+  font-size: 10px;
   white-space: nowrap;
 }
 
 .color input {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 1px;
   background: var(--skin-input-background);
   border: var(--skin-input-border);
-  border-radius: 4px;
+  border-radius: 5px;
+  cursor: pointer;
 }
 
 .widthControl input {
-  width: 64px;
+  width: 70px;
   accent-color: var(--skin-toolbar-accent);
 }
 
-.spacer {
-  flex: 1;
+.zoomLabel {
+  min-width: 48px !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.deleteButton {
+  color: var(--skin-note-accent) !important;
+}
+
+.toolbarActions > button:last-child {
+  color: var(--skin-toolbar-background);
+  background: var(--skin-toolbar-accent);
+  border-color: var(--skin-toolbar-accent);
+}
+
+.toolbarActions > button:last-child:hover:not(:disabled) {
+  color: var(--skin-toolbar-background);
+  background: var(--skin-toolbar-accent);
+  filter: brightness(1.08);
 }
 
 .canvasWrap {
+  position: relative;
+  min-height: 0;
+  flex: 1;
   padding: 10px;
   overflow: auto;
   background-color: var(--skin-input-background);
+}
+
+.canvasWrap.grid {
+  background-color: var(--skin-input-background);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--skin-toolbar-text) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--skin-toolbar-text) 8%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .canvas {
@@ -114,8 +190,52 @@
   cursor: crosshair;
 }
 
+.canvas:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.textEditor {
+  position: absolute;
+  z-index: 2;
+  min-width: 120px;
+  padding: 3px 5px;
+  color: var(--skin-note-text);
+  background: var(--skin-input-background);
+  border: 2px solid var(--skin-input-focus);
+  border-radius: 4px;
+  outline: none;
+  font: inherit;
+  font-size: 16px;
+  transform: translateY(-100%);
+}
+
+.textEditor:focus {
+  box-shadow: 0 0 0 2px var(--skin-note-background);
+}
+
+@media (max-width: 980px) {
+  .toolbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .toolbarActions {
+    width: 100%;
+    margin-left: 0;
+    padding-top: 5px;
+    padding-left: 0;
+    border-top: 1px solid var(--skin-toolbar-border);
+    border-left: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .canvas {
     min-height: 210px;
+  }
+
+  .expanded {
+    inset: 8px;
   }
 }

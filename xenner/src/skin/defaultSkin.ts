@@ -65,6 +65,7 @@ export const DEFAULT_SKINS: Record<ColorScheme, Record<string, SkinVars>> = {
     },
     toolbar: {
       background: "#ffffff",
+      backgroundHover: "#f1f1ef",
       text: "#2f2f2f",
       textDim: "#787774",
       border: "1px solid #e6e6e3",
@@ -133,6 +134,7 @@ export const DEFAULT_SKINS: Record<ColorScheme, Record<string, SkinVars>> = {
     },
     toolbar: {
       background: "#202020",
+      backgroundHover: "#2b2b2a",
       text: "#e7e7e4",
       textDim: "#9b9b98",
       border: "1px solid #30302f",

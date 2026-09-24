@@ -11,5 +11,6 @@ export const DRAWING_BLOCK_TOOLS: readonly { id: DrawingTool; label: string }[] 
 
 export const DRAWING_TOOLS: readonly { id: DrawingTool; label: string }[] = [
   { id: "select", label: "Seleccionar" },
+  { id: "hand", label: "Mano" },
   ...DRAWING_BLOCK_TOOLS,
 ];

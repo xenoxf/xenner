@@ -23,6 +23,7 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
     src: { default: "", validate: "string" },
     tool: { default: "select", validate: "string" },
     draft: { default: false, validate: "boolean" },
+    drawingId: { default: "", validate: "string" },
   },
   parseDOM: [
     {
@@ -35,6 +36,7 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
           src,
           tool: dom.dataset.tool ?? "select",
           draft: dom.dataset.draft === "true",
+          drawingId: dom.dataset.drawingId ?? "",
         };
       },
     },
@@ -46,6 +48,7 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
       "data-src": node.attrs.src,
       "data-tool": node.attrs.tool,
       "data-draft": String(node.attrs.draft),
+      "data-drawing-id": node.attrs.drawingId,
     },
   ],
   parseMarkdown: {
@@ -57,6 +60,7 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
         src,
         tool: "select",
         draft: false,
+        drawingId: "",
       });
     },
   },

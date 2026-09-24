@@ -10,6 +10,28 @@ export const CANVAS_HEIGHT = 600;
 export const DEFAULT_DRAWING_COLOR = "#6750a4";
 
 let shapeId = 0;
+let drawingSequence = 0;
+
+export function createDrawingId(): string {
+  const randomUuid = globalThis.crypto?.randomUUID?.();
+  if (randomUuid) return `drawing-${randomUuid}`;
+  drawingSequence += 1;
+  return `drawing-${Date.now().toString(36)}-${drawingSequence.toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+}
+
+export function drawingIdFromSvg(svg: string): string | null {
+  if (!svg) return null;
+  if (typeof DOMParser === "undefined") {
+    const match = svg.match(/data-xenner-drawing-id="([a-zA-Z0-9_-]{1,100})"/);
+    return match?.[1] ?? null;
+  }
+  const parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
+  if (parsed.querySelector("parsererror")) return null;
+  const value = parsed.documentElement.getAttribute("data-xenner-drawing-id");
+  return value && /^[a-zA-Z0-9_-]{1,100}$/.test(value) ? value : null;
+}
 
 function nextId(): string {
   shapeId += 1;
@@ -47,19 +69,22 @@ export function drawingShapeBounds(shape: DrawingShape): ShapeBounds {
 
 export function drawingShapeHits(shape: DrawingShape, point: Point): boolean {
   if (shape.kind === "path") {
-    const box = drawingShapeBounds(shape);
-    return (
-      point.x >= box.x - shape.width &&
-      point.x <= box.x + box.width + shape.width &&
-      point.y >= box.y - shape.width &&
-      point.y <= box.y + box.height + shape.width
-    );
+    if (shape.points.length < 2) {
+      return distanceToSegment(point, shape.points[0] ?? { x: shape.x1, y: shape.y1 }, { x: shape.x1, y: shape.y1 }) <= shape.width + 8;
+    }
+    for (let index = 1; index < shape.points.length; index += 1) {
+      if (distanceToSegment(point, shape.points[index - 1], shape.points[index]) <= shape.width + 8) {
+        return true;
+      }
+    }
+    return false;
   }
   if (shape.kind === "line" || shape.kind === "arrow") {
     return distanceToSegment(point, { x: shape.x1, y: shape.y1 }, { x: shape.x2, y: shape.y2 }) <= shape.width + 8;
   }
   if (shape.kind === "text") {
-    return point.x >= shape.x1 - 10 && point.x <= shape.x1 + 180 && point.y >= shape.y1 - 24 && point.y <= shape.y1 + 12;
+    const width = Math.max(48, Math.min(360, shape.text.length * 13 + 18));
+    return point.x >= shape.x1 - 10 && point.x <= shape.x1 + width && point.y >= shape.y1 - 24 && point.y <= shape.y1 + 12;
   }
   const box = drawingShapeBounds(shape);
   const padding = shape.width + 6;
@@ -103,9 +128,13 @@ function shapeToSvg(shape: DrawingShape): string {
 export function drawingFromDataUrl(dataUrl: string): string {
   const base64 = dataUrl.split(",", 2)[1];
   if (!base64) return "";
-  const binary = atob(base64);
-  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
+  try {
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return "";
+  }
 }
 
 export function drawingToDataUrl(svg: string): string {
@@ -118,7 +147,8 @@ export function drawingToDataUrl(svg: string): string {
   return `data:image/svg+xml;base64,${btoa(binary)}`;
 }
 
-export function serializeDrawing(shapes: DrawingShape[]): string {
+export function serializeDrawing(shapes: DrawingShape[], drawingId = createDrawingId()): string {
+  const safeDrawingId = /^[a-zA-Z0-9_-]{1,100}$/.test(drawingId) ? drawingId : createDrawingId();
   const body = shapes.map(shapeToSvg).join("");
   const markers = shapes
     .filter((shape) => shape.kind === "arrow")
@@ -127,7 +157,7 @@ export function serializeDrawing(shapes: DrawingShape[]): string {
         `<marker id="arrowhead-${shape.id}" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="${shape.color}" /></marker>`,
     )
     .join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" data-xenner-asset="safe"><defs>${markers}</defs>${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" data-xenner-asset="safe" data-xenner-drawing-id="${safeDrawingId}"><defs>${markers}</defs>${body}</svg>`;
 }
 
 function numberAttribute(element: Element, name: string, fallback = 0): number {
@@ -170,7 +200,10 @@ export function parseDrawingSvg(svg: string): DrawingShape[] {
   const shapes: DrawingShape[] = [];
   root.querySelectorAll("rect, ellipse, line, polyline, text").forEach((element) => {
     const tag = element.tagName.toLowerCase();
-    const stroke = safeColor(element.getAttribute("stroke"), DEFAULT_DRAWING_COLOR);
+    const stroke = safeColor(
+      element.getAttribute(tag === "text" ? "fill" : "stroke"),
+      DEFAULT_DRAWING_COLOR,
+    );
     const width = Math.max(1, Math.min(16, numberAttribute(element, "stroke-width", 4)));
     const base: Omit<DrawingShape, "kind" | "x1" | "y1" | "x2" | "y2" | "points" | "text"> = {
       id: nextId(),

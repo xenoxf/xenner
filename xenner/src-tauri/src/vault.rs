@@ -125,6 +125,7 @@ pub struct CreateNoteResult {
 pub struct AssetPayload {
     pub mime: String,
     pub data_base64: String,
+    pub revision: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -133,6 +134,7 @@ pub struct ImportedAsset {
     pub relative_path: String,
     pub mime: String,
     pub data_base64: String,
+    pub revision: String,
     pub file_name: String,
 }
 
@@ -812,6 +814,7 @@ fn import_asset_blocking(
         relative_path,
         mime: mime.to_string(),
         data_base64: BASE64.encode(&bytes),
+        revision: hash,
         file_name,
     })
 }
@@ -841,9 +844,11 @@ fn read_asset_blocking(
     if extension == "svg" {
         validate_svg_asset(&bytes)?;
     }
+    let revision = revision_for(&bytes);
     Ok(AssetPayload {
         mime: mime.to_string(),
         data_base64: BASE64.encode(&bytes),
+        revision,
     })
 }
 
@@ -852,6 +857,7 @@ fn update_asset_blocking(
     note_path: String,
     asset_path: String,
     data_base64: String,
+    expected_revision: Option<String>,
 ) -> Result<AssetPayload, VaultError> {
     if data_base64.len() > MAX_ASSET_BYTES.saturating_mul(2) {
         return Err(VaultError::new("tooLarge", "el asset es demasiado grande"));
@@ -864,6 +870,14 @@ fn update_asset_blocking(
     }
 
     let path = asset_file_path(&root, &note_path, &asset_path, true)?;
+    if let Some(expected_revision) = expected_revision {
+        let current = fs::read(&path)?;
+        if revision_for(&current) != expected_revision {
+            return Err(conflict(
+                "el asset cambió fuera de Xenner; recárgalo antes de guardar",
+            ));
+        }
+    }
     let extension = path
         .extension()
         .and_then(OsStr::to_str)
@@ -878,10 +892,29 @@ fn update_asset_blocking(
         validate_svg_asset(&bytes)?;
     }
     write_bytes_atomically(&path, &bytes)?;
+    let revision = revision_for(&bytes);
     Ok(AssetPayload {
         mime: mime.to_string(),
         data_base64: BASE64.encode(&bytes),
+        revision,
     })
+}
+
+fn delete_asset_blocking(
+    root: PathBuf,
+    note_path: String,
+    asset_path: String,
+) -> Result<(), VaultError> {
+    let path = match asset_file_path(&root, &note_path, &asset_path, true) {
+        Ok(path) => path,
+        Err(error) if error.code == "notFound" => return Ok(()),
+        Err(error) => return Err(error),
+    };
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
 }
 
 fn write_note_blocking(
@@ -1304,13 +1337,26 @@ pub async fn update_asset(
     note_path: String,
     asset_path: String,
     data_base64: String,
+    expected_revision: Option<String>,
 ) -> Result<AssetPayload, VaultError> {
     let root = root_from_state(&state)?;
     tauri::async_runtime::spawn_blocking(move || {
-        update_asset_blocking(root, note_path, asset_path, data_base64)
+        update_asset_blocking(root, note_path, asset_path, data_base64, expected_revision)
     })
     .await
     .map_err(|_| join_error())?
+}
+
+#[tauri::command]
+pub async fn delete_asset(
+    state: State<'_, VaultState>,
+    note_path: String,
+    asset_path: String,
+) -> Result<(), VaultError> {
+    let root = root_from_state(&state)?;
+    tauri::async_runtime::spawn_blocking(move || delete_asset_blocking(root, note_path, asset_path))
+        .await
+        .map_err(|_| join_error())?
 }
 
 #[tauri::command]
@@ -1520,10 +1566,11 @@ mod tests {
         .expect("import");
         let second_svg = r#"<svg xmlns="http://www.w3.org/2000/svg" data-xenner-asset="safe"><circle cx="5" cy="6" r="2" /></svg>"#;
         let updated = update_asset_blocking(
-            root,
-            note.entry.path,
+            root.clone(),
+            note.entry.path.clone(),
             imported.relative_path.clone(),
             BASE64.encode(second_svg.as_bytes()),
+            Some(imported.revision.clone()),
         )
         .expect("update");
         assert_eq!(updated.mime, "image/svg+xml");
@@ -1531,6 +1578,25 @@ mod tests {
             BASE64.decode(updated.data_base64).expect("decode"),
             second_svg.as_bytes()
         );
+        let conflict_error = update_asset_blocking(
+            root.clone(),
+            note.entry.path.clone(),
+            imported.relative_path.clone(),
+            BASE64.encode(first_svg.as_bytes()),
+            Some(imported.revision.clone()),
+        )
+        .expect_err("stale asset revision");
+        assert_eq!(conflict_error.code, "conflict");
+        delete_asset_blocking(
+            root.clone(),
+            note.entry.path,
+            imported.relative_path.clone(),
+        )
+        .expect("delete");
+        assert!(!root
+            .join(".assets")
+            .join(imported.relative_path.trim_start_matches("./.assets/"))
+            .exists());
     }
 
     #[test]

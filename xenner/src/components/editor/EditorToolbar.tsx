@@ -1,26 +1,31 @@
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 
-import { DRAWING_BLOCK_TOOLS } from "../../data/drawing";
 import { EDITOR_BLOCKS } from "../../data/editor";
 import styles from "../../styles/components/EditorToolbar.module.css";
 import type { DrawingTool } from "../../types/drawing";
 import type { EditorBlockType } from "../../types/editor";
 import {
-  ArrowIcon,
   BulletListIcon,
-  CircleIcon,
   HeadingIcon,
   ImageIcon,
-  LineIcon,
   MarkdownIcon,
   OrderedListIcon,
   PencilIcon,
+  PlusIcon,
   QuoteIcon,
-  SquareIcon,
   TextIcon,
 } from "../ui/Icons";
 
-export interface EditorToolbarProps {
+type InsertId = EditorBlockType | "image" | "whiteboard";
+
+interface EditorToolbarProps {
   loading: boolean;
   sourceMode: boolean;
   ready: boolean;
@@ -33,69 +38,89 @@ export interface EditorToolbarProps {
   onToggleSource(): void;
 }
 
-function DrawingToolIcon(props: { tool: DrawingTool }) {
-  if (props.tool === "pen") return <PencilIcon />;
-  if (props.tool === "rect") return <SquareIcon />;
-  if (props.tool === "ellipse") return <CircleIcon />;
-  if (props.tool === "line") return <LineIcon />;
-  if (props.tool === "arrow") return <ArrowIcon />;
-  return <TextIcon />;
+interface InsertItem {
+  id: InsertId;
+  label: string;
+  group: "Texto" | "Insertar";
+  keywords: string;
 }
 
-function BlockIcon(props: { type: EditorBlockType }) {
-  switch (props.type) {
-    case "paragraph":
-      return <TextIcon />;
-    case "heading1":
-    case "heading2":
-      return <HeadingIcon />;
-    case "bullet":
-      return <BulletListIcon />;
-    case "ordered":
-      return <OrderedListIcon />;
-    case "quote":
-      return <QuoteIcon />;
-  }
+const INSERT_ITEMS: readonly InsertItem[] = [
+  ...EDITOR_BLOCKS.map((item) => ({
+    id: item.id,
+    label: item.label,
+    group: "Texto" as const,
+    keywords: item.label.toLocaleLowerCase("es"),
+  })),
+  {
+    id: "image",
+    label: "Imagen",
+    group: "Insertar",
+    keywords: "imagen foto archivo png jpg jpeg webp",
+  },
+  {
+    id: "whiteboard",
+    label: "Pizarra",
+    group: "Insertar",
+    keywords: "pizarra dibujo lienzo trazo formas svg",
+  },
+];
+
+function ItemIcon(props: { id: InsertId }) {
+  if (props.id === "paragraph") return <TextIcon />;
+  if (props.id === "heading1" || props.id === "heading2") return <HeadingIcon />;
+  if (props.id === "bullet") return <BulletListIcon />;
+  if (props.id === "ordered") return <OrderedListIcon />;
+  if (props.id === "quote") return <QuoteIcon />;
+  if (props.id === "image") return <ImageIcon />;
+  return <PencilIcon />;
 }
 
 export function EditorToolbar(props: EditorToolbarProps) {
-  const [blockMenuOpen, setBlockMenuOpen] = createSignal(false);
-  const [drawMenuOpen, setDrawMenuOpen] = createSignal(false);
-  let blockMenu: HTMLDivElement | undefined;
-  let blockTrigger: HTMLButtonElement | undefined;
-  let drawMenu: HTMLDivElement | undefined;
-  let drawTrigger: HTMLButtonElement | undefined;
+  const [insertOpen, setInsertOpen] = createSignal(false);
+  const [query, setQuery] = createSignal("");
+  const [activeIndex, setActiveIndex] = createSignal(0);
+  let insertMenu: HTMLDivElement | undefined;
+  let insertTrigger: HTMLButtonElement | undefined;
+  let searchInput: HTMLInputElement | undefined;
 
-  function closePopovers(): void {
-    setBlockMenuOpen(false);
-    setDrawMenuOpen(false);
-  }
-
-  onMount(() => {
-    const closeMenuOutside = (event: PointerEvent): void => {
-      const target = event.target;
-      if (target instanceof Node) {
-        const outsideBlocks = !blockMenu?.contains(target) && !blockTrigger?.contains(target);
-        const outsideDrawing = !drawMenu?.contains(target) && !drawTrigger?.contains(target);
-        if (outsideBlocks && outsideDrawing) closePopovers();
-      }
-    };
-    const closeMenuWithEscape = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape" || (!blockMenuOpen() && !drawMenuOpen())) return;
-      const returnFocus = blockMenuOpen() ? blockTrigger : drawTrigger;
-      closePopovers();
-      queueMicrotask(() => returnFocus?.focus());
-    };
-    document.addEventListener("pointerdown", closeMenuOutside);
-    document.addEventListener("keydown", closeMenuWithEscape);
-    onCleanup(() => {
-      document.removeEventListener("pointerdown", closeMenuOutside);
-      document.removeEventListener("keydown", closeMenuWithEscape);
-    });
+  const visibleItems = createMemo(() => {
+    const normalized = query().trim().toLocaleLowerCase("es");
+    if (!normalized) return INSERT_ITEMS;
+    return INSERT_ITEMS.filter((item) => item.keywords.includes(normalized));
+  });
+  const groupedItems = createMemo(() => {
+    const items = visibleItems();
+    return [
+      { label: "Texto" as const, items: items.filter((item) => item.group === "Texto") },
+      { label: "Insertar" as const, items: items.filter((item) => item.group === "Insertar") },
+    ].filter((group) => group.items.length > 0);
   });
 
+  function closeMenu(restoreFocus = true): void {
+    setInsertOpen(false);
+    setQuery("");
+    setActiveIndex(0);
+    if (restoreFocus) queueMicrotask(() => insertTrigger?.focus());
+  }
+
+  function openMenu(): void {
+    if (props.loading || props.sourceMode || !props.ready) return;
+    setInsertOpen(true);
+    setQuery("");
+    setActiveIndex(0);
+    queueMicrotask(() => searchInput?.focus());
+  }
+
+  function runItem(item: InsertItem): void {
+    closeMenu(false);
+    if (item.id === "image") props.onChooseImage();
+    else if (item.id === "whiteboard") props.onInsertWhiteboard("pen");
+    else props.onApplyBlock(item.id);
+  }
+
   function moveToolbarFocus(event: KeyboardEvent, container: HTMLElement): void {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    if (insertOpen() || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     const controls = [...container.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
     if (!controls.length) return;
     const current = controls.indexOf(document.activeElement as HTMLButtonElement);
@@ -108,128 +133,159 @@ export function EditorToolbar(props: EditorToolbarProps) {
     controls[next]?.focus();
   }
 
-  function toggleBlockMenu(): void {
-    if (props.loading || props.sourceMode || !props.ready) return;
-    setDrawMenuOpen(false);
-    setBlockMenuOpen((open) => !open);
+  function moveMenuFocus(event: KeyboardEvent, index: number): void {
+    const items = visibleItems();
+    if (!items.length) return;
+    let next = index;
+    if (event.key === "ArrowDown") {
+      next = event.currentTarget === searchInput ? 0 : (index + 1) % items.length;
+    }
+    else if (event.key === "ArrowUp") next = (index - 1 + items.length) % items.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = items.length - 1;
+    else return;
+    event.preventDefault();
+    setActiveIndex(next);
+    queueMicrotask(() => {
+      insertMenu?.querySelectorAll<HTMLButtonElement>("[role='option']")[next]?.focus();
+    });
   }
 
-  function toggleDrawMenu(): void {
-    if (props.loading || props.whiteboardBusy || props.sourceMode || !props.ready) return;
-    setBlockMenuOpen(false);
-    setDrawMenuOpen((open) => !open);
-  }
+  onMount(() => {
+    const closeOutside = (event: PointerEvent): void => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (!insertMenu?.contains(target) && !insertTrigger?.contains(target)) closeMenu(false);
+    };
+    const closeEscape = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape" || !insertOpen()) return;
+      event.preventDefault();
+      closeMenu();
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    onCleanup(() => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    });
+  });
 
   return (
     <div
       class={styles.dock}
       role="toolbar"
+      aria-orientation="horizontal"
       aria-label="Acciones del editor"
       onKeyDown={(event) => moveToolbarFocus(event, event.currentTarget)}
     >
       <div class={styles.anchor}>
         <button
-          ref={(element) => (blockTrigger = element)}
+          ref={(element) => (insertTrigger = element)}
           type="button"
-          class={`${styles.button} ${blockMenuOpen() ? styles.open : ""}`}
+          class={`${styles.button} ${insertOpen() ? styles.open : ""}`}
           disabled={props.loading || props.sourceMode || !props.ready}
-          aria-label="Tipo de bloque"
-          aria-haspopup="menu"
-          aria-controls="editor-block-menu"
-          aria-expanded={blockMenuOpen()}
-          title={props.ready ? "Tipo de bloque" : "Preparando editor"}
-          onClick={toggleBlockMenu}
+          aria-label="Insertar bloque"
+          aria-haspopup="dialog"
+          aria-controls="editor-insert-menu"
+          aria-expanded={insertOpen()}
+          title="Insertar bloque"
+          onClick={() => (insertOpen() ? closeMenu() : openMenu())}
         >
-          <TextIcon />
+          <PlusIcon />
+          <span class={styles.buttonLabel}>Insertar</span>
         </button>
-        <Show when={blockMenuOpen()}>
+        <Show when={insertOpen()}>
           <div
-            ref={(element) => (blockMenu = element)}
-            id="editor-block-menu"
-            class={`${styles.menu} ${styles.blockPicker}`}
-            role="menu"
-            aria-label="Tipo de bloque"
+            ref={(element) => (insertMenu = element)}
+            id="editor-insert-menu"
+            class={styles.menu}
+            role="dialog"
+            aria-label="Insertar bloque"
           >
-            <div class={styles.blockGrid} role="group" aria-label="Formatos de texto">
-              <For each={EDITOR_BLOCKS}>
-                {(block) => (
-                  <button
-                    type="button"
-                    class={styles.blockItem}
-                    role="menuitem"
-                    title={block.label}
-                    onClick={() => {
-                      closePopovers();
-                      props.onApplyBlock(block.id);
-                    }}
-                  >
-                    <span><BlockIcon type={block.id} /></span>
-                    {block.label}
-                  </button>
+            <div class={styles.menuSearch}>
+              <SearchIcon />
+              <input
+                ref={(element) => (searchInput = element)}
+                type="search"
+                value={query()}
+                placeholder="Buscar bloque…"
+                aria-label="Buscar bloque"
+                onInput={(event) => {
+                  setQuery(event.currentTarget.value);
+                  setActiveIndex(0);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    moveMenuFocus(event, 0);
+                  } else if (event.key === "Enter" && visibleItems()[0]) {
+                    event.preventDefault();
+                    runItem(visibleItems()[0]);
+                  }
+                }}
+              />
+            </div>
+            <Show when={visibleItems().length > 0} fallback={<p class={styles.emptyMenu}>No hay coincidencias</p>}>
+              <For each={groupedItems()}>
+                {(group) => (
+                  <section class={styles.menuGroup} role="group" aria-label={group.label}>
+                    <p>{group.label}</p>
+                    <For each={group.items}>
+                      {(item) => {
+                        const index = () => visibleItems().findIndex((candidate) => candidate.id === item.id);
+                        return (
+                          <button
+                            type="button"
+                            class={`${styles.menuItem} ${activeIndex() === index() ? styles.menuItemActive : ""}`}
+                            role="option"
+                            aria-selected={activeIndex() === index()}
+                            tabIndex={activeIndex() === index() ? 0 : -1}
+                            onPointerEnter={() => setActiveIndex(index())}
+                            onClick={() => runItem(item)}
+                            onKeyDown={(event) => moveMenuFocus(event, index())}
+                          >
+                            <span class={styles.menuIcon}><ItemIcon id={item.id} /></span>
+                            <span>{item.label}</span>
+                            {item.id === "whiteboard" && <small>Dibuja con el lápiz</small>}
+                          </button>
+                        );
+                      }}
+                    </For>
+                  </section>
                 )}
               </For>
-            </div>
+            </Show>
           </div>
         </Show>
       </div>
       <span class={styles.separator} aria-hidden="true" />
       <button
         type="button"
-        class={`${styles.button} ${props.imageBusy ? styles.busy : ""}`}
+        class={`${styles.iconButton} ${props.imageBusy ? styles.busy : ""}`}
         disabled={props.loading || props.imageBusy || props.sourceMode || !props.ready}
         aria-label="Insertar imagen"
-        title={props.ready ? "Insertar imagen" : "Preparando editor"}
+        aria-busy={props.imageBusy}
+        title="Insertar imagen"
         onClick={props.onChooseImage}
       >
         <ImageIcon />
       </button>
-      <div class={styles.anchor}>
-        <button
-          ref={(element) => (drawTrigger = element)}
-          type="button"
-          class={`${styles.button} ${drawMenuOpen() ? styles.open : ""}`}
-          disabled={props.loading || props.whiteboardBusy || props.sourceMode || !props.ready}
-          aria-label="Dibujar"
-          aria-haspopup="menu"
-          aria-controls="editor-drawing-menu"
-          aria-expanded={drawMenuOpen()}
-          title={props.ready ? "Dibujar" : "Preparando editor"}
-          onClick={toggleDrawMenu}
-        >
-          <PencilIcon />
-        </button>
-        <Show when={drawMenuOpen()}>
-          <div
-            ref={(element) => (drawMenu = element)}
-            id="editor-drawing-menu"
-            class={`${styles.menu} ${styles.drawingPicker}`}
-            role="menu"
-            aria-label="Figuras para dibujar"
-          >
-            <For each={DRAWING_BLOCK_TOOLS}>
-              {(item) => (
-                <button
-                  type="button"
-                  class={styles.drawingItem}
-                  role="menuitem"
-                  title={item.label}
-                  onClick={() => {
-                    closePopovers();
-                    props.onInsertWhiteboard(item.id);
-                  }}
-                >
-                  <DrawingToolIcon tool={item.id} />
-                  <span>{item.label}</span>
-                </button>
-              )}
-            </For>
-          </div>
-        </Show>
-      </div>
+      <button
+        type="button"
+        class={`${styles.iconButton} ${props.whiteboardBusy ? styles.busy : ""}`}
+        disabled={props.loading || props.whiteboardBusy || props.sourceMode || !props.ready}
+        aria-label="Insertar pizarra"
+        aria-busy={props.whiteboardBusy}
+        title="Insertar pizarra"
+        onClick={() => props.onInsertWhiteboard("pen")}
+      >
+        <PencilIcon />
+      </button>
       <span class={styles.separator} aria-hidden="true" />
       <button
         type="button"
-        class={`${styles.button} ${props.sourceMode ? styles.active : ""}`}
+        class={`${styles.iconButton} ${props.sourceMode ? styles.active : ""}`}
+        disabled={props.loading && !props.sourceMode}
         aria-label={props.sourceMode ? "Volver a vista visual" : "Ver Markdown"}
         aria-pressed={props.sourceMode}
         title={props.sourceMode ? "Vista visual" : "Markdown"}
@@ -237,9 +293,16 @@ export function EditorToolbar(props: EditorToolbarProps) {
       >
         <MarkdownIcon />
       </button>
-      <span class="sr-only" role="status" aria-live="polite">
-        {props.status}
-      </span>
+      <span class="sr-only" role="status" aria-live="polite">{props.status}</span>
     </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m16 16 4 4" />
+    </svg>
   );
 }

@@ -48,8 +48,22 @@ export class TauriWorkspaceGateway implements WorkspaceGateway {
     return invokeWorkspace("read_asset", { notePath, assetPath });
   }
 
-  updateAsset(notePath: string, assetPath: string, dataBase64: string): Promise<AssetPayload> {
-    return invokeWorkspace("update_asset", { notePath, assetPath, dataBase64 });
+  updateAsset(
+    notePath: string,
+    assetPath: string,
+    dataBase64: string,
+    expectedRevision?: string,
+  ): Promise<AssetPayload> {
+    return invokeWorkspace("update_asset", {
+      notePath,
+      assetPath,
+      dataBase64,
+      expectedRevision: expectedRevision ?? null,
+    });
+  }
+
+  deleteAsset(notePath: string, assetPath: string): Promise<void> {
+    return invokeWorkspace("delete_asset", { notePath, assetPath });
   }
 
   writeNote(

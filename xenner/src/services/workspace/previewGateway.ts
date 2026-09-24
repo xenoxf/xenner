@@ -73,9 +73,10 @@ export class PreviewWorkspaceGateway implements WorkspaceGateway {
     const mime = extension === "svg" ? "image/svg+xml" : `image/${extension}`;
     const state = readPreviewState();
     const relativePath = `./.assets/${previewRevision(dataBase64).slice(-16)}.${extension}`;
-    state.assets[relativePath] = { mime, dataBase64 };
+    const revision = previewRevision(dataBase64);
+    state.assets[relativePath] = { mime, dataBase64, revision };
     writePreviewState(state);
-    return { relativePath, mime, dataBase64, fileName };
+    return { relativePath, mime, dataBase64, revision, fileName };
   }
 
   async chooseImageAsset(): Promise<ImportedAsset | null> {
@@ -88,21 +89,42 @@ export class PreviewWorkspaceGateway implements WorkspaceGateway {
     const normalized = assetPath.startsWith("./") ? assetPath.slice(2) : assetPath;
     const asset = state.assets[`./${normalized}`] ?? state.assets[normalized];
     if (!asset) throw vaultError("notFound", "El asset no existe en la vista previa");
-    return asset;
+    return { ...asset, revision: asset.revision ?? previewRevision(asset.dataBase64) };
   }
 
-  async updateAsset(notePath: string, assetPath: string, dataBase64: string): Promise<AssetPayload> {
+  async updateAsset(
+    notePath: string,
+    assetPath: string,
+    dataBase64: string,
+    expectedRevision?: string,
+  ): Promise<AssetPayload> {
     assertSafeRelativePath(notePath);
     const state = readPreviewState();
     const normalized = assetPath.startsWith("./") ? assetPath.slice(2) : assetPath;
     const key = state.assets[`./${normalized}`] ? `./${normalized}` : normalized;
     const current = state.assets[key];
     if (!current) throw vaultError("notFound", "El asset no existe en la vista previa");
+    const currentRevision = current.revision ?? previewRevision(current.dataBase64);
+    if (expectedRevision && currentRevision !== expectedRevision) {
+      throw vaultError("conflict", "El asset cambió fuera de Xenner");
+    }
     const extension = key.slice(key.lastIndexOf(".") + 1).toLocaleLowerCase("es");
     const mime = extension === "svg" ? "image/svg+xml" : `image/${extension}`;
-    const next = { mime, dataBase64 };
+    const revision = previewRevision(dataBase64);
+    const next = { mime, dataBase64, revision };
     writePreviewState({ ...state, assets: { ...state.assets, [key]: next } });
     return next;
+  }
+
+  async deleteAsset(notePath: string, assetPath: string): Promise<void> {
+    assertSafeRelativePath(notePath);
+    const state = readPreviewState();
+    const normalized = assetPath.startsWith("./") ? assetPath.slice(2) : assetPath;
+    const key = state.assets[`./${normalized}`] ? `./${normalized}` : normalized;
+    if (!state.assets[key]) return;
+    const assets = { ...state.assets };
+    delete assets[key];
+    writePreviewState({ ...state, assets });
   }
 
   async writeNote(

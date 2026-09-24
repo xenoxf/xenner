@@ -9,6 +9,7 @@ import type {
   WorkspaceScan,
 } from "../types/workspace";
 import { getWorkspaceGateway } from "../services/workspace/gateway";
+import { getActiveWhiteboard, leaveEditor } from "../services/editorSession";
 import { serializeNoteContent } from "./note";
 import { buildWorkspaceTree, isPathInside } from "./tree";
 
@@ -288,6 +289,7 @@ export function initializeWorkspace(): Promise<void> {
 export async function selectNote(path: string): Promise<boolean> {
   const currentPath = selectedPath();
   if (currentPath === path && selectedDocument()) return true;
+  if (!(await leaveEditor())) return false;
   if (currentPath && !(await flushPendingSave())) return false;
 
   const request = ++selectionRequest;
@@ -341,6 +343,7 @@ export async function retryPendingSave(): Promise<boolean> {
 export async function reloadSelectedDocument(): Promise<boolean> {
   const path = selectedPath();
   if (!path) return false;
+  if (!(await leaveEditor())) return false;
   const request = ++selectionRequest;
   clearSaveTimer();
   pendingSave = null;
@@ -362,6 +365,7 @@ export async function reloadSelectedDocument(): Promise<boolean> {
 }
 
 export async function createNote(parent: string, name?: string): Promise<string | null> {
+  if (!(await leaveEditor())) return null;
   if (!(await flushPendingSave())) return null;
   try {
     const result = await gateway.createNote(parent, name);
@@ -465,6 +469,7 @@ export async function importLegacyNotes(notes: LegacyNote[]): Promise<number> {
 }
 
 export async function renameEntry(path: string, name: string): Promise<string | null> {
+  if (!(await leaveEditor())) return null;
   if (!(await flushPendingSave())) return null;
   const previousSelection = selectedPath();
   try {
@@ -483,6 +488,7 @@ export async function renameEntry(path: string, name: string): Promise<string | 
 }
 
 export async function deleteEntry(path: string): Promise<boolean> {
+  if (!(await leaveEditor())) return false;
   if (!(await flushPendingSave())) return false;
   const previousSelection = selectedPath();
   const flatEntries = workspace()?.entries ?? [];
@@ -507,6 +513,7 @@ export async function deleteEntry(path: string): Promise<boolean> {
 }
 
 export async function chooseWorkspace(): Promise<boolean> {
+  if (!(await leaveEditor())) return false;
   if (!(await flushPendingSave())) return false;
   try {
     const scan = await gateway.chooseWorkspace();
@@ -545,10 +552,22 @@ export function closeWorkspaceError(): void {
 }
 
 if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", (event) => {
+    const whiteboard = getActiveWhiteboard();
+    if (!whiteboard?.dirty || whiteboard.saving) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   window.addEventListener("pagehide", () => {
-    void flushPendingSave();
+    void leaveEditor().then((canLeave) => {
+      if (canLeave) void flushPendingSave();
+    });
   });
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") void flushPendingSave();
+    if (document.visibilityState === "hidden") {
+      void leaveEditor().then((canLeave) => {
+        if (canLeave) void flushPendingSave();
+      });
+    }
   });
 }

@@ -90,12 +90,15 @@ convierten en clases globales de aplicación.
 - `services/toastService.ts` contiene estado y timers; `ToastRegion` solo
   renderiza y coordina animaciones de layout.
 - `services/editorAssets.ts` es la única frontera usada por el editor para
-  importar, leer y convertir assets.
+  importar, leer, actualizar y eliminar assets.
+- `services/editorSession.ts` coordina el modo texto/Markdown/pizarra, el
+  autoguardado del whiteboard y la protección al cambiar de nota.
 - La pizarra es un nodo `whiteboard` de Milkdown con NodeView inline. Se
   persiste como una imagen Markdown estándar bajo `.assets/`, pero mientras se
   edita muestra el lienzo directamente dentro de la nota; no usa modal.
 - `BlockEdit` de Crepe proporciona el `+` contextual y el menú slash; el dock de
-  Solid conserva las acciones propias de dibujo e imagen.
+  Solid usa una paleta de inserción única y se oculta mientras una pizarra está
+  activa.
 - `notes/store.ts` permanece como compatibilidad del CRUD antiguo y no se
   mezcló con `NoteDocument`.
 

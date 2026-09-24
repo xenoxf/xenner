@@ -6,6 +6,12 @@ import {
   importImageForEditor,
 } from "../../services/editorAssets";
 import { notifyError, notifySuccess } from "../../services/toastService";
+import {
+  getActiveWhiteboard,
+  getEditorMode,
+  leaveEditor,
+  setEditorMode,
+} from "../../services/editorSession";
 import styles from "../../styles/components/EditorPane.module.css";
 import type { DrawingTool } from "../../types/drawing";
 import type { EditorBlockType, MarkdownEditorHandle } from "../../types/editor";
@@ -35,6 +41,12 @@ export interface EditorPaneProps {
   onReload(): void;
 }
 
+function visibleStatus(status: SaveStatus): string {
+  const whiteboard = getActiveWhiteboard();
+  if (whiteboard?.dirty) return whiteboard.saving ? "Guardando pizarra…" : "Cambios en pizarra";
+  return statusLabel(status);
+}
+
 function statusLabel(status: SaveStatus): string {
   switch (status) {
     case "dirty":
@@ -59,6 +71,19 @@ export function EditorPane(props: EditorPaneProps) {
   const [whiteboardBusy, setWhiteboardBusy] = createSignal(false);
   let editorHandle: MarkdownEditorHandle | null = null;
   let imageInput: HTMLInputElement | undefined;
+  let sourceInput: HTMLTextAreaElement | undefined;
+
+  async function toggleSource(): Promise<void> {
+    if (sourceMode()) {
+      setSourceMode(false);
+      setEditorMode("text");
+      return;
+    }
+    if (!(await leaveEditor())) return;
+    setSourceMode(true);
+    setEditorMode("source");
+    queueMicrotask(() => sourceInput?.focus());
+  }
 
   function applyBlockType(type: EditorBlockType): void {
     if (!editorHandle || !editorReady() || props.loading || sourceMode()) return;
@@ -78,7 +103,12 @@ export function EditorPane(props: EditorPaneProps) {
     try {
       const imported = await chooseImageForEditor(document.path);
       if (!imported || !editorHandle) return;
-      editorHandle.insertAsset(imported.dataUrl, imported.relativePath, imported.fileName);
+      await editorHandle.insertAsset(
+        imported.dataUrl,
+        imported.relativePath,
+        imported.fileName,
+        imported.revision,
+      );
       notifySuccess("Imagen insertada", imported.fileName);
     } catch (error) {
       notifyError("No se pudo insertar la imagen", error);
@@ -105,7 +135,12 @@ export function EditorPane(props: EditorPaneProps) {
     setImageBusy(true);
     try {
       const imported = await importImageForEditor(document.path, file);
-      editorHandle.insertAsset(imported.dataUrl, imported.relativePath, file.name);
+      await editorHandle.insertAsset(
+        imported.dataUrl,
+        imported.relativePath,
+        file.name,
+        imported.revision,
+      );
       notifySuccess("Imagen insertada", file.name);
     } catch (error) {
       notifyError("No se pudo insertar la imagen", error);
@@ -113,6 +148,27 @@ export function EditorPane(props: EditorPaneProps) {
       setImageBusy(false);
       if (imageInput) imageInput.value = "";
     }
+  }
+
+  function imageFileFromDataTransfer(data: DataTransfer | null): File | null {
+    const file = [...(data?.files ?? [])].find((candidate) => candidate.type.startsWith("image/"));
+    return file ?? null;
+  }
+
+  function handleImageDrop(event: DragEvent): void {
+    const file = imageFileFromDataTransfer(event.dataTransfer);
+    if (!file) return;
+    event.preventDefault();
+    if (getEditorMode() === "whiteboard" || sourceMode()) return;
+    void insertImage(file);
+  }
+
+  function handlePaste(event: ClipboardEvent): void {
+    if (getEditorMode() === "whiteboard" || sourceMode()) return;
+    const file = [...(event.clipboardData?.files ?? [])].find((candidate) => candidate.type.startsWith("image/"));
+    if (!file) return;
+    event.preventDefault();
+    void insertImage(file);
   }
 
   return (
@@ -135,13 +191,26 @@ export function EditorPane(props: EditorPaneProps) {
         {(document) => (
           <Show when={props.document?.path} keyed>
             {(documentPath) => (
-              <div class={styles.workspace}>
+              <div
+                class={styles.workspace}
+                onDragOver={(event) => {
+                  if (imageFileFromDataTransfer(event.dataTransfer)) event.preventDefault();
+                }}
+                onDrop={handleImageDrop}
+                onPaste={handlePaste}
+              >
                 <div
                   class={`${styles.scroll} ${props.loading ? styles.loading : ""}`}
                   aria-busy={props.loading}
                 >
                   <div class={styles.documentColumn}>
                     <div class={styles.heading}>
+                      <div class={styles.headingMeta}>
+                        <span>{baseName(documentPath)}</span>
+                        <span class={styles.saveStatus} role="status" aria-live="polite">
+                          {visibleStatus(props.status)}
+                        </span>
+                      </div>
                       <input
                         class={styles.titleInput}
                         value={document().title}
@@ -153,7 +222,8 @@ export function EditorPane(props: EditorPaneProps) {
                         onKeyDown={(event) => {
                           if (event.key !== "Enter") return;
                           event.preventDefault();
-                          editorHandle?.focus();
+                          if (sourceMode()) sourceInput?.focus();
+                          else editorHandle?.focus();
                         }}
                       />
                     </div>
@@ -175,6 +245,7 @@ export function EditorPane(props: EditorPaneProps) {
                       when={!sourceMode()}
                       fallback={
                         <textarea
+                          ref={(element) => (sourceInput = element)}
                           class={styles.sourceEditor}
                           aria-label={`Contenido Markdown de ${baseName(documentPath)}`}
                           spellcheck
@@ -191,6 +262,7 @@ export function EditorPane(props: EditorPaneProps) {
                         onReady={(handle) => {
                           editorHandle = handle;
                           setEditorReady(true);
+                          setEditorMode("text");
                         }}
                         onDispose={() => {
                           editorHandle = null;
@@ -215,18 +287,20 @@ export function EditorPane(props: EditorPaneProps) {
                   }}
                 />
 
-                <EditorToolbar
-                  loading={props.loading}
-                  sourceMode={sourceMode()}
-                  ready={editorReady()}
-                  imageBusy={imageBusy()}
-                  whiteboardBusy={whiteboardBusy()}
-                  status={statusLabel(props.status)}
-                  onApplyBlock={applyBlockType}
-                  onChooseImage={() => void chooseImage()}
-                  onInsertWhiteboard={(tool) => void insertWhiteboard(tool)}
-                  onToggleSource={() => setSourceMode((value) => !value)}
-                />
+                <Show when={getEditorMode() !== "whiteboard"}>
+                  <EditorToolbar
+                    loading={props.loading}
+                    sourceMode={sourceMode()}
+                    ready={editorReady()}
+                    imageBusy={imageBusy()}
+                    whiteboardBusy={whiteboardBusy()}
+                    status={statusLabel(props.status)}
+                    onApplyBlock={applyBlockType}
+                    onChooseImage={() => void chooseImage()}
+                    onInsertWhiteboard={(tool) => void insertWhiteboard(tool)}
+                    onToggleSource={() => void toggleSource()}
+                  />
+                </Show>
               </div>
             )}
           </Show>

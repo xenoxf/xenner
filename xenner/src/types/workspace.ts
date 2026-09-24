@@ -38,12 +38,14 @@ export interface ImportedAsset {
   relativePath: string;
   mime: string;
   dataBase64: string;
+  revision: string;
   fileName: string;
 }
 
 export interface AssetPayload {
   mime: string;
   dataBase64: string;
+  revision: string;
 }
 
 export interface WriteAcknowledgement {
@@ -77,7 +79,13 @@ export interface WorkspaceGateway {
   importAsset(notePath: string, fileName: string, dataBase64: string): Promise<ImportedAsset>;
   chooseImageAsset(notePath: string): Promise<ImportedAsset | null>;
   readAsset(notePath: string, assetPath: string): Promise<AssetPayload>;
-  updateAsset(notePath: string, assetPath: string, dataBase64: string): Promise<AssetPayload>;
+  updateAsset(
+    notePath: string,
+    assetPath: string,
+    dataBase64: string,
+    expectedRevision?: string,
+  ): Promise<AssetPayload>;
+  deleteAsset(notePath: string, assetPath: string): Promise<void>;
   writeNote(
     relativePath: string,
     title: string,

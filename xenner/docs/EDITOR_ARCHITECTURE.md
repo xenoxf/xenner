@@ -91,6 +91,9 @@ Se usará **Milkdown + Crepe**:
 - El flujo interno es Markdown → Remark AST → ProseMirror → Markdown. El primer
   H1 se separa como título de página y no se duplica dentro del cuerpo visual.
   El JSON del editor es solo estado de sesión; el archivo `.md` es la fuente de verdad.
+  Las pizarras mutables incluyen un `drawingId` estable dentro del SVG y se
+  copian al guardar si se detectan pizarras antiguas sin identidad. El cambio de
+  nota o a Markdown espera a que la sesión de pizarra termine de guardar.
 
 Cada instancia de editor se destruye al cambiar de nota para evitar que un
 listener antiguo escriba sobre el archivo nuevo.

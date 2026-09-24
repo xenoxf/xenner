@@ -7,6 +7,11 @@
   position: relative;
 }
 
+.editor {
+  position: relative;
+  isolation: isolate;
+}
+
 .editor:global(.milkdown),
 .editor :global(.milkdown) {
   --crepe-color-background: var(--skin-note-background);
@@ -155,9 +160,9 @@
   border-top: var(--skin-input-border);
 }
 
-.editor :global(.milkdown-toolbar),
-.editor :global(.milkdown-top-bar),
-.editor :global(.milkdown-menu) {
+.editor:global(.milkdown) :global(.milkdown-toolbar),
+.editor:global(.milkdown) :global(.milkdown-top-bar),
+.editor:global(.milkdown) :global(.milkdown-menu) {
   color: var(--skin-toolbar-text);
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
@@ -176,69 +181,77 @@
   color: var(--skin-toolbar-accent);
 }
 
-.editor :global(.milkdown-block-handle) {
+.editor:global(.milkdown) :global(.milkdown-block-handle) {
   gap: 1px;
 }
 
-.editor :global(.milkdown-block-handle .operation-item) {
+.editor:global(.milkdown) :global(.milkdown-block-handle .operation-item) {
   width: 26px;
   height: 26px;
   padding: 2px;
   border-radius: calc(var(--skin-button-radius) * 0.7);
 }
 
-.editor :global(.milkdown-block-handle .operation-item svg) {
+.editor:global(.milkdown) :global(.milkdown-block-handle .operation-item svg) {
   width: 17px;
   height: 17px;
 }
 
-.editor :global(.milkdown-slash-menu) {
-  width: 216px;
+.editor:global(.milkdown) :global(.milkdown-slash-menu) {
+  z-index: 25;
+  width: min(292px, calc(100vw - 32px));
+  max-height: min(430px, calc(100vh - 110px));
+  overflow: hidden;
   color: var(--skin-toolbar-text);
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
-  border-radius: min(var(--skin-note-radius), 9px);
-  box-shadow: var(--skin-note-shadow);
+  border-radius: min(var(--skin-toolbar-radius, var(--skin-note-radius)), 14px);
+  box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
+  backdrop-filter: blur(var(--skin-toolbar-blur));
 }
 
-.editor :global(.milkdown-slash-menu .tab-group) {
+.editor:global(.milkdown) :global(.milkdown-slash-menu .tab-group) {
   padding: 5px 5px 0;
 }
 
-.editor :global(.milkdown-slash-menu .tab-group ul) {
+.editor:global(.milkdown) :global(.milkdown-slash-menu .tab-group ul) {
   gap: 2px;
   padding: 3px 4px;
 }
 
-.editor :global(.milkdown-slash-menu .tab-group ul li) {
+.editor:global(.milkdown) :global(.milkdown-slash-menu .tab-group ul li) {
   padding: 3px 6px;
   font-size: 10px;
   line-height: 16px;
 }
 
-.editor :global(.milkdown-slash-menu .menu-groups) {
-  max-height: 300px;
+.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-groups) {
+  max-height: 360px;
   padding: 0 5px 5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
-.editor :global(.milkdown-slash-menu .menu-group h6) {
+.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-group h6) {
   padding: 6px 6px 3px;
   font-size: 9px;
   line-height: 13px;
 }
 
-.editor :global(.milkdown-slash-menu .menu-group li) {
+.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-group li) {
   min-width: 0;
   gap: 8px;
   padding: 6px 7px;
+  overflow: hidden;
 }
 
-.editor :global(.milkdown-slash-menu .menu-group li svg) {
+.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-group li svg) {
   width: 16px;
   height: 16px;
 }
 
-.editor :global(.milkdown-slash-menu .menu-group li > span) {
+.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-group li > span) {
   font-size: 11px;
   line-height: 16px;
 }

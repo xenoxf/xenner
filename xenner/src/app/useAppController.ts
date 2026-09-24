@@ -1,6 +1,7 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 
 import { notifyError, notifySuccess, notifyWarning } from "../services/toastService";
+import { saveActiveWhiteboard } from "../services/editorSession";
 import {
   flushPendingSave,
   getWorkspace,
@@ -50,7 +51,11 @@ export function useAppController() {
       if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s" || saveShortcutBusy) return;
       event.preventDefault();
       saveShortcutBusy = true;
-      void flushPendingSave()
+      void saveActiveWhiteboard()
+        .then((whiteboardSaved) => {
+          if (!whiteboardSaved) return false;
+          return flushPendingSave();
+        })
         .then((saved) => {
           if (saved) notifySuccess("Cambios guardados");
         })

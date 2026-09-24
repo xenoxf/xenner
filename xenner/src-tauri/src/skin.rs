@@ -266,6 +266,7 @@ fn allowed_component_keys(file: &str) -> Option<&'static [&'static str]> {
         ]),
         "toolbar" => Some(&[
             "background",
+            "backgroundHover",
             "text",
             "textDim",
             "border",

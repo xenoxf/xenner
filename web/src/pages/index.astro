@@ -1,0 +1,1080 @@
+---
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import ProductDemo from '../components/ProductDemo';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const sourceUrl = 'https://github.com/acosador116/xenner';
+const specUrl = `${sourceUrl}/blob/main/xenner/docs/SKIN_SPEC.md`;
+
+const principles = [
+  {
+    number: '01',
+    title: 'Elige una superficie',
+    text: 'Toolbar, sidebar, nota, input o botón. Cada parte tiene su propio archivo de texto.',
+  },
+  {
+    number: '02',
+    title: 'Cambia una clave',
+    text: 'Una sintaxis legible: clave="valor". Sin clases CSS que perseguir.',
+  },
+  {
+    number: '03',
+    title: 'Recarga y continúa',
+    text: 'xenner reconstruye la apariencia. El contenido de tus notas no participa del experimento.',
+  },
+];
+
+const safeguards = [
+  {
+    label: 'Superficie acotada',
+    text: 'El backend solo lee componentes conocidos y rechaza rutas fuera de la carpeta de skins.',
+    icon: 'shield',
+  },
+  {
+    label: 'CSS con límites',
+    text: 'El parser descarta llaves, punto y coma y !important antes de convertir claves en variables CSS.',
+    icon: 'braces',
+  },
+  {
+    label: 'Fallback inevitable',
+    text: 'Si una skin falta o se rompe, una glass skin embebida mantiene la aplicación en marcha.',
+    icon: 'layers',
+  },
+  {
+    label: 'Notas locales',
+    text: 'La versión actual guarda las notas en localStorage dentro de la app; no envía ese contenido a un servidor.',
+    icon: 'lock',
+  },
+];
+---
+
+<BaseLayout>
+  <Header />
+
+  <main id="contenido">
+    <section class="hero" id="inicio">
+      <div class="hero__mesh" aria-hidden="true"></div>
+      <div class="hero__noise" aria-hidden="true"></div>
+
+      <div class="container hero__inner">
+        <div class="hero__copy">
+          <p class="eyebrow">Notas de escritorio · código abierto</p>
+          <h1>
+            Un espacio para pensar
+            <span>que se adapta a <em>tu mundo.</em></span>
+          </h1>
+          <p class="hero__lead">
+            xenner es un creador de notas donde la interfaz no viene impuesta. Se diseña con archivos
+            <strong>TXT claros</strong>, editables y propios.
+          </p>
+
+          <div class="button-row">
+            <a class="button button--primary" href="#skins">
+              Explorar el sistema
+              <svg viewBox="0 0 18 18" aria-hidden="true">
+                <path d="M4 9h10M10 5l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </a>
+            <a class="button button--secondary" href={sourceUrl} target="_blank" rel="noreferrer">
+              Ver el código
+              <svg viewBox="0 0 18 18" aria-hidden="true">
+                <path d="M6 4h8v8M14 4 4 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </a>
+          </div>
+
+          <ul class="hero__facts" aria-label="Características principales">
+            <li><span>01</span> Skins editables</li>
+            <li><span>02</span> Notas locales</li>
+            <li><span>03</span> Fallback integrado</li>
+          </ul>
+        </div>
+
+        <div class="hero__product" id="producto">
+          <ProductDemo client:visible />
+        </div>
+      </div>
+
+      <div class="hero__rail" aria-hidden="true">
+        <span>Texto simple</span><i></i><span>Interfaz propia</span><i></i><span>Sin dependencia de un tema</span>
+      </div>
+    </section>
+
+    <section class="identity" id="filosofia">
+      <div class="container">
+        <div class="section-intro">
+          <p class="eyebrow">La idea detrás</p>
+          <h2>La personalización debería sentirse como <em>editar</em>, no como programar.</h2>
+          <p>
+            No hace falta entrar en un motor visual para cambiar el ambiente de una nota. Xenner convierte cada
+            componente en un archivo pequeño, legible y fácil de guardar junto al proyecto.
+          </p>
+        </div>
+
+        <div class="principle-grid">
+          {principles.map((principle) => (
+            <article class="principle-card">
+              <span class="principle-card__number">{principle.number}</span>
+              <div>
+                <h3>{principle.title}</h3>
+                <p>{principle.text}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div class="identity__note">
+          <div class="identity__note-copy">
+            <span class="identity__note-label">Así de simple</span>
+            <h3>Un archivo. Una propiedad. Cero ceremonias.</h3>
+          </div>
+          <div class="code-card" aria-label="Ejemplo de configuración de skin">
+            <div class="code-card__bar">
+              <span>background.txt</span>
+              <span>txt</span>
+            </div>
+            <pre><code><span class="code-comment"># ventana de vidrio esmerilado</span>
++<span class="code-key">background</span>=<span class="code-value">"rgba(28,34,44,0.34)"</span>
++<span class="code-key">blur</span>=<span class="code-value">"32px"</span>
++<span class="code-key">text</span>=<span class="code-value">"#f4f7fb"</span>
++<span class="code-key">accent</span>=<span class="code-value">"#b7cee1"</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="safeguards" id="skins">
+      <div class="safeguards__orb" aria-hidden="true"></div>
+      <div class="container">
+        <div class="safeguards__heading">
+          <div>
+            <p class="eyebrow">Libertad con límites</p>
+            <h2>Abierto por dentro.<br /><em>Cuidadoso por fuera.</em></h2>
+          </div>
+          <p>
+            La personalización no necesita convertir una nota en un experimento de seguridad. Xenner conserva un
+            núcleo pequeño, valida lo que entra y siempre tiene una salida segura.
+          </p>
+        </div>
+
+        <div class="safeguard-grid">
+          {safeguards.map((item) => (
+            <article class="safeguard-card">
+              <div class={`safeguard-card__icon safeguard-card__icon--${item.icon}`} aria-hidden="true">
+                {item.icon === 'shield' && (
+                  <svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.8 2.8 8 7 10 4.2-2 7-5.2 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.4"></path><path d="m9 12 2 2 4-5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                )}
+                {item.icon === 'braces' && (
+                  <svg viewBox="0 0 24 24"><path d="M8 4H7a3 3 0 0 0-3 3v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a3 3 0 0 0 3 3h1M16 4h1a3 3 0 0 1 3 3v2a2 2 0 0 0 2 2 2 2 0 0 0-2 2v2a3 3 0 0 1-3 3h-1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg>
+                )}
+                {item.icon === 'layers' && (
+                  <svg viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path><path d="m4 12 8 4.5 8-4.5M4 16l8 5 8-5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                )}
+                {item.icon === 'lock' && (
+                  <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg>
+                )}
+              </div>
+              <h3>{item.label}</h3>
+              <p>{item.text}</p>
+            </article>
+          ))}
+        </div>
+
+        <div class="fallback-line">
+          <span class="fallback-line__signal"><i></i><i></i><i></i></span>
+          <p><strong>Principio de continuidad:</strong> una skin rota jamás debería dejarte sin escribir.</p>
+          <a href={specUrl} target="_blank" rel="noreferrer">Leer la especificación ↗</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="reality" id="construccion">
+      <div class="container">
+        <div class="reality__top">
+          <div>
+            <p class="eyebrow">Lo que existe hoy</p>
+            <h2>Una base real,<br />sin promesas infladas.</h2>
+          </div>
+          <p>
+            Xenner está en una fase temprana y visible. La web muestra el producto que existe en el código, no un
+            roadmap disfrazado de funcionalidad.
+          </p>
+        </div>
+
+        <div class="reality__grid">
+          <article class="reality-card reality-card--wide">
+            <div class="reality-card__top">
+              <span>producto</span>
+              <span class="status status--active">activo</span>
+            </div>
+            <h3>Notas, sin ceremonia.</h3>
+            <p>Crear, editar, seleccionar y borrar notas en una interfaz de escritorio construida con Tauri, SolidJS, TypeScript y Rust.</p>
+            <div class="reality-card__tags"><span>CRUD</span><span>Solid</span><span>Rust</span></div>
+          </article>
+
+          <article class="reality-card">
+            <div class="reality-card__top">
+              <span>apariencia</span>
+              <span class="status status--active">activo</span>
+            </div>
+            <h3>Skins de texto.</h3>
+            <p>Dos ejemplos reales —Frosted Glass y WebCore— con resolución por componente y fallback embebido.</p>
+            <div class="reality-card__swatches" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          </article>
+
+          <article class="reality-card">
+            <div class="reality-card__top">
+              <span>escritorio</span>
+              <span class="status status--active">activo</span>
+            </div>
+            <h3>Una ventana abierta.</h3>
+            <p>La transparencia nativa de Tauri deja que la interfaz conviva con el fondo del escritorio.</p>
+            <div class="reality-card__window" aria-hidden="true"><span></span><span></span><span></span></div>
+          </article>
+
+          <article class="reality-card reality-card--wide reality-card--quiet">
+            <div class="reality-card__top">
+              <span>lo que no está</span>
+              <span class="status">hoy no</span>
+            </div>
+            <h3>El foco sigue siendo pequeño.</h3>
+            <p>No hay cuentas, nube, marketplace ni un catálogo de plugins. La identidad nace del escritorio, las notas y los TXT.</p>
+            <a href={sourceUrl} target="_blank" rel="noreferrer">Comprobar en el repositorio ↗</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing">
+      <div class="closing__grain" aria-hidden="true"></div>
+      <div class="container closing__inner">
+        <p class="eyebrow">Tu espacio empieza por un archivo</p>
+        <h2>No elijas una apariencia.<br /><em>Construye la tuya.</em></h2>
+        <p>Lee el SkinEngine, abre un TXT y haz que xenner se parezca a tu forma de pensar.</p>
+        <div class="button-row">
+          <a class="button button--primary" href={sourceUrl} target="_blank" rel="noreferrer">
+            Abrir xenner en GitHub
+            <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M6 4h8v8M14 4 4 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </a>
+          <a class="button button--secondary" href="#inicio">Volver al inicio ↑</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    overflow: hidden;
+    color: #f2f7f3;
+    background: #09110e;
+  }
+
+  .hero__mesh {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 8% 12%, rgba(186, 247, 209, 0.11), transparent 28%),
+      radial-gradient(circle at 82% 25%, rgba(183, 206, 225, 0.14), transparent 32%),
+      radial-gradient(circle at 64% 88%, rgba(79, 141, 112, 0.12), transparent 37%),
+      linear-gradient(145deg, #111b17 0%, #09110e 58%, #060b09 100%);
+  }
+
+  .hero__mesh::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    opacity: 0.18;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.055) 1px, transparent 1px);
+    background-size: 4.5rem 4.5rem;
+    mask-image: linear-gradient(to bottom, black, transparent 86%);
+  }
+
+  .hero__noise {
+    position: absolute;
+    inset: 0;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.75'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  .hero__inner {
+    position: relative;
+    z-index: 1;
+    min-height: calc(100svh - 2.2rem);
+    padding: clamp(8.3rem, 14vh, 10.5rem) 0 5.5rem;
+    display: grid;
+    grid-template-columns: minmax(0, 0.88fr) minmax(30rem, 1.12fr);
+    align-items: center;
+    gap: clamp(3rem, 6vw, 6.5rem);
+  }
+
+  .hero__copy {
+    padding-bottom: 1.4rem;
+  }
+
+  .hero .eyebrow {
+    margin: 0 0 1.8rem;
+    color: var(--accent);
+  }
+
+  .hero h1 {
+    max-width: 11.2ch;
+    margin: 0;
+    font-size: clamp(3.35rem, 6.25vw, 6.5rem);
+    font-weight: 520;
+    letter-spacing: -0.075em;
+    line-height: 0.91;
+  }
+
+  .hero h1 > span {
+    display: block;
+  }
+
+  .hero h1 em,
+  .section-intro h2 em,
+  .safeguards h2 em,
+  .closing h2 em {
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-weight: 400;
+  }
+
+  .hero__lead {
+    max-width: 37rem;
+    margin: 2rem 0 0;
+    color: rgba(242, 247, 243, 0.66);
+    font-size: clamp(0.95rem, 1.3vw, 1.08rem);
+    line-height: 1.72;
+  }
+
+  .hero__lead strong {
+    color: #f5faf6;
+    font-weight: 650;
+  }
+
+  .hero .button-row {
+    margin-top: 2rem;
+  }
+
+  .hero__facts {
+    margin: 3.25rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    list-style: none;
+  }
+
+  .hero__facts li {
+    min-height: 2.3rem;
+    padding: 0 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.48rem;
+    color: rgba(255, 255, 255, 0.64);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: 999px;
+    font-size: 0.66rem;
+  }
+
+  .hero__facts span {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.53rem;
+  }
+
+  .hero__product {
+    width: 100%;
+  }
+
+  .hero__rail {
+    position: absolute;
+    z-index: 2;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    min-height: 2.25rem;
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.1rem;
+    color: rgba(255, 255, 255, 0.3);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(4, 10, 7, 0.5);
+    backdrop-filter: blur(12px);
+    font-family: var(--font-mono);
+    font-size: 0.5rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .hero__rail i {
+    width: 0.22rem;
+    height: 0.22rem;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .identity {
+    padding: clamp(7rem, 13vw, 11rem) 0;
+    background:
+      linear-gradient(rgba(10,16,14,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(10,16,14,0.035) 1px, transparent 1px),
+      var(--paper);
+    background-size: 4.5rem 4.5rem;
+  }
+
+  .section-intro {
+    display: grid;
+    grid-template-columns: 0.75fr 1.55fr 0.8fr;
+    align-items: start;
+    gap: clamp(2rem, 5vw, 5rem);
+  }
+
+  .section-intro .eyebrow {
+    margin: 0.6rem 0 0;
+  }
+
+  .section-intro h2,
+  .safeguards h2,
+  .reality h2,
+  .closing h2 {
+    margin: 0;
+    font-size: clamp(2.5rem, 5.2vw, 5.2rem);
+    font-weight: 510;
+    letter-spacing: -0.065em;
+    line-height: 0.98;
+  }
+
+  .section-intro h2 em {
+    color: #356d53;
+  }
+
+  .section-intro > p:last-child {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.91rem;
+    line-height: 1.75;
+  }
+
+  .principle-grid {
+    margin-top: clamp(4rem, 8vw, 7rem);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .principle-card {
+    min-height: 22rem;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .principle-card + .principle-card {
+    border-left: 1px solid var(--line);
+  }
+
+  .principle-card__number {
+    color: #5c7b6c;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+  }
+
+  .principle-card h3 {
+    margin: 0 0 0.85rem;
+    font-size: 1.2rem;
+    font-weight: 630;
+    letter-spacing: -0.035em;
+  }
+
+  .principle-card p {
+    max-width: 22rem;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.7;
+  }
+
+  .identity__note {
+    margin-top: clamp(5rem, 10vw, 9rem);
+    display: grid;
+    grid-template-columns: 0.85fr 1.15fr;
+    align-items: center;
+    gap: clamp(2.5rem, 7vw, 7rem);
+  }
+
+  .identity__note-label {
+    color: #47715c;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .identity__note h3 {
+    max-width: 13ch;
+    margin: 1rem 0 0;
+    font-size: clamp(2rem, 3.7vw, 3.6rem);
+    font-weight: 520;
+    letter-spacing: -0.055em;
+    line-height: 1.04;
+  }
+
+  .code-card {
+    overflow: hidden;
+    color: #dce9e1;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: 1.25rem;
+    background: #0b1410;
+    box-shadow: 0 2rem 5rem rgba(15, 32, 23, 0.17);
+  }
+
+  .code-card__bar {
+    min-height: 2.8rem;
+    padding: 0 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: rgba(255, 255, 255, 0.58);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+  }
+
+  .code-card pre {
+    margin: 0;
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: clamp(0.67rem, 1.2vw, 0.82rem);
+    line-height: 1.8;
+  }
+
+  .code-comment { color: #6f887a; }
+  .code-key { color: #b7cee1; }
+  .code-value { color: #d9c7a6; }
+
+  .safeguards {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(7rem, 13vw, 11rem) 0;
+    color: #f2f7f3;
+    background: #09110e;
+  }
+
+  .safeguards::before {
+    position: absolute;
+    inset: 0;
+    content: '';
+    opacity: 0.09;
+    background-image: radial-gradient(rgba(255,255,255,0.3) 0.6px, transparent 0.6px);
+    background-size: 5px 5px;
+    mask-image: linear-gradient(to bottom, black, transparent 75%);
+  }
+
+  .safeguards__orb {
+    position: absolute;
+    top: -22rem;
+    left: 42%;
+    width: 44rem;
+    height: 44rem;
+    border-radius: 50%;
+    background: rgba(83, 172, 125, 0.13);
+    filter: blur(110px);
+  }
+
+  .safeguards .container {
+    position: relative;
+  }
+
+  .safeguards__heading {
+    display: grid;
+    grid-template-columns: 1.35fr 0.65fr;
+    align-items: end;
+    gap: clamp(3rem, 8vw, 8rem);
+  }
+
+  .safeguards .eyebrow {
+    margin: 0 0 1.5rem;
+    color: var(--accent);
+  }
+
+  .safeguards h2 em {
+    color: var(--blue);
+  }
+
+  .safeguards__heading > p {
+    margin: 0 0 0.35rem;
+    color: rgba(242, 247, 243, 0.58);
+    font-size: 0.9rem;
+    line-height: 1.75;
+  }
+
+  .safeguard-grid {
+    margin-top: clamp(4rem, 8vw, 7rem);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.35rem;
+    background: rgba(255, 255, 255, 0.025);
+    backdrop-filter: blur(15px);
+  }
+
+  .safeguard-card {
+    min-height: 23rem;
+    padding: clamp(1.35rem, 2.5vw, 2rem);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .safeguard-card + .safeguard-card {
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .safeguard-card__icon {
+    width: 2.8rem;
+    height: 2.8rem;
+    margin-bottom: auto;
+    display: grid;
+    place-items: center;
+    color: var(--accent);
+    border: 1px solid rgba(186, 247, 209, 0.2);
+    border-radius: 0.8rem;
+    background: rgba(186, 247, 209, 0.07);
+  }
+
+  .safeguard-card__icon svg {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .safeguard-card h3 {
+    margin: 4rem 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 650;
+    letter-spacing: -0.025em;
+  }
+
+  .safeguard-card p {
+    margin: 0;
+    color: rgba(242, 247, 243, 0.52);
+    font-size: 0.76rem;
+    line-height: 1.7;
+  }
+
+  .fallback-line {
+    min-height: 4.5rem;
+    margin-top: 1rem;
+    padding: 0 1.2rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 1.2rem;
+    border: 1px solid rgba(186, 247, 209, 0.16);
+    border-radius: 0.9rem;
+    background: rgba(186, 247, 209, 0.055);
+  }
+
+  .fallback-line__signal {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.16rem;
+  }
+
+  .fallback-line__signal i {
+    width: 0.18rem;
+    height: 0.65rem;
+    display: block;
+    border-radius: 1rem;
+    background: var(--accent);
+  }
+
+  .fallback-line__signal i:nth-child(2) { height: 1rem; }
+  .fallback-line__signal i:nth-child(3) { height: 0.45rem; opacity: 0.5; }
+
+  .fallback-line p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.72rem;
+  }
+
+  .fallback-line strong {
+    color: #fff;
+  }
+
+  .fallback-line a {
+    color: var(--accent);
+    font-size: 0.66rem;
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .reality {
+    padding: clamp(7rem, 13vw, 11rem) 0;
+    background: var(--paper-bright);
+  }
+
+  .reality__top {
+    display: grid;
+    grid-template-columns: 1.25fr 0.75fr;
+    align-items: end;
+    gap: clamp(3rem, 8vw, 8rem);
+  }
+
+  .reality .eyebrow {
+    margin: 0 0 1.5rem;
+    color: #47715c;
+  }
+
+  .reality__top > p {
+    margin: 0 0 0.4rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.75;
+  }
+
+  .reality__grid {
+    margin-top: clamp(4rem, 8vw, 7rem);
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+  }
+
+  .reality-card {
+    min-height: 25rem;
+    padding: clamp(1.5rem, 3.2vw, 2.5rem);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    background: #eef1eb;
+  }
+
+  .reality-card--wide {
+    grid-column: span 2;
+    min-height: 27rem;
+  }
+
+  .reality-card--quiet {
+    color: #eef6f1;
+    background: #16231d;
+  }
+
+  .reality-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #55645b;
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .reality-card--quiet .reality-card__top {
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .reality-card--quiet .status {
+    color: #d4ddd7;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .status {
+    padding: 0.28rem 0.5rem;
+    color: #6d746f;
+    border: 1px solid rgba(10, 16, 14, 0.14);
+    border-radius: 999px;
+  }
+
+  .status--active {
+    color: #326b4c;
+    border-color: rgba(50, 107, 76, 0.23);
+    background: rgba(93, 228, 155, 0.09);
+  }
+
+  .reality-card h3 {
+    max-width: 14ch;
+    margin: auto 0 1rem;
+    font-size: clamp(1.75rem, 3.5vw, 3.4rem);
+    font-weight: 520;
+    letter-spacing: -0.055em;
+    line-height: 1.02;
+  }
+
+  .reality-card p {
+    max-width: 39rem;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.7;
+  }
+
+  .reality-card--quiet p {
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .reality-card--quiet a {
+    width: fit-content;
+    margin-top: 2rem;
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .reality-card__tags {
+    margin-top: 2rem;
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .reality-card__tags span {
+    padding: 0.4rem 0.65rem;
+    color: #4f665a;
+    border: 1px solid rgba(10, 16, 14, 0.12);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.52rem;
+  }
+
+  .reality-card__swatches {
+    margin-top: 2.2rem;
+    display: flex;
+    gap: 0.45rem;
+  }
+
+  .reality-card__swatches i {
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid rgba(10, 16, 14, 0.1);
+    border-radius: 50%;
+    background: #1c222c;
+  }
+
+  .reality-card__swatches i:nth-child(2) { background: #b7cee1; }
+  .reality-card__swatches i:nth-child(3) { background: #4ade80; }
+  .reality-card__swatches i:nth-child(4) { background: #eef2ec; }
+
+  .reality-card__window {
+    width: min(100%, 24rem);
+    height: 5.5rem;
+    margin-top: 2.2rem;
+    padding: 0.6rem;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.35rem;
+    border: 1px solid rgba(10, 16, 14, 0.14);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.35);
+  }
+
+  .reality-card__window span {
+    height: 45%;
+    flex: 1;
+    border-radius: 0.3rem;
+    background: rgba(10, 16, 14, 0.14);
+  }
+
+  .reality-card__window span:nth-child(2) { height: 75%; background: rgba(71, 113, 92, 0.26); }
+  .reality-card__window span:nth-child(3) { height: 58%; }
+
+  .closing {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(8rem, 15vw, 13rem) 0;
+    color: #f3f8f4;
+    text-align: center;
+    background:
+      radial-gradient(circle at 50% 110%, rgba(86, 194, 131, 0.18), transparent 40%),
+      #0a120f;
+  }
+
+  .closing__grain {
+    position: absolute;
+    inset: 0;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.75'/%3E%3C/svg%3E");
+  }
+
+  .closing__inner {
+    position: relative;
+  }
+
+  .closing .eyebrow {
+    color: var(--accent);
+  }
+
+  .closing h2 {
+    margin-top: 1.5rem;
+  }
+
+  .closing > p:not(.eyebrow),
+  .closing__inner > p:not(.eyebrow) {
+    max-width: 36rem;
+    margin: 1.8rem auto 0;
+    color: rgba(243, 248, 244, 0.58);
+    font-size: 0.93rem;
+    line-height: 1.75;
+  }
+
+  .closing .button-row {
+    margin-top: 2.2rem;
+    justify-content: center;
+  }
+
+  @media (max-width: 1080px) {
+    .hero__inner {
+      grid-template-columns: 1fr;
+      padding-top: 9rem;
+    }
+
+    .hero__copy {
+      max-width: 49rem;
+    }
+
+    .hero h1 {
+      max-width: 12ch;
+    }
+
+    .hero__product {
+      max-width: 48rem;
+      margin-inline: auto;
+    }
+
+    .section-intro {
+      grid-template-columns: 0.45fr 1.55fr;
+    }
+
+    .section-intro > p:last-child {
+      grid-column: 2;
+    }
+
+    .safeguard-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .safeguard-card:nth-child(3) {
+      border-left: 0;
+    }
+
+    .safeguard-card:nth-child(n+3) {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  @media (max-width: 760px) {
+    .hero__inner {
+      padding: 7.6rem 0 4.5rem;
+      gap: 3rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(3.1rem, 15vw, 5.1rem);
+    }
+
+    .hero__rail {
+      justify-content: flex-start;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .section-intro,
+    .identity__note,
+    .safeguards__heading,
+    .reality__top {
+      grid-template-columns: 1fr;
+    }
+
+    .section-intro > p:last-child {
+      grid-column: auto;
+    }
+
+    .section-intro h2,
+    .safeguards h2,
+    .reality h2,
+    .closing h2 {
+      font-size: clamp(2.65rem, 12vw, 4.2rem);
+    }
+
+    .principle-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .principle-card {
+      min-height: 16rem;
+    }
+
+    .principle-card + .principle-card {
+      border-top: 1px solid var(--line);
+      border-left: 0;
+    }
+
+    .identity__note {
+      gap: 2.5rem;
+    }
+
+    .safeguard-grid,
+    .reality__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .safeguard-card {
+      min-height: 19rem;
+    }
+
+    .safeguard-card + .safeguard-card,
+    .safeguard-card:nth-child(3) {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-left: 0;
+    }
+
+    .fallback-line {
+      padding: 1rem;
+      grid-template-columns: auto 1fr;
+    }
+
+    .fallback-line a {
+      grid-column: 2;
+    }
+
+    .reality-card--wide {
+      grid-column: auto;
+    }
+
+    .reality-card {
+      min-height: 22rem;
+    }
+  }
+
+  @media (max-width: 460px) {
+    .hero .button-row .button {
+      width: 100%;
+    }
+
+    .hero__facts {
+      display: grid;
+    }
+
+    .hero__facts li {
+      width: fit-content;
+    }
+
+    .code-card pre {
+      font-size: 0.61rem;
+    }
+  }
+</style>

@@ -1,0 +1,94 @@
+---
+import Brand from './Brand.astro';
+
+const sourceUrl = 'https://github.com/acosador116/xenner';
+const specUrl = `${sourceUrl}/blob/main/xenner/docs/SKIN_SPEC.md`;
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div>
+      <Brand />
+      <p>Un creador de notas abierto a tu forma de trabajar.</p>
+    </div>
+
+    <nav aria-label="Enlaces del pie">
+      <a href="#filosofia">Filosofía</a>
+      <a href="#skins">Sistema de skins</a>
+      <a href={specUrl} target="_blank" rel="noreferrer">Especificación ↗</a>
+      <a href={sourceUrl} target="_blank" rel="noreferrer">Código fuente ↗</a>
+    </nav>
+
+    <div class="site-footer__meta">
+      <span>v0.1</span>
+      <span>MIT</span>
+      <span>© {year} xenner</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    color: rgba(242, 247, 243, 0.72);
+    background: #07100c;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+  }
+
+  .site-footer__inner {
+    width: min(100% - 3rem, 78rem);
+    margin: 0 auto;
+    padding: 5rem 0 2.25rem;
+    display: grid;
+    grid-template-columns: 1.25fr 0.9fr auto;
+    align-items: start;
+    gap: 3rem;
+  }
+
+  p {
+    max-width: 21rem;
+    margin: 1.1rem 0 0;
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+
+  nav {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  nav a {
+    width: fit-content;
+    color: inherit;
+    font-size: 0.82rem;
+    text-decoration: none;
+  }
+
+  nav a:hover {
+    color: #b7cee1;
+  }
+
+  .site-footer__meta {
+    display: grid;
+    justify-items: end;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 760px) {
+    .site-footer__inner {
+      width: min(100% - 2rem, 78rem);
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+
+    .site-footer__meta {
+      justify-items: start;
+      grid-auto-flow: column;
+      justify-content: start;
+    }
+  }
+</style>

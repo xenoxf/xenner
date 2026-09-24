@@ -1,0 +1,116 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Página no encontrada" description="La página solicitada no existe." noindex>
+  <main class="not-found" id="contenido">
+    <div class="not-found__glow" aria-hidden="true"></div>
+    <div class="not-found__content">
+      <a class="not-found__brand" href="/" aria-label="Volver al inicio">
+        <span aria-hidden="true">×</span> xenner
+      </a>
+      <p class="eyebrow">Error 404</p>
+      <h1>Esta nota no está <em>aquí.</em></h1>
+      <p>La dirección no existe o el contenido cambió de lugar.</p>
+      <a class="not-found__button" href="/">Volver al inicio <span aria-hidden="true">→</span></a>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .not-found {
+    position: relative;
+    min-height: 100svh;
+    padding: 2rem;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: #f4f7fb;
+    background: #09110e;
+  }
+
+  .not-found::before {
+    position: absolute;
+    inset: 0;
+    content: '';
+    opacity: 0.2;
+    background-image:
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 4rem 4rem;
+    mask-image: radial-gradient(circle at center, black, transparent 75%);
+  }
+
+  .not-found__glow {
+    position: absolute;
+    width: min(80vw, 45rem);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: rgba(183, 206, 225, 0.13);
+    filter: blur(100px);
+  }
+
+  .not-found__content {
+    position: relative;
+    max-width: 46rem;
+    text-align: center;
+  }
+
+  .not-found__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .not-found__brand span {
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    color: #09110e;
+    border-radius: 0.65rem;
+    background: #b7cee1;
+  }
+
+  .not-found .eyebrow {
+    margin-top: 3.5rem;
+    color: #b7cee1;
+  }
+
+  h1 {
+    margin: 1.3rem 0 0;
+    font-size: clamp(3.5rem, 11vw, 7rem);
+    font-weight: 520;
+    letter-spacing: -0.075em;
+    line-height: 0.95;
+  }
+
+  h1 em {
+    color: #b7cee1;
+    font-family: var(--font-display);
+    font-weight: 400;
+  }
+
+  .not-found__content > p:not(.eyebrow) {
+    margin: 1.5rem 0 0;
+    color: rgba(244, 247, 251, 0.56);
+  }
+
+  .not-found__button {
+    min-height: 3rem;
+    margin-top: 2rem;
+    padding: 0 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #09110e;
+    border-radius: 999px;
+    background: #b7cee1;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+</style>

@@ -1,0 +1,17 @@
+{
+  "name": "xenner",
+  "short_name": "xenner",
+  "description": "Creador de notas de escritorio con skins editables en TXT.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07100c",
+  "theme_color": "#07100c",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<a class:list={['brand', className]} href="/" aria-label="xenner, inicio">
+  <svg class="brand__mark" viewBox="0 0 36 36" aria-hidden="true">
+    <rect width="36" height="36" rx="11" fill="currentColor"></rect>
+    <path d="M10.5 10.5 25.5 25.5M25.5 10.5 10.5 25.5" fill="none" stroke="var(--brand-mark-ink)" stroke-width="2.8" stroke-linecap="round"></path>
+  </svg>
+  <span>xenner</span>
+</a>
+
+<style>
+  .brand {
+    --brand-mark-ink: #07100c;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.68rem;
+    color: inherit;
+    font-size: 1.08rem;
+    font-weight: 720;
+    letter-spacing: -0.035em;
+    text-decoration: none;
+  }
+
+  .brand__mark {
+    display: block;
+    width: 2rem;
+    height: 2rem;
+    color: #b7cee1;
+  }
+</style>

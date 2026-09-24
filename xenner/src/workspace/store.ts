@@ -472,7 +472,9 @@ export async function renameEntry(path: string, name: string): Promise<string | 
   if (!(await flushPendingSave())) return null;
   const previousSelection = selectedPath();
   const renamedEntry = workspace()?.entries.find((entry) => entry.path === path);
-  const renamedNote = renamedEntry?.kind === "note" || path.toLocaleLowerCase("es").endsWith(".md");
+  const renamedNote = renamedEntry
+    ? renamedEntry.kind === "note"
+    : path.toLocaleLowerCase("es").endsWith(".md");
   try {
     const nextPath = await gateway.renameEntry(path, name);
     await refreshWorkspace();

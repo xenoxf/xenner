@@ -1,5 +1,6 @@
 import { $nodeSchema, $remark } from "@milkdown/kit/utils";
 
+import { isDrawingTool } from "../data/drawing";
 import {
   isWhiteboardSource,
   transformWhiteboardAst,
@@ -15,7 +16,9 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
   inline: false,
   group: "block",
   selectable: true,
-  draggable: true,
+  // The drawing is edited in place. Native node dragging makes pointer
+  // gestures leak into the note and can move the whole document.
+  draggable: false,
   isolating: true,
   marks: "",
   atom: true,
@@ -32,9 +35,10 @@ export const whiteboardNode = $nodeSchema("whiteboard", () => ({
         if (!(dom instanceof HTMLElement)) return false;
         const src = dom.dataset.src ?? "";
         if (!isWhiteboardSource(src)) return false;
+        const tool = dom.dataset.tool;
         return {
           src,
-          tool: dom.dataset.tool ?? "select",
+          tool: isDrawingTool(tool) ? tool : "select",
           draft: dom.dataset.draft === "true",
           drawingId: dom.dataset.drawingId ?? "",
         };

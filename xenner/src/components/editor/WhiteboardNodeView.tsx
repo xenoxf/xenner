@@ -2,7 +2,6 @@ import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 import type {
   EditorView,
   NodeView,
-  ViewMutationRecord,
 } from "@milkdown/kit/prose/view";
 import { $view } from "@milkdown/kit/utils";
 import { createUniqueId, lazy, Suspense } from "solid-js";
@@ -11,6 +10,9 @@ import { render } from "solid-js/web";
 import {
   drawingFromDataUrl,
   drawingIdFromSvg,
+  drawingViewBox,
+  hasDrawingContent,
+  parseDrawingSvg,
 } from "../../editor/drawing";
 import { whiteboardNode } from "../../editor/whiteboard-node";
 import {
@@ -47,10 +49,13 @@ class WhiteboardNodeView implements NodeView {
   private readonly sessionId = `whiteboard-${createUniqueId()}`;
   private currentNode: ProseNode;
   private editing = false;
+  private starting = false;
   private dirty = false;
+  private cancelled = false;
+  private changeVersion = 0;
   private latestSvg = "";
   private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
-  private persistPromise: Promise<boolean> | null = null;
+  private savePromise: Promise<boolean> | null = null;
   private unregisterSession: (() => void) | null = null;
   private disposeEditor: (() => void) | null = null;
 
@@ -69,21 +74,21 @@ class WhiteboardNodeView implements NodeView {
     this.dom = document.createElement("div");
     this.dom.className = styles.node;
     this.dom.contentEditable = "false";
+    this.dom.draggable = false;
 
     this.preview = document.createElement("button");
     this.preview.type = "button";
     this.preview.className = styles.preview;
     this.preview.disabled = !view.editable;
-    this.preview.setAttribute("aria-label", "Editar pizarra");
-    this.preview.addEventListener("click", () => void this.startEditing());
+    this.preview.draggable = false;
+    this.preview.title = "Editar dibujo";
+    this.preview.setAttribute("aria-label", "Editar dibujo");
+    this.preview.addEventListener("click", () => queueMicrotask(() => void this.startEditing()));
 
     this.image = document.createElement("img");
-    this.image.alt = "Pizarra";
+    this.image.alt = "Dibujo";
     this.image.draggable = false;
-    const label = document.createElement("span");
-    label.className = styles.previewLabel;
-    label.textContent = "Editar dibujo";
-    this.preview.append(this.image, label);
+    this.preview.append(this.image);
 
     this.editorHost = document.createElement("div");
     this.editorHost.className = styles.editorHost;
@@ -96,7 +101,7 @@ class WhiteboardNodeView implements NodeView {
     if (node.type !== this.currentNode.type) return false;
     this.currentNode = node;
     this.preview.disabled = !this.view.editable;
-    if (node.attrs.draft && !this.editing) queueMicrotask(() => void this.startEditing());
+    if (node.attrs.draft && !this.editing && !this.starting) queueMicrotask(() => void this.startEditing());
     if (!this.editing) this.updatePreview();
     return true;
   }
@@ -110,69 +115,105 @@ class WhiteboardNodeView implements NodeView {
   }
 
   stopEvent(event: Event): boolean {
-    return this.editing && event.target instanceof Node && this.editorHost.contains(event.target);
+    if (this.editing) return true;
+    // Before editing, allow ProseMirror to select the atom so it can still be
+    // managed from the note. Once the canvas is open, isolate every event.
+    return !(event.target instanceof Node && this.preview.contains(event.target));
   }
 
-  ignoreMutation(mutation: ViewMutationRecord): boolean {
-    return mutation.type !== "selection";
+  ignoreMutation(): boolean {
+    // The complete subtree is owned by Solid/WhiteboardBlock. Returning false
+    // for a selection mutation makes ProseMirror reparse the atom and can
+    // replace the live editor while a click or text edit is in progress.
+    return true;
   }
 
   destroy(): void {
-    if (this.dirty) void this.saveLatest(true);
+    if (!this.cancelled && this.dirty) void this.saveLatest(true);
     this.stopEditing();
     this.dom.remove();
   }
 
   private updatePreview(): void {
     const src = typeof this.currentNode.attrs.src === "string" ? this.currentNode.attrs.src : "";
-    this.image.src = src;
-    this.preview.hidden = !src;
+    const svg = src ? drawingFromDataUrl(src) : "";
+    const shapes = svg ? parseDrawingSvg(svg) : [];
+    const view = drawingViewBox(shapes);
+    const canRender = shapes.length > 0 || this.currentNode.attrs.draft;
+    if (src && canRender) this.image.src = src;
+    else this.image.removeAttribute("src");
+    this.image.style.width = shapes.length ? `${Math.min(1_000, view.width)}px` : "";
+    this.image.style.aspectRatio = shapes.length ? `${view.width} / ${view.height}` : "";
+    // In the note a drawing is content, not a framed canvas. Empty drafts
+    // remain available through the editor, but do not leave a blank board in
+    // the document after closing it.
+    const empty = !src || (!hasDrawingContent(svg) && !this.currentNode.attrs.draft);
+    this.dom.classList.toggle(styles.empty, empty);
+    this.preview.hidden = empty;
   }
 
   private async startEditing(): Promise<void> {
     const src = typeof this.currentNode.attrs.src === "string" ? this.currentNode.attrs.src : "";
-    if (this.editing || !src || !this.view.editable || this.view.isDestroyed) return;
-    const active = getActiveWhiteboard();
-    if (active && active.id !== this.sessionId && !(await leaveEditor())) return;
-    if (this.view.isDestroyed) return;
-    this.editing = true;
-    this.preview.hidden = true;
-    this.latestSvg = drawingFromDataUrl(src);
-    this.unregisterSession = registerWhiteboardSession({
-      id: this.sessionId,
-      save: (closeAfter) => this.saveLatest(closeAfter ?? false),
-      close: () => this.stopEditing(),
-    });
-    const tool = this.currentNode.attrs.tool;
-    const drawingId =
-      (typeof this.currentNode.attrs.drawingId === "string" && this.currentNode.attrs.drawingId) ||
-      drawingIdFromSvg(this.latestSvg) ||
-      undefined;
-    this.disposeEditor = render(
-      () => (
-        <Suspense fallback={<div class={styles.loading}>Preparando pizarra…</div>}>
-          <WhiteboardBlock
-            initialSvg={this.latestSvg}
-            initialTool={tool as DrawingTool}
-            drawingId={drawingId}
-            onChange={(svg) => this.changed(svg)}
-            onDirtyChange={(dirty) => this.setDirty(dirty)}
-            onSavingChange={(saving) => updateWhiteboardSession(this.sessionId, { saving })}
-            onSave={(svg) => this.persist(svg, true)}
-            onCancel={() => void this.cancel()}
-          />
-        </Suspense>
-      ),
-      this.editorHost,
-    );
+    if (this.editing || this.starting || !src || !this.view.editable || this.view.isDestroyed) return;
+    this.starting = true;
+    try {
+      const active = getActiveWhiteboard();
+      if (active && active.id !== this.sessionId && !(await leaveEditor())) return;
+      if (this.view.isDestroyed) return;
+      this.editing = true;
+      this.dom.classList.remove("ProseMirror-selectednode");
+      this.preview.hidden = true;
+      this.latestSvg = drawingFromDataUrl(src);
+      this.unregisterSession = registerWhiteboardSession({
+        id: this.sessionId,
+        save: (closeAfter) => this.saveLatest(closeAfter ?? false),
+        close: () => this.stopEditing(),
+      });
+      const tool = this.currentNode.attrs.tool;
+      const drawingId =
+        (typeof this.currentNode.attrs.drawingId === "string" && this.currentNode.attrs.drawingId) ||
+        drawingIdFromSvg(this.latestSvg) ||
+        undefined;
+      this.disposeEditor = render(
+        () => (
+          <Suspense fallback={<div class={styles.loading}>Preparando dibujo…</div>}>
+            <WhiteboardBlock
+              initialSvg={this.latestSvg}
+              initialTool={tool as DrawingTool}
+              drawingId={drawingId}
+              onChange={(svg) => this.changed(svg)}
+              onDirtyChange={(dirty) => this.setDirty(dirty)}
+              onSavingChange={(saving) => updateWhiteboardSession(this.sessionId, { saving })}
+              onSave={() => this.saveLatest(true)}
+              onCancel={() => void this.cancel()}
+            />
+          </Suspense>
+        ),
+        this.editorHost,
+      );
+    } catch {
+      this.editing = false;
+      this.disposeEditor?.();
+      this.disposeEditor = null;
+      this.editorHost.replaceChildren();
+      this.unregisterSession?.();
+      this.unregisterSession = null;
+      this.preview.hidden = false;
+      this.updatePreview();
+    } finally {
+      this.starting = false;
+    }
   }
 
   private changed(svg: string): void {
+    if (this.cancelled) return;
+    this.changeVersion += 1;
     this.latestSvg = svg;
     this.setDirty(true);
   }
 
   private setDirty(dirty: boolean): void {
+    if (this.cancelled && dirty) return;
     this.dirty = dirty;
     updateWhiteboardSession(this.sessionId, { dirty });
     if (dirty) this.scheduleAutosave();
@@ -201,22 +242,63 @@ class WhiteboardNodeView implements NodeView {
     this.preview.hidden = false;
     this.updatePreview();
     queueMicrotask(() => {
-      if (!this.view.isDestroyed) this.preview.focus();
+      if (!this.view.isDestroyed) this.preview.focus({ preventScroll: true });
     });
   }
 
   private async saveLatest(closeAfter: boolean): Promise<boolean> {
-    if (!this.dirty && !closeAfter) return true;
-    if (this.persistPromise) return this.persistPromise;
-    const svg = this.latestSvg;
-    this.persistPromise = this.persist(svg, closeAfter).finally(() => {
-      this.persistPromise = null;
+    if (this.cancelled) {
+      if (closeAfter) this.stopEditing();
+      return true;
+    }
+    if (this.savePromise) {
+      const saved = await this.savePromise;
+      if (closeAfter && saved && !this.cancelled) {
+        if (this.dirty) return this.saveLatest(true);
+        this.stopEditing();
+      }
+      return saved;
+    }
+
+    const task = this.saveUntilStable(closeAfter);
+    this.savePromise = task.finally(() => {
+      this.savePromise = null;
       updateWhiteboardSession(this.sessionId, { saving: false });
     });
-    return this.persistPromise;
+    return this.savePromise;
   }
 
-  private async persist(svg: string, closeAfter: boolean): Promise<boolean> {
+  private async saveUntilStable(closeAfter: boolean): Promise<boolean> {
+    while (!this.cancelled) {
+      if (!this.dirty) {
+        if (closeAfter && this.currentNode.attrs.draft) return this.discardCurrentNode();
+        if (closeAfter) this.stopEditing();
+        return true;
+      }
+
+      const version = this.changeVersion;
+      const svg = this.latestSvg;
+      if (!hasDrawingContent(svg)) return this.discardCurrentNode();
+
+      const saved = await this.persistSvg(svg, closeAfter);
+      if (!saved) return false;
+      if (version !== this.changeVersion) continue;
+
+      this.dirty = false;
+      this.latestSvg = svg;
+      if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = null;
+      updateWhiteboardSession(this.sessionId, { dirty: false, saving: false });
+      if (closeAfter) this.stopEditing();
+      return true;
+    }
+
+    if (closeAfter) this.stopEditing();
+    return true;
+  }
+
+  private async persistSvg(svg: string, closeAfter: boolean): Promise<boolean> {
+    if (this.cancelled) return false;
     const currentSrc = this.currentNode.attrs.src;
     const currentDrawingId =
       typeof this.currentNode.attrs.drawingId === "string" ? this.currentNode.attrs.drawingId : "";
@@ -224,6 +306,7 @@ class WhiteboardNodeView implements NodeView {
     const copy = Boolean(currentDrawingId && nextDrawingId && currentDrawingId !== nextDrawingId)
       || !currentDrawingId;
     const nextSrc = await this.onSave(svg, currentSrc, { notify: closeAfter, copy });
+    if (this.cancelled) return false;
     if (this.view.isDestroyed) return Boolean(nextSrc);
     const pos = this.getPos();
     if (pos === undefined) return false;
@@ -238,12 +321,40 @@ class WhiteboardNodeView implements NodeView {
     };
     this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, undefined, attrs));
     this.currentNode = this.view.state.doc.nodeAt(pos) ?? this.currentNode;
-    this.latestSvg = svg;
+    return true;
+  }
+
+  private async discardCurrentNode(): Promise<boolean> {
+    this.cancelled = true;
     this.dirty = false;
-    updateWhiteboardSession(this.sessionId, { dirty: false, saving: false });
+    this.changeVersion += 1;
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
     this.autosaveTimer = null;
-    if (closeAfter) this.stopEditing();
+    updateWhiteboardSession(this.sessionId, { dirty: false, saving: false });
+
+    const currentSrc = this.currentNode.attrs.src;
+    if (this.onDeleteAsset && currentSrc) {
+      try {
+        await this.onDeleteAsset(currentSrc);
+      } catch {
+        this.cancelled = false;
+        this.dirty = true;
+        this.scheduleAutosave();
+        updateWhiteboardSession(this.sessionId, { dirty: true });
+        return false;
+      }
+    }
+
+    const pos = this.getPos();
+    if (!this.view.isDestroyed && pos !== undefined) {
+      const liveNode = this.view.state.doc.nodeAt(pos);
+      if (liveNode && liveNode.attrs.src === currentSrc) {
+        this.stopEditing();
+        this.view.dispatch(this.view.state.tr.delete(pos, pos + liveNode.nodeSize));
+        return true;
+      }
+    }
+    this.stopEditing();
     return true;
   }
 
@@ -253,26 +364,14 @@ class WhiteboardNodeView implements NodeView {
       else this.stopEditing();
       return;
     }
-    const currentSrc = this.currentNode.attrs.src;
-    if (this.onDeleteAsset && this.currentNode.attrs.drawingId) {
+    if (this.savePromise) {
       try {
-        await this.onDeleteAsset(currentSrc);
+        await this.savePromise;
       } catch {
-        return;
+        // El nodo se descartará igualmente; la persistencia ya no debe reactivarlo.
       }
     }
-    const pos = this.getPos();
-    if (pos === undefined) {
-      this.stopEditing();
-      return;
-    }
-    const liveNode = this.view.state.doc.nodeAt(pos);
-    if (!liveNode || liveNode.attrs.src !== currentSrc) {
-      this.stopEditing();
-      return;
-    }
-    this.stopEditing();
-    this.view.dispatch(this.view.state.tr.delete(pos, pos + liveNode.nodeSize));
+    if (!this.cancelled) await this.discardCurrentNode();
   }
 }
 

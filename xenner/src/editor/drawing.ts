@@ -7,6 +7,9 @@ import type {
 
 export const CANVAS_WIDTH = 1_000;
 export const CANVAS_HEIGHT = 600;
+export const DRAWING_PADDING = 16;
+export const EMPTY_DRAWING_WIDTH = 320;
+export const EMPTY_DRAWING_HEIGHT = 200;
 export const DEFAULT_DRAWING_COLOR = "#6750a4";
 
 let shapeId = 0;
@@ -48,8 +51,9 @@ function distanceToSegment(point: Point, start: Point, end: Point): number {
 
 export function drawingShapeBounds(shape: DrawingShape): ShapeBounds {
   if (shape.kind === "path") {
-    const xs = shape.points.map((point) => point.x);
-    const ys = shape.points.map((point) => point.y);
+    const points = shape.points.length > 0 ? shape.points : [{ x: shape.x1, y: shape.y1 }];
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
     const minX = Math.min(...xs, shape.x1, shape.x2);
     const minY = Math.min(...ys, shape.y1, shape.y2);
     return {
@@ -59,12 +63,50 @@ export function drawingShapeBounds(shape: DrawingShape): ShapeBounds {
       height: Math.max(2, Math.max(...ys, shape.y1, shape.y2) - minY),
     };
   }
+  if (shape.kind === "text") {
+    return {
+      x: shape.x1,
+      y: shape.y1 - 24,
+      width: Math.max(48, shape.text.length * 13 + 18),
+      height: 32,
+    };
+  }
   return {
     x: Math.min(shape.x1, shape.x2),
     y: Math.min(shape.y1, shape.y2),
     width: Math.max(2, Math.abs(shape.x2 - shape.x1)),
     height: Math.max(2, Math.abs(shape.y2 - shape.y1)),
   };
+}
+
+export function drawingBounds(shapes: DrawingShape[], padding = 0): ShapeBounds {
+  if (!shapes.length) return { x: 0, y: 0, width: 0, height: 0 };
+  const first = drawingShapeBounds(shapes[0]);
+  const bounds = shapes.slice(1).reduce(
+    (current, shape) => {
+      const next = drawingShapeBounds(shape);
+      const x = Math.min(current.x, next.x);
+      const y = Math.min(current.y, next.y);
+      const right = Math.max(current.x + current.width, next.x + next.width);
+      const bottom = Math.max(current.y + current.height, next.y + next.height);
+      return { x, y, width: right - x, height: bottom - y };
+    },
+    first,
+  );
+  const safePadding = Math.max(0, Number.isFinite(padding) ? padding : 0);
+  return {
+    x: bounds.x - safePadding,
+    y: bounds.y - safePadding,
+    width: Math.max(1, bounds.width + safePadding * 2),
+    height: Math.max(1, bounds.height + safePadding * 2),
+  };
+}
+
+export function drawingViewBox(shapes: DrawingShape[], padding = DRAWING_PADDING): ShapeBounds {
+  if (!shapes.length) {
+    return { x: 0, y: 0, width: EMPTY_DRAWING_WIDTH, height: EMPTY_DRAWING_HEIGHT };
+  }
+  return drawingBounds(shapes, padding);
 }
 
 export function drawingShapeHits(shape: DrawingShape, point: Point): boolean {
@@ -83,7 +125,7 @@ export function drawingShapeHits(shape: DrawingShape, point: Point): boolean {
     return distanceToSegment(point, { x: shape.x1, y: shape.y1 }, { x: shape.x2, y: shape.y2 }) <= shape.width + 8;
   }
   if (shape.kind === "text") {
-    const width = Math.max(48, Math.min(360, shape.text.length * 13 + 18));
+    const width = Math.max(48, shape.text.length * 13 + 18);
     return point.x >= shape.x1 - 10 && point.x <= shape.x1 + width && point.y >= shape.y1 - 24 && point.y <= shape.y1 + 12;
   }
   const box = drawingShapeBounds(shape);
@@ -108,8 +150,11 @@ function escapeXml(value: string): string {
 function shapeToSvg(shape: DrawingShape): string {
   const common = `fill="none" stroke="${shape.color}" stroke-width="${shape.width}" stroke-linecap="round" stroke-linejoin="round"`;
   switch (shape.kind) {
-    case "rect":
-      return `<rect x="${shape.x1}" y="${shape.y1}" width="${shape.x2 - shape.x1}" height="${shape.y2 - shape.y1}" ${common} />`;
+    case "rect": {
+      const x = Math.min(shape.x1, shape.x2);
+      const y = Math.min(shape.y1, shape.y2);
+      return `<rect x="${x}" y="${y}" width="${Math.abs(shape.x2 - shape.x1)}" height="${Math.abs(shape.y2 - shape.y1)}" ${common} />`;
+    }
     case "ellipse":
       return `<ellipse cx="${(shape.x1 + shape.x2) / 2}" cy="${(shape.y1 + shape.y2) / 2}" rx="${Math.abs(shape.x2 - shape.x1) / 2}" ry="${Math.abs(shape.y2 - shape.y1) / 2}" ${common} />`;
     case "line":
@@ -147,8 +192,22 @@ export function drawingToDataUrl(svg: string): string {
   return `data:image/svg+xml;base64,${btoa(binary)}`;
 }
 
+export function hasDrawingContent(svg: string): boolean {
+  if (!svg || typeof DOMParser === "undefined") return false;
+  try {
+    return parseDrawingSvg(svg).some((shape) => shape.kind !== "path" || shape.points.length >= 2);
+  } catch {
+    return false;
+  }
+}
+
+function numberForSvg(value: number): string {
+  return Number.isFinite(value) ? String(Number(value.toFixed(3))) : "0";
+}
+
 export function serializeDrawing(shapes: DrawingShape[], drawingId = createDrawingId()): string {
   const safeDrawingId = /^[a-zA-Z0-9_-]{1,100}$/.test(drawingId) ? drawingId : createDrawingId();
+  const view = drawingViewBox(shapes);
   const body = shapes.map(shapeToSvg).join("");
   const markers = shapes
     .filter((shape) => shape.kind === "arrow")
@@ -157,7 +216,7 @@ export function serializeDrawing(shapes: DrawingShape[], drawingId = createDrawi
         `<marker id="arrowhead-${shape.id}" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="${shape.color}" /></marker>`,
     )
     .join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" data-xenner-asset="safe" data-xenner-drawing-id="${safeDrawingId}"><defs>${markers}</defs>${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${numberForSvg(view.width)}" height="${numberForSvg(view.height)}" viewBox="${numberForSvg(view.x)} ${numberForSvg(view.y)} ${numberForSvg(view.width)} ${numberForSvg(view.height)}" data-xenner-asset="safe" data-xenner-empty="${shapes.length === 0}" data-xenner-drawing-id="${safeDrawingId}"><defs>${markers}</defs>${body}</svg>`;
 }
 
 function numberAttribute(element: Element, name: string, fallback = 0): number {

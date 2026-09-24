@@ -12,7 +12,9 @@
   isolation: isolate;
 }
 
-.editor:global(.milkdown),
+/* Crepe creates .milkdown inside the editor root, while its floating menus
+   and block handle are appended directly to that root. */
+.editor,
 .editor :global(.milkdown) {
   --crepe-color-background: var(--skin-note-background);
   --crepe-color-on-background: var(--skin-note-text);
@@ -43,7 +45,7 @@
   font-family: var(--skin-editor-font, var(--skin-background-font));
 }
 
-.editor:global(.milkdown) :global(.ProseMirror),
+.editor :global(.ProseMirror),
 .editor :global(.milkdown) :global(.ProseMirror) {
   width: 100%;
   max-width: none;
@@ -160,9 +162,9 @@
   border-top: var(--skin-input-border);
 }
 
-.editor:global(.milkdown) :global(.milkdown-toolbar),
-.editor:global(.milkdown) :global(.milkdown-top-bar),
-.editor:global(.milkdown) :global(.milkdown-menu) {
+.editor :global(.milkdown-toolbar),
+.editor :global(.milkdown-top-bar),
+.editor :global(.milkdown-menu) {
   color: var(--skin-toolbar-text);
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
@@ -181,28 +183,60 @@
   color: var(--skin-toolbar-accent);
 }
 
-.editor:global(.milkdown) :global(.milkdown-block-handle) {
+.editor :global(.milkdown-block-handle) {
+  position: absolute;
+  z-index: 24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 1px;
+  color: var(--skin-toolbar-accent);
+  cursor: pointer;
 }
 
-.editor:global(.milkdown) :global(.milkdown-block-handle .operation-item) {
+.editor :global(.milkdown-block-handle[data-show="false"]) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.editor :global(.milkdown-block-handle .operation-item) {
+  display: grid;
   width: 26px;
   height: 26px;
+  place-items: center;
   padding: 2px;
+  color: var(--skin-toolbar-accent);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: calc(var(--skin-button-radius) * 0.7);
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
 }
 
-.editor:global(.milkdown) :global(.milkdown-block-handle .operation-item svg) {
+.editor :global(.milkdown-block-handle .operation-item:hover),
+.editor :global(.milkdown-block-handle .operation-item.active) {
+  color: var(--skin-toolbar-text);
+  background: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+  border-color: var(--skin-toolbar-border);
+}
+
+.editor :global(.milkdown-block-handle .operation-item svg) {
   width: 17px;
   height: 17px;
+  fill: currentColor;
 }
 
-.editor:global(.milkdown) :global(.milkdown-slash-menu) {
+.editor :global(.milkdown-slash-menu) {
+  position: absolute;
   z-index: 25;
+  display: block;
   width: min(292px, calc(100vw - 32px));
   max-height: min(430px, calc(100vh - 110px));
   overflow: hidden;
   color: var(--skin-toolbar-text);
+  font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
   border-radius: min(var(--skin-toolbar-radius, var(--skin-note-radius)), 14px);
@@ -210,22 +244,51 @@
   backdrop-filter: blur(var(--skin-toolbar-blur));
 }
 
-.editor:global(.milkdown) :global(.milkdown-slash-menu .tab-group) {
-  padding: 5px 5px 0;
+.editor :global(.milkdown-slash-menu[data-show="false"]) {
+  display: none;
 }
 
-.editor:global(.milkdown) :global(.milkdown-slash-menu .tab-group ul) {
+.editor :global(.milkdown-slash-menu .tab-group) {
+  padding: 5px 5px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--skin-toolbar-border) 80%, transparent);
+}
+
+.editor :global(.milkdown-slash-menu .tab-group ul),
+.editor :global(.milkdown-slash-menu .menu-group ul) {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group ul) {
+  flex-direction: column;
+}
+
+.editor :global(.milkdown-slash-menu .tab-group ul) {
+  flex-wrap: nowrap;
   gap: 2px;
   padding: 3px 4px;
 }
 
-.editor:global(.milkdown) :global(.milkdown-slash-menu .tab-group ul li) {
+.editor :global(.milkdown-slash-menu .tab-group ul li) {
+  flex: 0 0 auto;
   padding: 3px 6px;
+  color: var(--skin-toolbar-textDim);
+  border-radius: 5px;
   font-size: 10px;
+  font-weight: 600;
   line-height: 16px;
+  cursor: pointer;
 }
 
-.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-groups) {
+.editor :global(.milkdown-slash-menu .tab-group ul li:hover),
+.editor :global(.milkdown-slash-menu .tab-group ul li.selected) {
+  color: var(--skin-toolbar-accent);
+  background: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.editor :global(.milkdown-slash-menu .menu-groups) {
   max-height: 360px;
   padding: 0 5px 5px;
   overflow-x: hidden;
@@ -233,27 +296,56 @@
   overscroll-behavior: contain;
 }
 
-.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-group h6) {
-  padding: 6px 6px 3px;
-  font-size: 9px;
-  line-height: 13px;
+.editor :global(.milkdown-slash-menu .menu-group + .menu-group) {
+  border-top: 1px solid color-mix(in srgb, var(--skin-toolbar-border) 80%, transparent);
 }
 
-.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-group li) {
+.editor :global(.milkdown-slash-menu .menu-group h6) {
+  margin: 0;
+  padding: 6px 6px 3px;
+  color: var(--skin-toolbar-textDim);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-transform: uppercase;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group li) {
+  display: flex;
   min-width: 0;
+  align-items: center;
   gap: 8px;
   padding: 6px 7px;
   overflow: hidden;
+  border-radius: 6px;
+  list-style: none;
+  cursor: pointer;
 }
 
-.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-group li svg) {
+.editor :global(.milkdown-slash-menu .menu-group li:hover),
+.editor :global(.milkdown-slash-menu .menu-group li.hover),
+.editor :global(.milkdown-slash-menu .menu-group li.active) {
+  color: var(--skin-toolbar-accent);
+  background: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.editor :global(.milkdown-slash-menu .menu-group li svg) {
   width: 16px;
   height: 16px;
+  flex: 0 0 auto;
+  color: var(--skin-toolbar-accent);
+  fill: currentColor;
 }
 
-.editor:global(.milkdown) :global(.milkdown-slash-menu .menu-group li > span) {
+.editor :global(.milkdown-slash-menu .menu-group li > span) {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--skin-toolbar-text);
   font-size: 11px;
+  font-weight: 600;
   line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .loading {

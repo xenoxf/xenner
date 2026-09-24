@@ -21,6 +21,7 @@ import {
   updateAssetForEditor,
 } from "../../services/editorAssets";
 import { notifyError, notifySuccess } from "../../services/toastService";
+import { leaveEditor } from "../../services/editorSession";
 import { createDrawingId, serializeDrawing } from "../../editor/drawing";
 import { DEFAULT_TEXT_COLOR, normalizeTextColor, textColorMark, textColorRemark } from "../../editor/text-color";
 import { whiteboardNode, whiteboardRemark } from "../../editor/whiteboard-node";
@@ -286,6 +287,7 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           if (type === "paragraph") commands.call(turnIntoTextCommand.key);
           else if (type === "heading1") commands.call(wrapInHeadingCommand.key, 1);
           else if (type === "heading2") commands.call(wrapInHeadingCommand.key, 2);
+          else if (type === "heading3") commands.call(wrapInHeadingCommand.key, 3);
           else if (type === "bullet") commands.call(wrapInBulletListCommand.key);
           else if (type === "ordered") commands.call(wrapInOrderedListCommand.key);
           else commands.call(wrapInBlockquoteCommand.key);
@@ -331,6 +333,7 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     lastReloadToken = token;
     void (async () => {
       try {
+        if (!(await leaveEditor())) return;
         const next = await prepareMarkdownForEditor(props.notePath, props.initialValue);
         if (disposed || !crepe) return;
         prepared = next;

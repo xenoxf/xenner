@@ -1,6 +1,13 @@
 import type { DrawingTool } from "./drawing";
 
-export type EditorBlockType = "paragraph" | "heading1" | "heading2" | "bullet" | "ordered" | "quote";
+export type EditorBlockType =
+  | "paragraph"
+  | "heading1"
+  | "heading2"
+  | "heading3"
+  | "bullet"
+  | "ordered"
+  | "quote";
 
 export interface PreparedMarkdown {
   content: string;

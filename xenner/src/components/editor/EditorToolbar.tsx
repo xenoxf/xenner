@@ -15,10 +15,8 @@ import {
   BulletListIcon,
   HeadingIcon,
   ImageIcon,
-  MarkdownIcon,
   OrderedListIcon,
   PencilIcon,
-  PlusIcon,
   QuoteIcon,
   TextIcon,
 } from "../ui/Icons";
@@ -27,7 +25,6 @@ type InsertId = EditorBlockType | "image" | "whiteboard";
 
 interface EditorToolbarProps {
   loading: boolean;
-  sourceMode: boolean;
   ready: boolean;
   imageBusy: boolean;
   whiteboardBusy: boolean;
@@ -35,7 +32,6 @@ interface EditorToolbarProps {
   onApplyBlock(type: EditorBlockType): void;
   onChooseImage(): void;
   onInsertWhiteboard(tool: DrawingTool): void;
-  onToggleSource(): void;
 }
 
 interface InsertItem {
@@ -68,7 +64,7 @@ const INSERT_ITEMS: readonly InsertItem[] = [
 
 function ItemIcon(props: { id: InsertId }) {
   if (props.id === "paragraph") return <TextIcon />;
-  if (props.id === "heading1" || props.id === "heading2") return <HeadingIcon />;
+  if (props.id === "heading1" || props.id === "heading2" || props.id === "heading3") return <HeadingIcon />;
   if (props.id === "bullet") return <BulletListIcon />;
   if (props.id === "ordered") return <OrderedListIcon />;
   if (props.id === "quote") return <QuoteIcon />;
@@ -105,11 +101,13 @@ export function EditorToolbar(props: EditorToolbarProps) {
   }
 
   function openMenu(): void {
-    if (props.loading || props.sourceMode || !props.ready) return;
+    if (props.loading || !props.ready) return;
     setInsertOpen(true);
     setQuery("");
     setActiveIndex(0);
-    queueMicrotask(() => searchInput?.focus());
+    queueMicrotask(() => {
+      insertMenu?.querySelector<HTMLButtonElement>("[role='option']")?.focus({ preventScroll: true });
+    });
   }
 
   function runItem(item: InsertItem): void {
@@ -183,16 +181,16 @@ export function EditorToolbar(props: EditorToolbarProps) {
           ref={(element) => (insertTrigger = element)}
           type="button"
           class={`${styles.button} ${insertOpen() ? styles.open : ""}`}
-          disabled={props.loading || props.sourceMode || !props.ready}
-          aria-label="Insertar bloque"
+          disabled={props.loading || !props.ready}
+          aria-label="Tipo de bloque de texto"
           aria-haspopup="dialog"
           aria-controls="editor-insert-menu"
           aria-expanded={insertOpen()}
-          title="Insertar bloque"
+          title="Tipo de bloque de texto"
           onClick={() => (insertOpen() ? closeMenu() : openMenu())}
         >
-          <PlusIcon />
-          <span class={styles.buttonLabel}>Insertar</span>
+          <TextIcon />
+          <span class={styles.buttonLabel}>Texto</span>
         </button>
         <Show when={insertOpen()}>
           <div
@@ -200,7 +198,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
             id="editor-insert-menu"
             class={styles.menu}
             role="dialog"
-            aria-label="Insertar bloque"
+            aria-label="Bloques de texto e inserciones opcionales"
           >
             <div class={styles.menuSearch}>
               <SearchIcon />
@@ -262,7 +260,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
       <button
         type="button"
         class={`${styles.iconButton} ${props.imageBusy ? styles.busy : ""}`}
-        disabled={props.loading || props.imageBusy || props.sourceMode || !props.ready}
+        disabled={props.loading || props.imageBusy || !props.ready}
         aria-label="Insertar imagen"
         aria-busy={props.imageBusy}
         title="Insertar imagen"
@@ -273,25 +271,13 @@ export function EditorToolbar(props: EditorToolbarProps) {
       <button
         type="button"
         class={`${styles.iconButton} ${props.whiteboardBusy ? styles.busy : ""}`}
-        disabled={props.loading || props.whiteboardBusy || props.sourceMode || !props.ready}
+        disabled={props.loading || props.whiteboardBusy || !props.ready}
         aria-label="Insertar pizarra"
         aria-busy={props.whiteboardBusy}
         title="Insertar pizarra"
         onClick={() => props.onInsertWhiteboard("pen")}
       >
         <PencilIcon />
-      </button>
-      <span class={styles.separator} aria-hidden="true" />
-      <button
-        type="button"
-        class={`${styles.iconButton} ${props.sourceMode ? styles.active : ""}`}
-        disabled={props.loading && !props.sourceMode}
-        aria-label={props.sourceMode ? "Volver a vista visual" : "Ver Markdown"}
-        aria-pressed={props.sourceMode}
-        title={props.sourceMode ? "Vista visual" : "Markdown"}
-        onClick={props.onToggleSource}
-      >
-        <MarkdownIcon />
       </button>
       <span class="sr-only" role="status" aria-live="polite">{props.status}</span>
     </div>

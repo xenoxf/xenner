@@ -91,14 +91,16 @@ convierten en clases globales de aplicación.
   renderiza y coordina animaciones de layout.
 - `services/editorAssets.ts` es la única frontera usada por el editor para
   importar, leer, actualizar y eliminar assets.
-- `services/editorSession.ts` coordina el modo texto/Markdown/pizarra, el
-  autoguardado del whiteboard y la protección al cambiar de nota.
-- La pizarra es un nodo `whiteboard` de Milkdown con NodeView inline. Se
-  persiste como una imagen Markdown estándar bajo `.assets/`, pero mientras se
-  edita muestra el lienzo directamente dentro de la nota; no usa modal.
+- `services/editorSession.ts` coordina el modo texto/pizarra, el autoguardado
+  del whiteboard y la protección al cambiar de nota.
+- La pizarra es un nodo `whiteboard` de Milkdown con NodeView embebido en el
+  flujo de la nota. Se persiste como una imagen Markdown estándar bajo
+  `.assets/`; al cerrarse se muestra solo el dibujo, recortado a sus bounds,
+  sin una pizarra vacía alrededor. Mientras se edita, el lienzo queda aislado
+  del editor para que sus gestos no muevan la nota.
 - `BlockEdit` de Crepe proporciona el `+` contextual y el menú slash; el dock de
-  Solid usa una paleta de inserción única y se oculta mientras una pizarra está
-  activa.
+  Solid empieza por el selector de texto y deja imagen y pizarra como
+  inserciones opcionales. El dock se oculta mientras una pizarra está activa.
 - `notes/store.ts` permanece como compatibilidad del CRUD antiguo y no se
   mezcló con `NoteDocument`.
 

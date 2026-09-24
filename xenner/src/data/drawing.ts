@@ -14,3 +14,7 @@ export const DRAWING_TOOLS: readonly { id: DrawingTool; label: string }[] = [
   { id: "hand", label: "Mano" },
   ...DRAWING_BLOCK_TOOLS,
 ];
+
+export function isDrawingTool(value: unknown): value is DrawingTool {
+  return typeof value === "string" && DRAWING_TOOLS.some((tool) => tool.id === value);
+}

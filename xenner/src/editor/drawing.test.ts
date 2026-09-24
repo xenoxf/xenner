@@ -13,7 +13,9 @@ import {
 test("serializa una pizarra vacía como SVG seguro", () => {
   const svg = serializeDrawing([]);
   assert.match(svg, /^<svg/);
-  assert.match(svg, /viewBox="0 0 1000 600"/);
+  assert.match(svg, /viewBox="0 0 320 200"/);
+  assert.match(svg, /width="320" height="200"/);
+  assert.match(svg, /data-xenner-empty="true"/);
   assert.match(svg, /data-xenner-asset="safe"/);
   assert.match(svg, /data-xenner-drawing-id="drawing-[^"]+"/);
 });
@@ -31,6 +33,23 @@ test("serializa el color de texto con el atributo correcto", () => {
   const svg = serializeDrawing([shape]);
   assert.match(svg, /<text[^>]+fill="#123456"/);
   assert.match(svg, />Hola<\/text>/);
+});
+
+test("ajusta el viewBox al contenido dibujado", () => {
+  const shape = createDrawingShape("rect", { x: 120, y: 80 }, "#123456", 4);
+  shape.x2 = 220;
+  shape.y2 = 160;
+  const svg = serializeDrawing([shape], "drawing-content");
+  assert.match(svg, /viewBox="104 64 132 112"/);
+  assert.match(svg, /data-xenner-empty="false"/);
+});
+
+test("normaliza rectángulos dibujados en sentido inverso", () => {
+  const shape = createDrawingShape("rect", { x: 220, y: 160 }, "#123456", 4);
+  shape.x2 = 120;
+  shape.y2 = 80;
+  const svg = serializeDrawing([shape]);
+  assert.match(svg, /<rect x="120" y="80" width="100" height="80"/);
 });
 
 test("convierte el SVG a un data URL seguro", () => {

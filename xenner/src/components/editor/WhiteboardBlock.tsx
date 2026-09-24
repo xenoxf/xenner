@@ -7,7 +7,7 @@ import {
   Show,
 } from "solid-js";
 
-import { DRAWING_TOOLS } from "../../data/drawing";
+import { DRAWING_TOOLS, isDrawingTool } from "../../data/drawing";
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
@@ -16,6 +16,7 @@ import {
   DEFAULT_DRAWING_COLOR,
   drawingShapeBounds,
   drawingShapeHits,
+  drawingViewBox,
   parseDrawingSvg,
   serializeDrawing,
 } from "../../editor/drawing";
@@ -97,8 +98,28 @@ function ToolIcon(props: { tool: DrawingTool }) {
   return <TextIcon />;
 }
 
+const MIN_EDITOR_WIDTH = 320;
+const MIN_EDITOR_HEIGHT = 200;
+
 function clamp(value: number, minimum = 0, maximum = CANVAS_WIDTH): number {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+function editorViewForShapes(shapes: DrawingShape[]): { view: ViewBox; width: number; height: number } {
+  const bounds = drawingViewBox(shapes);
+  const width = clamp(bounds.width, MIN_EDITOR_WIDTH, CANVAS_WIDTH);
+  let height = Math.max(MIN_EDITOR_HEIGHT, (bounds.height / Math.max(1, bounds.width)) * width);
+  height = Math.min(CANVAS_HEIGHT, height);
+  const x = clamp(bounds.x + bounds.width / 2 - width / 2, 0, Math.max(0, CANVAS_WIDTH - width));
+  const y = clamp(bounds.y + bounds.height / 2 - height / 2, 0, Math.max(0, CANVAS_HEIGHT - height));
+  return { view: { x, y, width, height }, width, height };
+}
+
+function isDegenerateDraft(shape: DrawingShape): boolean {
+  if (shape.kind === "path") {
+    return shape.points.length < 2 || shape.points.every((point) => point.x === shape.x1 && point.y === shape.y1);
+  }
+  return Math.abs(shape.x2 - shape.x1) < 1 && Math.abs(shape.y2 - shape.y1) < 1;
 }
 
 function cloneShapes(shapes: DrawingShape[]): DrawingShape[] {
@@ -187,9 +208,11 @@ function duplicateShape(shape: DrawingShape): DrawingShape {
 
 export function WhiteboardBlock(props: WhiteboardBlockProps) {
   const initialShapes = parseDrawingSvg(props.initialSvg ?? "");
+  const initialEditor = editorViewForShapes(initialShapes);
   const initialDrawingId = props.drawingId ?? createDrawingId();
   const [drawingId] = createSignal(initialDrawingId);
-  const [tool, setTool] = createSignal<DrawingTool>(props.initialTool ?? "pen");
+  const initialTool = isDrawingTool(props.initialTool) ? props.initialTool : "pen";
+  const [tool, setTool] = createSignal<DrawingTool>(initialTool);
   const [color, setColor] = createSignal(initialShapes[0]?.color ?? defaultDrawingColor());
   const [width, setWidth] = createSignal(initialShapes[0]?.width ?? 4);
   const [shapes, setShapes] = createSignal<DrawingShape[]>(initialShapes);
@@ -201,12 +224,7 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
   const [undoStack, setUndoStack] = createSignal<DrawingShape[][]>([]);
   const [redoStack, setRedoStack] = createSignal<DrawingShape[][]>([]);
   const [saving, setSaving] = createSignal(false);
-  const [view, setView] = createSignal<ViewBox>({
-    x: 0,
-    y: 0,
-    width: CANVAS_WIDTH,
-    height: CANVAS_HEIGHT,
-  });
+  const [view, setView] = createSignal<ViewBox>(initialEditor.view);
   const [gridVisible, setGridVisible] = createSignal(true);
   const [expanded, setExpanded] = createSignal(false);
   const [textEdit, setTextEdit] = createSignal<TextEditState | null>(null);
@@ -218,12 +236,48 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
   let textBefore: DrawingShape[] | null = null;
 
   const selectedShape = createMemo(() => shapes().find((shape) => shape.id === selectedId()) ?? null);
-  const zoomPercent = createMemo(() => Math.round((CANVAS_WIDTH / view().width) * 100));
+  const zoomPercent = createMemo(() => Math.round((initialEditor.width / view().width) * 100));
 
-  onMount(() => queueMicrotask(() => block?.querySelector<HTMLButtonElement>("button")?.focus()));
+  onMount(() =>
+    queueMicrotask(() => block?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true })),
+  );
+
+  function capturePointer(event: PointerEvent): void {
+    try {
+      canvas?.setPointerCapture(event.pointerId);
+    } catch {
+      // Some embedded WebViews can reject capture for a cancelled pointer;
+      // the regular pointer handlers still finish the gesture safely.
+    }
+  }
 
   function releasePointer(event: PointerEvent): void {
-    if (canvas?.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    try {
+      if (canvas?.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    } catch {
+      // The capture may already have been released by the WebView.
+    }
+  }
+
+  function ensureContentVisible(nextShapes: DrawingShape[]): void {
+    const bounds = drawingViewBox(nextShapes);
+    const current = view();
+    const width = Math.max(current.width, bounds.width);
+    const height = Math.max(current.height, bounds.height);
+    const containsBounds =
+      bounds.x >= current.x &&
+      bounds.y >= current.y &&
+      bounds.x + bounds.width <= current.x + current.width &&
+      bounds.y + bounds.height <= current.y + current.height;
+    if (width <= current.width && height <= current.height && containsBounds) return;
+    const centerX = current.x + current.width / 2;
+    const centerY = current.y + current.height / 2;
+    setView({
+      x: clamp(centerX - width / 2, 0, Math.max(0, CANVAS_WIDTH - width)),
+      y: clamp(centerY - height / 2, 0, Math.max(0, CANVAS_HEIGHT - height)),
+      width,
+      height,
+    });
   }
 
   function currentSvg(nextShapes = shapes()): string {
@@ -252,11 +306,18 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
     setUndoStack((previous) => [...previous, cloneShapes(shapes())]);
     setRedoStack([]);
     setShapes(next);
+    ensureContentVisible(next);
     markDirty(next);
   }
 
   function onPointerDown(event: PointerEvent): void {
     if (saving() || event.button !== 0) return;
+    // The canvas is a custom editor, not a native drag surface. Consuming
+    // the pointer keeps ProseMirror and the browser from selecting/scrolling
+    // the note while a figure is being drawn.
+    event.preventDefault();
+    event.stopPropagation();
+    canvas?.focus({ preventScroll: true });
     const point = pointFromEvent(event);
     const currentTool = tool();
     const resizeHandle = event.target instanceof Element
@@ -272,12 +333,12 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
         before: cloneShapes(shapes()),
         moved: false,
       });
-      canvas?.setPointerCapture(event.pointerId);
+      capturePointer(event);
       return;
     }
     if (currentTool === "hand") {
       setPan({ clientX: event.clientX, clientY: event.clientY, view: view() });
-      canvas?.setPointerCapture(event.pointerId);
+      capturePointer(event);
       return;
     }
     if (currentTool === "select") {
@@ -291,13 +352,13 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
           before: cloneShapes(shapes()),
           moved: false,
         });
-        canvas?.setPointerCapture(event.pointerId);
+        capturePointer(event);
       }
       return;
     }
     if (currentTool === "text") {
       const selected = selectedShape();
-      if (selected?.kind === "text") {
+      if (selected?.kind === "text" && drawingShapeHits(selected, point)) {
         startTextEditor(selected);
         return;
       }
@@ -310,10 +371,13 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
     }
     const kind: ShapeKind = currentTool === "pen" ? "path" : currentTool;
     setDraft(createDrawingShape(kind, point, color(), width()));
-    canvas?.setPointerCapture(event.pointerId);
+    capturePointer(event);
   }
 
   function onPointerMove(event: PointerEvent): void {
+    if (!pan() && !resize() && !drag() && !draft()) return;
+    event.preventDefault();
+    event.stopPropagation();
     const activePan = pan();
     if (activePan) {
       const rect = canvas!.getBoundingClientRect();
@@ -373,7 +437,29 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
     });
   }
 
+  function onPointerCancel(event: PointerEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const activeResize = resize();
+    if (activeResize) {
+      setShapes(activeResize.before);
+      setResize(null);
+    }
+    const activeDrag = drag();
+    if (activeDrag) {
+      setShapes(activeDrag.before);
+      setDrag(null);
+    }
+    if (pan()) setPan(null);
+    if (draft()) setDraft(null);
+    releasePointer(event);
+  }
+
   function onPointerUp(event: PointerEvent): void {
+    if (pan() || resize() || drag() || draft()) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     if (pan()) {
       releasePointer(event);
       setPan(null);
@@ -385,6 +471,7 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
       if (activeResize.moved) {
         setUndoStack((previous) => [...previous, activeResize.before]);
         setRedoStack([]);
+        ensureContentVisible(shapes());
         markDirty();
       }
       setResize(null);
@@ -396,6 +483,7 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
       if (activeDrag.moved) {
         setUndoStack((previous) => [...previous, activeDrag.before]);
         setRedoStack([]);
+        ensureContentVisible(shapes());
         markDirty();
       }
       setDrag(null);
@@ -404,6 +492,10 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
     const activeDraft = draft();
     if (!activeDraft) return;
     releasePointer(event);
+    if (isDegenerateDraft(activeDraft)) {
+      setDraft(null);
+      return;
+    }
     commit([...shapes(), activeDraft]);
     setSelectedId(activeDraft.id);
     setDraft(null);
@@ -471,10 +563,15 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
     setRedoStack([]);
   }
 
+  function chooseTool(nextTool: DrawingTool): void {
+    if (textEdit()) finishTextEditor();
+    setTool(nextTool);
+  }
+
   function startTextEditor(shape: DrawingShape): void {
     textBefore = cloneShapes(shapes());
     setTextEdit({ id: shape.id, value: shape.text });
-    queueMicrotask(() => textInput?.focus());
+    queueMicrotask(() => textInput?.focus({ preventScroll: true }));
   }
 
   function updateText(value: string): void {
@@ -497,10 +594,12 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
     }
     setTextEdit(null);
     textInput = undefined;
+    ensureContentVisible(shapes());
     if (edit.value.trim() === "") {
       const next = shapes().filter((shape) => shape.id !== edit.id);
       setShapes(next);
       setSelectedId(null);
+      ensureContentVisible(next);
       markDirty(next);
     }
   }
@@ -519,6 +618,8 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
   }
 
   function onDoubleClick(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
     const point = pointFromEvent(event as unknown as PointerEvent);
     const hit = [...shapes()].reverse().find((shape) => drawingShapeHits(shape, point));
     if (hit?.kind === "text") {
@@ -529,8 +630,14 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
 
   function zoom(factor: number): void {
     const current = view();
-    const width = clamp(current.width / factor, 400, 1_600);
-    const height = width * (CANVAS_HEIGHT / CANVAS_WIDTH);
+    const minimumWidth = Math.max(200, initialEditor.width / 2);
+    const maximumWidth = Math.min(CANVAS_WIDTH, Math.max(initialEditor.width * 2, CANVAS_WIDTH));
+    let width = clamp(current.width / factor, minimumWidth, maximumWidth);
+    let height = width * (initialEditor.height / initialEditor.width);
+    if (height > CANVAS_HEIGHT) {
+      height = CANVAS_HEIGHT;
+      width = Math.min(CANVAS_WIDTH, height * (initialEditor.width / initialEditor.height));
+    }
     const centerX = current.x + current.width / 2;
     const centerY = current.y + current.height / 2;
     setView({
@@ -542,7 +649,7 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
   }
 
   function resetView(): void {
-    setView({ x: 0, y: 0, width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
+    setView(initialEditor.view);
   }
 
   function moveToolFocus(event: KeyboardEvent, container: HTMLElement): void {
@@ -557,7 +664,7 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
     else next = (Math.max(current, 0) - 1 + controls.length) % controls.length;
     event.preventDefault();
     event.stopPropagation();
-    controls[next]?.focus();
+    controls[next]?.focus({ preventScroll: true });
   }
 
   function nudgeSelected(event: KeyboardEvent): boolean {
@@ -642,10 +749,7 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
                 aria-pressed={tool() === item.id}
                 aria-keyshortcuts={item.id === "select" ? "Escape" : undefined}
                 title={item.label}
-                onClick={() => {
-                  setTool(item.id);
-                  setTextEdit(null);
-                }}
+                onClick={() => chooseTool(item.id)}
               >
                 <ToolIcon tool={item.id} />
               </button>
@@ -725,25 +829,38 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
           </Button>
         </div>
       </div>
-      <div class={`${styles.canvasWrap} ${gridVisible() ? styles.grid : ""}`}>
-        <svg
-          ref={(element) => (canvas = element)}
-          class={styles.canvas}
-          viewBox={`${view().x} ${view().y} ${view().width} ${view().height}`}
-          style={`cursor:${tool() === "hand" ? (pan() ? "grabbing" : "grab") : tool() === "select" ? "default" : "crosshair"};`}
+      <div
+        class={`${styles.canvasWrap} ${gridVisible() ? styles.grid : ""}`}
+        onWheel={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      >
+        <div
+          class={styles.canvasStage}
+          style={`width: min(100%, ${initialEditor.width}px); aspect-ratio: ${initialEditor.width} / ${initialEditor.height};`}
+        >
+          <svg
+            ref={(element) => (canvas = element)}
+            class={styles.canvas}
+            viewBox={`${view().x} ${view().y} ${view().width} ${view().height}`}
+            preserveAspectRatio="none"
+            style={`width: 100%; height: 100%; cursor:${tool() === "hand" ? (pan() ? "grabbing" : "grab") : tool() === "select" ? "default" : "crosshair"};`}
           role="application"
           aria-label="Lienzo de la pizarra"
           tabindex="0"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onPointerCancel={onPointerCancel}
           onDblClick={onDoubleClick}
           onWheel={(event) => {
-            if (!event.ctrlKey && !event.metaKey) return;
             event.preventDefault();
+            event.stopPropagation();
+            if (!event.ctrlKey && !event.metaKey) return;
             zoom(event.deltaY < 0 ? 1.1 : 0.9);
           }}
+          onContextMenu={(event) => event.preventDefault()}
         >
           <defs>
             <For each={shapes().filter((shape) => shape.kind === "arrow")}>
@@ -764,7 +881,7 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
           <For each={shapes()}>
             {(shape) => (
               <>
-                {shape.kind === "rect" && <rect x={shape.x1} y={shape.y1} width={shape.x2 - shape.x1} height={shape.y2 - shape.y1} fill="none" stroke={shape.color} stroke-width={shape.width} />}
+                {shape.kind === "rect" && <rect x={Math.min(shape.x1, shape.x2)} y={Math.min(shape.y1, shape.y2)} width={Math.abs(shape.x2 - shape.x1)} height={Math.abs(shape.y2 - shape.y1)} fill="none" stroke={shape.color} stroke-width={shape.width} />}
                 {shape.kind === "ellipse" && <ellipse cx={(shape.x1 + shape.x2) / 2} cy={(shape.y1 + shape.y2) / 2} rx={Math.abs(shape.x2 - shape.x1) / 2} ry={Math.abs(shape.y2 - shape.y1) / 2} fill="none" stroke={shape.color} stroke-width={shape.width} />}
                 {shape.kind === "line" && <line x1={shape.x1} y1={shape.y1} x2={shape.x2} y2={shape.y2} stroke={shape.color} stroke-width={shape.width} stroke-linecap="round" />}
                 {shape.kind === "arrow" && <line x1={shape.x1} y1={shape.y1} x2={shape.x2} y2={shape.y2} stroke={shape.color} stroke-width={shape.width} stroke-linecap="round" marker-end={`url(#${markerPrefix}-${shape.id})`} />}
@@ -776,7 +893,7 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
           <Show when={draft()}>
             {(shape) => (
               <>
-                {shape().kind === "rect" && <rect x={shape().x1} y={shape().y1} width={shape().x2 - shape().x1} height={shape().y2 - shape().y1} fill="none" stroke={shape().color} stroke-width={shape().width} stroke-dasharray="8 6" />}
+                {shape().kind === "rect" && <rect x={Math.min(shape().x1, shape().x2)} y={Math.min(shape().y1, shape().y2)} width={Math.abs(shape().x2 - shape().x1)} height={Math.abs(shape().y2 - shape().y1)} fill="none" stroke={shape().color} stroke-width={shape().width} stroke-dasharray="8 6" />}
                 {shape().kind === "ellipse" && <ellipse cx={(shape().x1 + shape().x2) / 2} cy={(shape().y1 + shape().y2) / 2} rx={Math.abs(shape().x2 - shape().x1) / 2} ry={Math.abs(shape().y2 - shape().y1) / 2} fill="none" stroke={shape().color} stroke-width={shape().width} stroke-dasharray="8 6" />}
                 {shape().kind === "line" && <line x1={shape().x1} y1={shape().y1} x2={shape().x2} y2={shape().y2} stroke={shape().color} stroke-width={shape().width} stroke-dasharray="8 6" />}
                 {shape().kind === "arrow" && <line x1={shape().x1} y1={shape().y1} x2={shape().x2} y2={shape().y2} stroke={shape().color} stroke-width={shape().width} stroke-dasharray="8 6" />}
@@ -816,8 +933,8 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
               );
             }}
           </For>
-        </svg>
-        <Show when={textEdit()}>
+          </svg>
+          <Show when={textEdit()}>
           {(edit) => {
             const shape = () => shapes().find((candidate) => candidate.id === edit().id);
             const position = () => {
@@ -850,7 +967,8 @@ export function WhiteboardBlock(props: WhiteboardBlockProps) {
               />
             );
           }}
-        </Show>
+          </Show>
+        </div>
         <Show when={saving()}>
           <span class="sr-only" role="status">Guardando pizarra…</span>
         </Show>

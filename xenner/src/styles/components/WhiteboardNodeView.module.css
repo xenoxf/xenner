@@ -1,7 +1,13 @@
 .node {
   position: relative;
   width: 100%;
+  min-width: 0;
   margin: 20px 0;
+}
+
+.node.empty {
+  min-height: 0;
+  margin-block: 0;
 }
 
 .node.ProseMirror-selectednode .preview {
@@ -11,47 +17,37 @@
 
 .preview {
   position: relative;
-  display: block;
-  width: 100%;
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
   padding: 0;
-  overflow: hidden;
-  background-color: var(--skin-input-background);
-  border: var(--skin-input-border);
-  border-radius: calc(var(--skin-note-radius) * 0.8);
+  overflow: visible;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   cursor: pointer;
+  vertical-align: top;
 }
 
 .preview img {
   display: block;
-  width: 100%;
-  max-height: 520px;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
   object-fit: contain;
-  background-color: var(--skin-note-background);
-}
-
-.previewLabel {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  padding: 4px 7px;
-  color: var(--skin-toolbar-text);
-  background-color: var(--skin-toolbar-background);
-  border: var(--skin-toolbar-border);
-  border-radius: calc(var(--skin-button-radius) * 0.8);
-  box-shadow: var(--skin-note-shadow);
-  font-size: 10px;
-  opacity: 0;
-  transition: opacity var(--motion-fast) ease;
-}
-
-.preview:hover .previewLabel,
-.preview:focus-visible .previewLabel {
-  opacity: 1;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .preview:focus-visible {
   outline: 2px solid var(--skin-input-focus);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .editorHost:empty {
@@ -61,7 +57,7 @@
 .loading {
   padding: 24px;
   color: var(--skin-toolbar-textDim);
-  background-color: var(--skin-input-background);
+  background: var(--skin-input-background);
   border: var(--skin-input-border);
   border-radius: calc(var(--skin-note-radius) * 0.8);
   font-size: 12px;

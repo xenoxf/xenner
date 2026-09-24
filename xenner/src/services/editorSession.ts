@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 
-export type EditorMode = "text" | "source" | "whiteboard";
+export type EditorMode = "text" | "whiteboard";
 
 export interface WhiteboardSession {
   id: string;

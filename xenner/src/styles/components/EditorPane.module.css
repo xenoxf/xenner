@@ -25,6 +25,7 @@
   flex: 1;
   padding: 0;
   overflow: auto;
+  overflow-anchor: none;
   background-color: var(--skin-note-background);
   scrollbar-gutter: stable;
   transition: opacity var(--motion-fast) ease;
@@ -120,29 +121,6 @@
 .alertActions {
   display: flex;
   gap: 6px;
-}
-
-.sourceEditor {
-  display: block;
-  width: 100%;
-  min-height: 52vh;
-  margin: 0;
-  padding: 0;
-  resize: none;
-  color: var(--skin-input-text);
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  outline: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: var(--skin-editor-size, 16px);
-  line-height: var(--skin-editor-line-height, 1.7);
-  tab-size: 2;
-}
-
-.sourceEditor:focus {
-  border-color: var(--skin-input-focus);
 }
 
 .blankState {

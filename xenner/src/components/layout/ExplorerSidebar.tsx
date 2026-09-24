@@ -1,7 +1,6 @@
 import { Show } from "solid-js";
 
 import type { VaultErrorShape, WorkspaceScan, WorkspaceTreeNode } from "../../types/workspace";
-import { baseName } from "../../utils/paths";
 import { CreationRow, type CreationKind } from "../explorer/CreationRow";
 import { Explorer, type CreationDraft } from "../explorer/Explorer";
 import { FolderOpenIcon, FolderPlusIcon, GearIcon, PlusIcon, RefreshIcon } from "../ui/Icons";

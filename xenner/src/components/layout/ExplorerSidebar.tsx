@@ -174,9 +174,6 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
 
       <footer class={styles.footer}>
         <strong>xenner</strong>
-        <span title={root()}>
-          {props.workspace?.info.truncated ? "Explorer limitado" : "Markdown local"}
-        </span>
       </footer>
     </aside>
   );

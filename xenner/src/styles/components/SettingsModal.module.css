@@ -161,8 +161,8 @@
 .input {
   min-height: 34px;
   padding: 6px 10px;
-  color: var(--skin-input-text);
-  background-color: var(--skin-input-background);
+  color: black;
+  background-color: black;
   border: var(--skin-input-border);
   border-radius: var(--skin-input-radius);
   box-shadow: var(--skin-input-shadow);
@@ -239,7 +239,7 @@
   border-color: var(--skin-sidebar-accent);
 }
 
-.skinCard > span:last-child {
+.skinCard>span:last-child {
   display: flex;
   min-width: 0;
   flex-direction: column;

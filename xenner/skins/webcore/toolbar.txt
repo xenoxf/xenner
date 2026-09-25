@@ -1,5 +1,6 @@
 # barra superior
 background="#171b25"
+backgroundHover="#222839"
 text="#e8eaf0"
 textDim="#8b93a7"
 border="1px solid #232936"

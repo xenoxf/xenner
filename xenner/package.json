@@ -6,20 +6,24 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "build": "vite build",
+    "build": "pnpm check && vite build",
+    "check": "pnpm test && pnpm typecheck",
+    "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test src/notes/model.test.ts src/skin/parse.test.ts src/workspace/tree.test.ts src/workspace/note.test.ts src/editor/assets.test.ts src/editor/text-color.test.ts src/editor/drawing.test.ts src/editor/whiteboard.test.ts src/services/appearance.test.ts src/skin/creator.test.ts",
+    "typecheck": "tsc --noEmit",
     "serve": "vite preview",
     "tauri": "tauri"
   },
   "license": "MIT",
   "dependencies": {
-    "solid-js": "^1.9.3",
+    "@milkdown/crepe": "7.22.2",
+    "@milkdown/kit": "7.22.2",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "solid-js": "^1.9.3"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",
-    "vite-plugin-solid": "^2.11.0",
-    "@tauri-apps/cli": "^2"
+    "vite-plugin-solid": "^2.11.0"
   }
 }

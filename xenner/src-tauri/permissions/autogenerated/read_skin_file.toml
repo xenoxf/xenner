@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-read-skin-file"
+description = "Enables the read_skin_file command without any pre-configured scope."
+commands.allow = ["read_skin_file"]
+
+[[permission]]
+identifier = "deny-read-skin-file"
+description = "Denies the read_skin_file command without any pre-configured scope."
+commands.deny = ["read_skin_file"]

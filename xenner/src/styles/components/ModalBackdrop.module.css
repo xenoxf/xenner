@@ -1,0 +1,14 @@
+.backdrop {
+  position: fixed;
+  z-index: var(--z-modal);
+  inset: 0;
+  display: grid;
+  padding: 28px;
+  place-items: center;
+  background-color: var(--skin-background-shadow);
+  backdrop-filter: blur(8px);
+}
+
+.raised {
+  z-index: var(--z-drawing-modal);
+}

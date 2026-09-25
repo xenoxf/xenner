@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-scan-workspace"
+description = "Enables the scan_workspace command without any pre-configured scope."
+commands.allow = ["scan_workspace"]
+
+[[permission]]
+identifier = "deny-scan-workspace"
+description = "Denies the scan_workspace command without any pre-configured scope."
+commands.deny = ["scan_workspace"]

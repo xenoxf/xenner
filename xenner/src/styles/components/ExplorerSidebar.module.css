@@ -1,0 +1,231 @@
+.sidebar {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  color: var(--skin-sidebar-text);
+  background-color: var(--skin-sidebar-background);
+  border-right: var(--skin-sidebar-border);
+  box-shadow: var(--skin-sidebar-shadow);
+  backdrop-filter: blur(var(--skin-sidebar-blur));
+}
+
+.header {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 9px 8px;
+}
+
+.titleRow,
+.titleCopy,
+.windowActions {
+  display: flex;
+  min-width: 0;
+}
+
+.titleRow {
+  align-items: center;
+  gap: 8px;
+  padding: 0 3px;
+}
+
+.titleCopy {
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.titleCopy span {
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.titleCopy strong {
+  overflow: hidden;
+  color: var(--skin-sidebar-text);
+  font-size: 14px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.windowActions {
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 1px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 2px;
+}
+
+.primary {
+  display: inline-flex;
+  min-height: 30px;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  padding: 5px 7px;
+  color: var(--skin-button-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius) * 0.85);
+  font-size: 13px;
+  font-weight: 520;
+  cursor: pointer;
+  transition:
+    color var(--motion-standard) ease,
+    background-color var(--motion-standard) ease;
+}
+
+.primary svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  color: var(--skin-sidebar-textDim);
+}
+
+.primary:hover,
+.primary:focus-visible {
+  background-color: var(--skin-sidebar-itemHover);
+}
+
+.primary:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.primary:active {
+  transform: translateY(1px);
+}
+
+.count {
+  min-width: 18px;
+  margin-left: auto;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+  text-align: right;
+}
+
+.scroll {
+  min-height: 0;
+  flex: 1;
+  padding: 4px 6px 12px;
+  overflow: auto;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.loading {
+  opacity: 0.58;
+}
+
+.workspaceAlert,
+.legacyCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px;
+  padding: 9px;
+  font-size: 12px;
+}
+
+.workspaceAlert {
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  border: 1px solid var(--skin-note-accent);
+  border-radius: calc(var(--skin-note-radius) * 0.55);
+}
+
+.legacyCard {
+  align-items: center;
+  color: var(--skin-sidebar-text);
+  background-color: var(--skin-sidebar-itemActive);
+  border: 1px solid var(--skin-sidebar-accent);
+  border-radius: calc(var(--skin-sidebar-radius) * 0.55);
+}
+
+.workspaceAlert > div,
+.legacyCard > div {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.workspaceAlert span,
+.legacyCard span {
+  color: var(--skin-sidebar-textDim);
+}
+
+.legacyIssue {
+  margin: 0 10px 8px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+}
+
+.textButton {
+  padding: 2px 4px;
+  color: var(--skin-button-text);
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.textButton:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 7px;
+  padding: 34px 18px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 12px;
+  text-align: center;
+}
+
+.placeholder svg {
+  width: 34px;
+  height: 34px;
+  color: var(--skin-sidebar-accent);
+}
+
+.placeholder strong {
+  color: var(--skin-sidebar-text);
+}
+
+.footer {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 10px;
+}
+
+.footer strong {
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+}
+
+.footer > span {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

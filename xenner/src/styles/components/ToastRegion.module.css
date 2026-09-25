@@ -1,0 +1,129 @@
+.region {
+  position: fixed;
+  z-index: var(--z-toast);
+  top: 18px;
+  right: 18px;
+  display: flex;
+  width: min(360px, calc(100vw - 36px));
+  flex-direction: column;
+  gap: 9px;
+  pointer-events: none;
+}
+
+.toast {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 28px;
+  align-items: start;
+  gap: 8px;
+  padding: 11px 10px 11px 12px;
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: calc(var(--skin-note-radius) * 1.15);
+  box-shadow: var(--skin-note-shadow);
+  backdrop-filter: blur(var(--skin-toolbar-blur));
+  pointer-events: auto;
+  animation: toast-in 210ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.toast[data-tone="error"],
+.toast[data-tone="warning"] {
+  border-color: var(--skin-note-accent);
+}
+
+.leaving {
+  pointer-events: none;
+  animation: toast-out 180ms ease-in both;
+}
+
+.icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: var(--skin-toolbar-accent);
+}
+
+.toast[data-tone="error"] .icon,
+.toast[data-tone="warning"] .icon {
+  color: var(--skin-note-accent);
+}
+
+.icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 1px;
+}
+
+.copy strong {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.copy span {
+  color: var(--skin-toolbar-textDim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.close {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  color: var(--skin-toolbar-textDim);
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--skin-button-radius) * 0.8);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.close:hover,
+.close:focus-visible {
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-button-backgroundHover);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.close svg {
+  width: 15px;
+  height: 15px;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate3d(18px, -6px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(14px, 0, 0) scale(0.98);
+  }
+}

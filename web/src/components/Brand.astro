@@ -1,0 +1,44 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<a class:list={['brand', className]} href="/" aria-label="xenner, inicio">
+  <svg class="brand__mark" viewBox="0 0 36 36" aria-hidden="true" shape-rendering="crispEdges">
+    <path fill="currentColor" d="M0 0h36v36H0z"></path>
+    <path fill="var(--brand-mark-ink)" d="M5 5h7v5H5zm19 0h7v7h-7zM14 14h8v8h-8zM5 24h7v7H5zm19 0h7v7h-7z"></path>
+    <path fill="var(--brand-mark-accent)" d="M12 5h12v4H12zM12 27h12v4H12zM5 12h4v12H5zM27 12h4v12h-4z"></path>
+  </svg>
+  <span>XENNER</span>
+</a>
+
+<style>
+  .brand {
+    --brand-mark-ink: #111018;
+    --brand-mark-accent: #d9ff39;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.62rem;
+    color: inherit;
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    text-shadow: 2px 2px 0 var(--hot);
+  }
+
+  .brand:hover {
+    text-shadow: 2px 2px 0 var(--cyan);
+  }
+
+  .brand__mark {
+    width: 1.8rem;
+    height: 1.8rem;
+    flex: none;
+    color: var(--hot);
+  }
+</style>

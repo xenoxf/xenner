@@ -4,7 +4,24 @@
   "description": "Capability for the main window",
   "windows": ["main"],
   "permissions": [
-    "core:default",
-    "opener:default"
+    "allow-scan-skins",
+    "allow-read-skin-file",
+    "allow-read-config",
+    "allow-set-active-skin",
+    "allow-create-skin",
+    "allow-choose-workspace",
+    "allow-scan-workspace",
+    "allow-read-note",
+    "allow-import-asset",
+    "allow-choose-image-asset",
+    "allow-read-asset",
+    "allow-update-asset",
+    "allow-delete-asset",
+    "allow-write-note",
+    "allow-create-note",
+    "allow-create-folder",
+    "allow-rename-entry",
+    "allow-move-entry",
+    "allow-delete-entry"
   ]
 }

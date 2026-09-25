@@ -12,20 +12,45 @@
   "app": {
     "windows": [
       {
-        "title": "xenner",
-        "width": 1000,
-        "height": 680,
+        "title": "xenner — notas Markdown",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 860,
+        "minHeight": 600,
         "transparent": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "font-src": "'self' data:",
+        "img-src": "'self' asset: data: blob:",
+        "style-src": "'self' 'unsafe-inline'",
+        "object-src": "'none'",
+        "frame-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'"
+      },
+      "devCsp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc: http://ipc.localhost http://localhost:1420 ws://localhost:1421 ws:",
+        "font-src": "'self' data:",
+        "img-src": "'self' asset: data: blob:",
+        "style-src": "'self' 'unsafe-inline'",
+        "object-src": "'none'",
+        "frame-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'"
+      }
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": ["../skins"],
+    "resources": {
+      "../skins/": "skins/"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

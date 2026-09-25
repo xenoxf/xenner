@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <pattern id="grid" width="54" height="30" patternUnits="userSpaceOnUse">
+      <path d="M54 0H0V30" fill="none" stroke="#d9ff39" stroke-opacity=".42" stroke-width="2"/>
+    </pattern>
+    <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+      <path d="M0 3.5H4" stroke="#111018" stroke-opacity=".28"/>
+    </pattern>
+  </defs>
+
+  <path fill="#5932b5" d="M0 0h1200v630H0z"/>
+  <path fill="#24144c" d="M0 360 135 245l84 83 115-142 93 125 91-72 105 104 106-182 91 154 83-83 103 84 94-126 100 90v350H0z"/>
+  <path fill="#d9ff39" d="M0 443h1200v187H0z"/>
+  <path fill="url(#grid)" d="M0 443h1200v187H0z"/>
+
+  <circle cx="956" cy="118" r="205" fill="#d9ff39" stroke="#111018" stroke-width="5"/>
+  <path fill="#5932b5" fill-opacity=".65" d="M751 161h410v11H751zm0 31h410v11H751zm0 31h410v11H751zm0 31h410v11H751z"/>
+  <circle cx="956" cy="118" r="205" fill="none" stroke="#111018" stroke-width="5"/>
+
+  <g transform="translate(62 51)">
+    <path fill="#ff2a8f" d="M0 0h34v34H0z"/>
+    <path fill="#111018" d="M5 5h7v7H5zm17 0h7v7h-7zM12 12h8v8h-8zM5 22h7v7H5zm17 0h7v7h-7z"/>
+    <path fill="#d9ff39" d="M12 5h10v4H12zM12 25h10v4H12zM5 12h4v10H5zM25 12h4v10h-4z"/>
+    <text x="47" y="26" fill="#fff8dc" font-family="DejaVu Sans Mono,monospace" font-size="25" font-weight="700" letter-spacing="2">XENNER</text>
+  </g>
+
+  <text x="62" y="194" fill="#fff8dc" font-family="DejaVu Sans, Arial, sans-serif" font-size="79" font-weight="900" letter-spacing="-3">UN TXT.</text>
+  <text x="62" y="270" fill="#d9ff39" font-family="DejaVu Sans, Arial, sans-serif" font-size="62" font-weight="900" letter-spacing="-3">OTRA INTERFAZ.</text>
+  <text x="66" y="318" fill="#fff8dc" font-family="DejaVu Sans Mono,monospace" font-size="18">CAMBIA LA VENTANA. NO TU MEMORIA.</text>
+
+  <path fill="#111018" d="M64 363h347v7H64z"/>
+  <text x="64" y="398" fill="#fff8dc" font-family="DejaVu Sans Mono,monospace" font-size="15" font-weight="700">TAURI / SOLID / RUST / MIT / v0.1</text>
+
+  <g transform="translate(672 206)">
+    <path fill="#111018" d="M22 18h416v296H22z"/>
+    <path fill="#fff8dc" d="M0 0h416v296H0z"/>
+    <path fill="#d9ff39" d="M0 0h416v34H0z"/>
+    <path fill="#111018" d="M0 33h416v3H0z"/>
+    <path fill="#ff2a8f" d="M9 9h14v14H9z"/>
+    <path fill="#fff8dc" d="M14 13h4v4h-4z"/>
+    <path fill="#fff8dc" d="M349 9h20v14h-20zM376 9h28v14h-28z"/>
+    <text x="35" y="23" fill="#111018" font-family="DejaVu Sans Mono,monospace" font-size="12" font-weight="700">xenner.exe — notes</text>
+
+    <path fill="#5932b5" d="M0 36h130v226H0z"/>
+    <path fill="#111018" d="M130 36h3v226h-3z"/>
+    <text x="12" y="58" fill="#d9ff39" font-family="DejaVu Sans Mono,monospace" font-size="9" font-weight="700">NOTAS / 03</text>
+    <path fill="#d9ff39" stroke="#111018" stroke-width="2" d="M10 73h109v59H10z"/>
+    <path fill="#111018" d="M90 84h8v8h-8z"/>
+    <text x="19" y="100" fill="#111018" font-family="DejaVu Sans Mono,monospace" font-size="9" font-weight="700">PIEL_ES_TXT</text>
+    <path fill="#594f74" d="M19 111h73v4H19z"/>
+    <text x="20" y="161" fill="#fff8dc" font-family="DejaVu Sans Mono,monospace" font-size="9" font-weight="700">CYBER_98.MD</text>
+    <path fill="#594f74" d="M20 171h67v4H20z"/>
+    <text x="20" y="205" fill="#fff8dc" font-family="DejaVu Sans Mono,monospace" font-size="9" font-weight="700">PARA_LUEGO</text>
+
+    <text x="153" y="59" fill="#655f65" font-family="DejaVu Sans Mono,monospace" font-size="8">24.09.2026 / MEMORY</text>
+    <text x="153" y="102" fill="#111018" font-family="DejaVu Sans, Arial, sans-serif" font-size="26" font-weight="900">UNA PIEL</text>
+    <text x="153" y="129" fill="#ff2a8f" font-family="DejaVu Sans, Arial, sans-serif" font-size="26" font-weight="900">ES UN ARCHIVO</text>
+    <path fill="#b9b2a1" d="M153 157h225v6H153zM153 176h195v6H153zM153 195h217v6H153zM153 214h156v6H153z"/>
+    <path fill="#ff2a8f" d="M0 262h416v34H0z"/>
+    <path fill="#111018" d="M0 260h416v3H0z"/>
+    <text x="10" y="283" fill="#111018" font-family="DejaVu Sans Mono,monospace" font-size="9" font-weight="700">READY_ / LOCAL / TXT SKIN</text>
+  </g>
+
+  <path fill="url(#scan)" d="M0 0h1200v630H0z"/>
+</svg>

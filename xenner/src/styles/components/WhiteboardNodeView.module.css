@@ -1,0 +1,74 @@
+.node {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  margin: 20px 0;
+}
+
+.node.empty {
+  min-height: 0;
+  margin-block: 0;
+}
+
+.node.ProseMirror-selectednode .preview {
+  outline: 2px solid var(--skin-note-accent);
+  outline-offset: 3px;
+}
+
+.node.dragging .preview {
+  cursor: grabbing;
+  opacity: 0.72;
+}
+
+.preview {
+  position: relative;
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow: visible;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  cursor: grab;
+  vertical-align: top;
+}
+
+.preview img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.preview:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 3px;
+}
+
+.preview:active {
+  cursor: grabbing;
+}
+
+.editorHost:empty {
+  display: none;
+}
+
+.loading {
+  padding: 24px;
+  color: var(--skin-toolbar-textDim);
+  background: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-note-radius) * 0.8);
+  font-size: 12px;
+  text-align: center;
+}

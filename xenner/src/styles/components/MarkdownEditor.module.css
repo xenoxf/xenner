@@ -1,0 +1,387 @@
+.shell,
+.editor {
+  min-height: 52vh;
+}
+
+.shell {
+  position: relative;
+}
+
+.editor {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Crepe creates .milkdown inside the editor root, while its floating menus
+   and block handle are appended directly to that root. */
+.editor,
+.editor :global(.milkdown) {
+  --crepe-color-background: var(--skin-note-background);
+  --crepe-color-on-background: var(--skin-note-text);
+  --crepe-color-surface: var(--skin-toolbar-background);
+  --crepe-color-surface-low: var(--skin-input-background);
+  --crepe-color-on-surface: var(--skin-note-text);
+  --crepe-color-on-surface-variant: var(--skin-sidebar-textDim);
+  --crepe-color-outline: var(--skin-sidebar-accent);
+  --crepe-color-primary: var(--skin-note-accent);
+  --crepe-color-secondary: var(--skin-sidebar-itemActive);
+  --crepe-color-on-secondary: var(--skin-note-text);
+  --crepe-color-inverse: var(--skin-input-text);
+  --crepe-color-on-inverse: var(--skin-input-background);
+  --crepe-color-inline-code: var(--skin-note-accent);
+  --crepe-color-error: var(--skin-note-accent);
+  --crepe-color-hover: var(--skin-sidebar-itemHover);
+  --crepe-color-selected: var(--skin-sidebar-itemActive);
+  --crepe-color-inline-area: var(--skin-input-background);
+  --crepe-base-font-size: var(--skin-editor-size, 16px);
+  --crepe-font-title: var(--skin-editor-font, var(--skin-background-font));
+  --crepe-font-default: var(--skin-editor-font, var(--skin-background-font));
+  --crepe-font-code: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --crepe-shadow-1: var(--skin-toolbar-shadow);
+  --crepe-shadow-2: var(--skin-note-shadow);
+  min-height: 100%;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  font-family: var(--skin-editor-font, var(--skin-background-font));
+}
+
+.editor :global(.ProseMirror),
+.editor :global(.milkdown) :global(.ProseMirror) {
+  width: 100%;
+  max-width: none;
+  min-height: 52vh;
+  margin: 0;
+  padding: 0;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  outline: none;
+  text-align: left;
+  font-family: var(--skin-editor-font, var(--skin-background-font));
+  font-size: var(--skin-editor-size, 16px);
+  line-height: var(--skin-editor-line-height, 1.7);
+}
+
+.editor :global(.ProseMirror > :first-child) {
+  margin-top: 0;
+}
+
+.editor :global(.ProseMirror h1),
+.editor :global(.ProseMirror h2),
+.editor :global(.ProseMirror h3),
+.editor :global(.ProseMirror h4),
+.editor :global(.ProseMirror h5),
+.editor :global(.ProseMirror h6) {
+  color: var(--skin-note-text);
+  font-family: var(--skin-editor-font, var(--skin-background-font));
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.editor :global(.ProseMirror h1) {
+  font-size: 2.15em;
+}
+
+.editor :global(.ProseMirror h2) {
+  font-size: 1.7em;
+}
+
+.editor :global(.ProseMirror h3) {
+  font-size: 1.35em;
+}
+
+.editor :global(.ProseMirror p),
+.editor :global(.ProseMirror li) {
+  color: var(--skin-note-text);
+  line-height: var(--skin-editor-line-height, 1.7);
+}
+
+.editor :global(.ProseMirror a) {
+  color: var(--skin-note-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.editor :global(.ProseMirror blockquote) {
+  margin: 1em 0;
+  padding: 2px 0 2px 18px;
+  color: var(--skin-sidebar-textDim);
+  border-left: 3px solid var(--skin-note-accent);
+}
+
+.editor :global(.ProseMirror code) {
+  padding: 0.12em 0.35em;
+  color: var(--skin-note-accent);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: 5px;
+  font-family: var(--crepe-font-code);
+  font-size: 0.9em;
+}
+
+.editor :global(.ProseMirror pre) {
+  overflow: auto;
+  padding: 16px;
+  color: var(--skin-input-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: var(--skin-input-radius);
+}
+
+.editor :global(.ProseMirror pre code) {
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+}
+
+.editor :global(.ProseMirror table) {
+  width: 100%;
+  margin: 1em 0;
+  border-collapse: collapse;
+}
+
+.editor :global(.ProseMirror th),
+.editor :global(.ProseMirror td) {
+  padding: 8px 10px;
+  border: var(--skin-input-border);
+  text-align: left;
+}
+
+.editor :global(.ProseMirror th) {
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+}
+
+.editor :global(.ProseMirror img) {
+  max-width: 100%;
+  border-radius: calc(var(--skin-note-radius) * 0.5);
+}
+
+.editor :global(.ProseMirror hr) {
+  border: 0;
+  border-top: var(--skin-input-border);
+}
+
+.editor :global(.milkdown-toolbar),
+.editor :global(.milkdown-top-bar),
+.editor :global(.milkdown-menu) {
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+}
+
+.editor :global(.toolbar-item:hover),
+.editor :global(.top-bar-item:hover),
+.editor :global(.top-bar-heading-button:hover),
+.editor :global(.top-bar-heading-option:hover) {
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.editor :global(.toolbar-item.active svg),
+.editor :global(.top-bar-item.active svg),
+.editor :global(.top-bar-heading-option.active) {
+  color: var(--skin-toolbar-accent);
+}
+
+.editor :global(.milkdown-block-handle) {
+  position: absolute;
+  z-index: 24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  color: var(--skin-toolbar-accent);
+  cursor: pointer;
+}
+
+.editor :global(.milkdown-block-handle[data-show="false"]) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.editor :global(.milkdown-block-handle .operation-item) {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  padding: 2px;
+  color: var(--skin-toolbar-accent);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.editor :global(.milkdown-block-handle .operation-item:hover),
+.editor :global(.milkdown-block-handle .operation-item.active) {
+  color: var(--skin-toolbar-text);
+  background: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+  border-color: var(--skin-toolbar-border);
+}
+
+.editor :global(.milkdown-block-handle .operation-item svg) {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
+.editor :global(.milkdown-slash-menu) {
+  position: absolute;
+  z-index: 25;
+  display: flex;
+  width: min(292px, calc(100vw - 32px));
+  max-height: min(430px, calc(100vh - 110px));
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: var(--skin-toolbar-textDim) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  color: var(--skin-toolbar-text);
+  font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: min(var(--skin-toolbar-radius, var(--skin-note-radius)), 14px);
+  box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
+  backdrop-filter: blur(var(--skin-toolbar-blur));
+}
+
+.editor :global(.milkdown-slash-menu[data-show="false"]) {
+  display: none;
+}
+
+.editor :global(.milkdown-slash-menu .tab-group) {
+  padding: 5px 5px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--skin-toolbar-border) 80%, transparent);
+}
+
+.editor :global(.milkdown-slash-menu .tab-group ul),
+.editor :global(.milkdown-slash-menu .menu-group ul) {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group ul) {
+  flex-direction: column;
+}
+
+.editor :global(.milkdown-slash-menu .tab-group ul) {
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 3px 4px;
+}
+
+.editor :global(.milkdown-slash-menu .tab-group ul li) {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  color: var(--skin-toolbar-textDim);
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.editor :global(.milkdown-slash-menu .tab-group ul li:hover),
+.editor :global(.milkdown-slash-menu .tab-group ul li.selected) {
+  color: var(--skin-toolbar-accent);
+  background: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.editor :global(.milkdown-slash-menu .menu-groups) {
+  min-height: 0;
+  max-height: 360px;
+  flex: 1 1 auto;
+  padding: 0 5px 5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-color: var(--skin-toolbar-textDim) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.editor :global(.milkdown-slash-menu .menu-groups::-webkit-scrollbar) {
+  width: 5px;
+}
+
+.editor :global(.milkdown-slash-menu .menu-groups::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+.editor :global(.milkdown-slash-menu .menu-groups::-webkit-scrollbar-thumb) {
+  background: var(--skin-toolbar-textDim);
+  border-radius: 999px;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group + .menu-group) {
+  border-top: 1px solid color-mix(in srgb, var(--skin-toolbar-border) 80%, transparent);
+}
+
+.editor :global(.milkdown-slash-menu .menu-group h6) {
+  margin: 0;
+  padding: 6px 6px 3px;
+  color: var(--skin-toolbar-textDim);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-transform: uppercase;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group li) {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 7px;
+  overflow: hidden;
+  border-radius: 6px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group li:hover),
+.editor :global(.milkdown-slash-menu .menu-group li.hover),
+.editor :global(.milkdown-slash-menu .menu-group li.active) {
+  color: var(--skin-toolbar-accent);
+  background: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.editor :global(.milkdown-slash-menu .menu-group li svg) {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--skin-toolbar-accent);
+  fill: currentColor;
+}
+
+.editor :global(.milkdown-slash-menu .menu-group li > span) {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--skin-toolbar-text);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loading {
+  position: absolute;
+  z-index: 2;
+  inset: 42px 54px auto;
+  padding: 12px;
+  color: var(--skin-sidebar-textDim);
+  text-align: center;
+  pointer-events: none;
+}
+
+.error {
+  color: var(--skin-note-accent);
+}

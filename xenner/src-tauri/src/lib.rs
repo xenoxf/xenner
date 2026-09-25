@@ -1,20 +1,37 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-mod skin;
+use tauri::Manager;
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+mod skin;
+mod vault;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            app.manage(vault::initialize(app.handle())?);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
-            greet,
             skin::scan_skins,
             skin::read_skin_file,
-            skin::read_config
+            skin::read_config,
+            skin::set_active_skin,
+            skin::create_skin,
+            vault::choose_workspace,
+            vault::scan_workspace,
+            vault::read_note,
+            vault::import_asset,
+            vault::choose_image_asset,
+            vault::read_asset,
+            vault::update_asset,
+            vault::delete_asset,
+            vault::write_note,
+            vault::create_note,
+            vault::create_folder,
+            vault::rename_entry,
+            vault::move_entry,
+            vault::delete_entry
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

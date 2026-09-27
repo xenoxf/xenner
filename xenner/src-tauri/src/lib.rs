@@ -15,6 +15,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             skin::scan_skins,
             skin::read_skin_file,
+            skin::read_skin_asset,
+            skin::skin_file_stamp,
             skin::read_config,
             skin::set_active_skin,
             skin::create_skin,

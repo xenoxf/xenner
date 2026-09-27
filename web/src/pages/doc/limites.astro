@@ -1,0 +1,79 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { pagina } from '../../data/doc';
+
+const doc = pagina('/doc/limites/');
+---
+
+<DocsLayout doc={doc}>
+  <h2 id="limites">Lo que está fuera de alcance</h2>
+
+  <p>Para que nadie lo intente y lo considere un fallo:</p>
+
+  <ul>
+    <li>
+      <strong>Añadir, quitar o mover elementos de la interfaz.</strong> Una skin
+      cambia el aspecto, no la estructura. No se puede esconder la barra lateral
+      del todo ni poner un panel nuevo. Lo que sí se puede es mover, encoger o
+      hacer transparente un trozo.
+    </li>
+    <li>
+      <strong>Descargar nada.</strong> Ni imágenes, ni letras, ni hojas de
+      estilo. Todo tiene que estar en <code>assets/</code>. Y eso no es un
+      capricho: es exactamente lo que impide que la skin que instalas hable con
+      internet.
+    </li>
+    <li>
+      <strong>Leer archivos de tu disco.</strong> Un <code>url()</code> solo
+      puede mirar dentro de <code>assets/</code>. Ni tus archivos de otros
+      sitios, ni nada del sistema.
+    </li>
+    <li>
+      <strong>Cambiar el comportamiento.</strong> No hay JavaScript, y no se
+      puede con CSS: una skin no puede saber qué estás escribiendo ni mandarlo a
+      ninguna parte.
+    </li>
+    <li>
+      <strong>Un SVG que se mueva o se anime.</strong> Un SVG dentro de un hueco
+      de imagen se dibuja quieto: es una foto, no una película. Si necesitas
+      movimiento, es un GIF, y solo si el formato lo admite.
+    </li>
+  </ul>
+
+  <h3 id="para-compartirla">Para compartirla</h3>
+
+  <p>
+    Una skin es una carpeta. Se copia, se comprime y se pasa a quien quieras.
+    Quien la reciba la deja en <code>skins/</code> y le aparece en la lista. Si
+    quieres que vaya a la carpeta donde Xenner guarda las skins propias —y así no
+    se pierde al reinstalar—, esa ruta se ve en la propia ventana de la
+    aplicación y depende del sistema operativo.
+  </p>
+
+  <p>
+    Pon siempre tu nombre en <code>author=</code> de <code>skin.txt</code>. Es
+    la primera línea de la lista y se lo agradece a quien la hizo.
+  </p>
+
+  <div class="callout callout--tip">
+    <span class="callout__label">Si algo se rompe, se puede volver atrás</span>
+    <p>
+      Borra <code>custom.css</code> y todo vuelve a lo que digan los
+      <code>.txt</code>. Y si también quieres volver atrás en eso, borra los
+      <code>.txt</code> y tienes la Xenner de fábrica. Siempre se puede
+      deshacer, así que no hay nada que temer al probar.
+    </p>
+  </div>
+
+  <h3 id="skins-de-ejemplo-para-copiar">Skins de ejemplo para copiar</h3>
+
+  <p>
+    Vienen cuatro, y están escritas para que se copien.
+    <code>pixel/</code> es retro, con un marco dibujado alrededor de cada nota y
+    un icono propio; <code>aurora/</code> no tiene ni una imagen y aun así se ve
+    distinta, porque usa degradados y transiciones;
+    <code>glass-default/</code> y <code>webcore/</code> son las dos clásicas.
+    Las cuatro están comentadas línea a línea, que es la mejor forma de aprender
+    qué se puede hacer.
+  </p>
+</DocsLayout>

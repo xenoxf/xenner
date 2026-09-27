@@ -1,0 +1,126 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { pagina } from '../../data/doc';
+
+/**
+ * `/doc/` — la puerta de entrada de la documentación.
+ *
+ * Tres cosas y no ocho: qué es una skin, cómo se hace la primera en cinco
+ * minutos y de qué archivos está hecha. Los otros siete capítulos están en la
+ * barra de la izquierda y en las tarjetas del final. La página se llama
+ * «Empezar aquí» en la navegación porque es exactamente eso: el punto de partida,
+ * no el resumen de todo lo demás.
+ */
+const doc = pagina('/doc/');
+---
+
+<DocsLayout doc={doc}>
+  <p>
+    Si has llegado aquí es que quieres que Xenner no se parezca a Xenner. Se
+    puede, y hay dos caminos. El primero son unos archivos de texto con una
+    línea por ajuste, y se entiende en cinco minutos. El segundo es un archivo de
+    CSS donde se puede poner lo que se te ocurra, imágenes incluidas. Los dos
+    conviven: empieza por el primero y ve al segundo cuando los colores se te
+    queden cortos.
+  </p>
+
+  <h2 id="que-es">Qué es una skin</h2>
+
+  <p>
+    Una skin es una carpeta con un archivo de texto dentro. Xenner la busca al
+    arrancar, la encuentra, lee lo que dice cada archivo y lo aplica. Si algo no
+    está, lo pone él. Si algo está mal, lo pasa por alto.
+  </p>
+
+  <p>
+    Esa última parte es la importante, y es deliberada: <strong>no hay forma de
+    romper la aplicación desde una skin</strong>. Una skin viene de fuera —la
+    puede haber descargado otra persona— y el peor resultado posible tiene que
+    ser que se vea con el aspecto de fábrica, no que se quede en blanco. Por eso
+    una clave que no reconoce se ignora en silencio, un archivo entero ilegible se
+    salta, y una imagen que no carga deja la superficie con su color en vez de
+    desaparecer el botón.
+  </p>
+
+  <h2 id="cinco-minutos">La primera, en cinco minutos</h2>
+
+  <ol class="steps">
+    <li>
+      <h3 id="abre-la-carpeta-de-skins">Abre la carpeta de skins</h3>
+      <p>
+        Dentro de la carpeta de Xenner está <code>skins/</code>. Ahí hay cuatro
+        carpetas de ejemplo: <code>glass-default/</code>, <code>webcore/</code>,
+        <code>pixel/</code> y <code>aurora/</code>.
+      </p>
+    </li>
+    <li>
+      <h3 id="duplica-una">Duplica una</h3>
+      <p>
+        Copia una de las cuatro y renómbrala. El nombre de la carpeta es el
+        identificador de la skin, así que solo puede llevar letras, números,
+        guiones y guiones bajos. Si le pones <code>mi-tema</code>, esa es la
+        skin que luego activas.
+      </p>
+    </li>
+    <li>
+      <h3 id="cambia-un-color">Cambia un color</h3>
+      <p>
+        Abre <code>note.txt</code> con cualquier editor de texto, busca la línea
+        que empieza por <code>text=</code> y cambia lo que hay entre las
+        comillas. Guarda.
+      </p>
+    </li>
+    <li>
+      <h3 id="eligela">Elígela</h3>
+      <p>
+        Abre <em>Ajustes → Apariencia</em> y búscala en la lista. O, si prefieres
+        no tocar la aplicación, abre <code>skins/config.txt</code> y pon el
+        nombre de tu carpeta:
+      </p>
+      <pre is:raw><code>skinPath="mi-tema"</code></pre>
+      <p>
+        Los dos caminos sirven. Si tocas los dos, gana el que hayas modificado
+        más tarde, que es lo normal: si creas la skin y luego la eliges en la
+        aplicación, la aplicación manda.
+      </p>
+    </li>
+  </ol>
+
+  <div class="callout callout--tip">
+    <span class="callout__label">No hace falta reiniciar</span>
+    <p>
+      Xenner está mirando los archivos. Guardas el cambio y a los dos o tres
+      segundos la ventana ya está distinta. Si estás probando veinte ideas, esto
+      importa más de lo que parece. La lista de skins sí necesita reiniciar,
+      porque se construye al arrancar.
+    </p>
+  </div>
+
+  <h2 id="archivos">De qué archivos está hecha</h2>
+
+  <p>
+    Solo <code>skin.txt</code> es obligatorio; es lo que hace que Xenner sepa que
+    esa carpeta es una skin. Los demás son opcionales y cada uno controla un
+    trozo de la ventana. Lo que no escribas, Xenner lo pone por su cuenta, así
+    que una skin puede ser un único archivo.
+  </p>
+
+  <div class="files">
+    <div class="files__file">mi-tema/</div>
+    <div class="files__file">  skin.txt          <span class="files__opt">obligatorio: el nombre que se ve en la lista</span></div>
+    <div class="files__file">  background.txt    <span class="files__opt">el fondo de la ventana</span></div>
+    <div class="files__file">  sidebar.txt       <span class="files__opt">la lista de notas de la izquierda</span></div>
+    <div class="files__file">  note.txt          <span class="files__opt">la nota de la derecha</span></div>
+    <div class="files__file">  toolbar.txt       <span class="files__opt">la barra flotante sobre el texto</span></div>
+    <div class="files__file">  button.txt        <span class="files__opt">los botones</span></div>
+    <div class="files__file">  input.txt         <span class="files__opt">los campos donde se escribe</span></div>
+    <div class="files__file">  custom.css        <span class="files__opt">opcional: donde se puede cambiarlo todo</span></div>
+    <div class="files__dir">  assets/            <span class="files__opt">opcional: tus imágenes, iconos y tipografías</span></div>
+  </div>
+
+  <p>
+    Las dos últimas filas son la diferencia entre recolorear Xenner y
+    redibujarlo. Llega a ellas cuando <a href="/doc/css/">los colores se te queden
+    cortos</a>.
+  </p>
+</DocsLayout>

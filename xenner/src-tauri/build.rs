@@ -3,6 +3,8 @@ fn main() {
         tauri_build::AppManifest::new().commands(&[
             "scan_skins",
             "read_skin_file",
+            "read_skin_asset",
+            "skin_file_stamp",
             "read_config",
             "set_active_skin",
             "create_skin",

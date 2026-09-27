@@ -23,9 +23,9 @@ export const GUIDE: readonly GuidePage[] = [
     summary: 'Por qué las notas son archivos de texto.',
   },
   {
-    path: '/skins/',
-    label: 'El aspecto',
-    summary: 'La interfaz son archivos de texto.',
+    path: '/doc/',
+    label: 'Hacer una skin',
+    summary: 'La documentación completa, en una sola página.',
   },
   {
     path: '/pizarra/',

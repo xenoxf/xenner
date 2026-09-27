@@ -422,3 +422,263 @@ ol {
   font-family: var(--serif);
   font-size: var(--t-md);
 }
+
+/* ==========================================================================
+   Piezas de la documentación de skins
+   --------------------------------------------------------------------------
+   La referencia de claves y las tablas largas se leen mejor en una tabla
+   real que en un <pre>, así que aquí hay estilos de tabla, y tres tipos de
+   aviso con el mismo aspecto: nota, consejo y aviso. Viven en global porque
+   las páginas de la guía las escriben en un <slot> y el <style> con ámbito
+   del layout no las alcanza.
+   ========================================================================== */
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+}
+
+.prose th,
+.prose td {
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.prose thead th {
+  color: var(--ink-3);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  border-bottom-color: var(--line-strong);
+}
+
+.prose tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.prose td code {
+  white-space: nowrap;
+}
+
+/* ---------- una clave, explicada ---------- */
+
+.key {
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.key + .key {
+  margin-top: 0.75rem;
+}
+
+.key > :first-child {
+  margin-top: 0;
+}
+
+.key > :last-child {
+  margin-bottom: 0;
+}
+
+.key__name {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.key__sees {
+  margin-top: 0.35rem;
+  color: var(--ink-2);
+  font-size: var(--t-base);
+}
+
+.key__type {
+  margin-top: 0.55rem;
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+}
+
+.key__note {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line-soft);
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+  line-height: 1.65;
+}
+
+/* ---------- avisos ---------- */
+
+.callout {
+  margin-top: 1.75rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-ui);
+  border-radius: 12px;
+  background: var(--sunken);
+  font-size: var(--t-base);
+}
+
+.callout > :first-child {
+  margin-top: 0;
+}
+
+.callout > :last-child {
+  margin-bottom: 0;
+}
+
+.callout p,
+.callout li {
+  font-size: var(--t-base);
+  line-height: 1.7;
+}
+
+.callout__label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--ink);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.callout--tip {
+  border-left-color: #1a7f5a;
+  background: #f1f9f5;
+}
+
+.callout--warn {
+  border-left-color: #b45309;
+  background: #fdf6ec;
+}
+
+.callout code {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* ---------- árbol de archivos ---------- */
+
+.files {
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--sunken);
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  line-height: 1.85;
+  overflow-x: auto;
+}
+
+.files div {
+  white-space: pre;
+}
+
+.files .files__dir {
+  color: var(--ink-3);
+}
+
+.files .files__file {
+  color: var(--ink);
+}
+
+.files .files__opt {
+  color: var(--ink-3);
+}
+
+/* ---------- pasos ---------- */
+
+.steps {
+  counter-reset: step;
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.steps > li {
+  position: relative;
+  padding-left: 2.6rem;
+  counter-increment: step;
+}
+
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--on-accent);
+  background: var(--accent-ink);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.steps h3 {
+  margin-top: 0;
+}
+
+.steps > *:first-child {
+  margin-top: 0;
+}
+
+.steps > * + * {
+  margin-top: 0.85rem;
+}
+
+/* ---------- una tira de antes y después ---------- */
+
+.compare {
+  margin-top: 1.75rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.compare > div {
+  padding: 0.9rem 1rem;
+  background: var(--surface);
+}
+
+.compare pre {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  background: var(--sunken);
+  font-size: var(--t-xs);
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.compare p {
+  margin-top: 0.5rem;
+  color: var(--ink-3);
+  font-size: var(--t-xs);
+}
+
+@media (max-width: 640px) {
+  .compare {
+    grid-template-columns: 1fr;
+  }
+
+  .prose table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+

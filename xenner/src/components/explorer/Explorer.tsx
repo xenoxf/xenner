@@ -84,10 +84,16 @@ function ExplorerNode(props: NodeProps) {
     <div
       class={styles.node}
       role="treeitem"
+      data-x="tree-item"
+      data-kind={props.node.kind}
+      data-selected={selected() ? "true" : undefined}
       aria-expanded={props.node.kind === "directory" ? expanded() : undefined}
     >
       <div
         class={`${styles.row} ${selected() ? styles.active : ""} ${isDropTarget() ? styles.dropTarget : ""} ${isDragging() ? styles.dragging : ""}`}
+        data-x="tree-row"
+        data-selected={selected() ? "true" : undefined}
+        data-drop-target={isDropTarget() ? "true" : undefined}
         style={`--tree-depth: ${props.depth}`}
         onContextMenu={(event) => props.onContextMenu(event, props.node)}
         onDragOver={(event) => {
@@ -119,20 +125,22 @@ function ExplorerNode(props: NodeProps) {
           onDragStart={(event) => props.onDragStart(event, props.node)}
           onDragEnd={props.onDragEnd}
         >
-          <span class={styles.chevron}>
+          <span class={styles.chevron} data-x="tree-row-chevron">
             <Show when={props.node.kind === "directory"}>
               <ChevronIcon classList={{ [styles.rotated]: expanded() }} />
             </Show>
           </span>
-          <span class={styles.icon}>
+          <span class={styles.icon} data-x="tree-row-icon">
             <Show when={props.node.kind === "directory"} fallback={<NoteIcon />}>
               <FolderIcon />
             </Show>
           </span>
-          <span class={styles.name}>{label()}</span>
+          <span class={styles.name} data-x="tree-row-label">
+            {label()}
+          </span>
         </button>
         <Show when={props.node.kind === "directory" || !selected()}>
-          <div class={styles.actions}>
+          <div class={styles.actions} data-x="tree-row-actions">
             <Show when={props.node.kind === "directory"}>
               <IconButton
                 size="small"

@@ -85,11 +85,32 @@ puede positionar una por término.
   se genera desde aquí, así que añadir una página es añadir una entrada.
 - `src/layouts/GuideLayout.astro`: cabecera, breadcrumbs, artículo, enlaces a las
   demás páginas y pie.
+- `src/pages/doc/*.astro`: la documentación, **ocho páginas** y una por
+  capítulo. El texto de cada una va en su propio archivo.
+- `src/data/doc.ts`: el índice de esas ocho páginas. De aquí salen la barra de la
+  izquierda, la de la derecha, el cajón del móvil, el «anterior» y el
+  «siguiente», las tarjetas del final y el índice del buscador. Una página pide
+  su ficha con `pagina('/doc/css/')`, que revienta la compilación si la ruta no
+  está en la lista.
+- `src/layouts/DocsLayout.astro`: la carcasa de la documentación. La izquierda
+  lista los capítulos, la derecha los apartados de la página en la que estás.
+- `src/styles/doc.css`: estilos del contenido de `/doc`. Van en un archivo aparte
+  porque llegan por `<slot>` y el `<style>` del layout no los alcanza.
+- `src/data/skins.ts`: las claves de las skins. La página de la referencia se
+  pinta desde aquí, no a mano, así que no puede quedarse desfasada de la app.
+- `src/data/texto.ts`: escapar y convertir los acentos graves de los datos.
+- `src/scripts/docSections.ts`: qué bloque de la página se está leyendo. Puro y
+  con pruebas.
+- `src/scripts/docSearch.ts`: el índice del buscador y la consulta. Puro y con
+  pruebas.
+- `src/scripts/docCode.ts`: botón de copiar, coloredor de comentarios y cadenas,
+  y envoltorio de las tablas anchas. El coloredor es puro y tiene pruebas.
 - `src/config.ts`: nombre del sitio y URL del repositorio.
 - `src/components/AppWindow.astro`: la maqueta de la ventana de la app.
 - `src/components/appwindow.css`: sus tokens y el interruptor claro/oscuro.
 - `src/layouts/BaseLayout.astro`: metadatos, canonical, Open Graph, JSON-LD y la
-  etiqueta de verificación.
+  etiqueta de verificación. `skipHref` declara a dónde lleva «Saltar al
+  contenido», que es distinto en cada layout.
 - `src/styles/global.css`: tokens del sitio, estilos base y la prosa de la guía.
 - `public/`: favicon, manifest e imagen social.
 
@@ -109,3 +130,34 @@ puede positionar una por término.
   navegador se pusiera oscura sobre una página de papel.
 - **El contenido describe lo que la app hace hoy.** Si cambia una función,
   cambia la web en el mismo commit.
+- **La documentación son ocho páginas, no una.** Era una sola URL de once
+  secciones y 36.000 píxeles. Con una URL por capítulo cada página responde a una
+  búsqueda, se puede enlazar a un apartado suelto, el navegador no tiene que
+  construirla entera y hay un «anterior» y un «siguiente» que atan el recorrido.
+  `doc.test.ts` comprueba que el índice y los encabezados de cada página no se
+  separan.
+- **Lo que se puede arreglar sin JavaScript se arregla en CSS.** El botón de
+  copiar, el resaltado de comentarios y el envoltorio de las tablas son
+  mejoras de lujo: si el script no llega a ejecutarse, el texto se sigue viendo,
+  se sigue copiando a mano y la tabla se sigue desplazando con el dedo. El
+  resaltado de la sección que se está leyendo y el buscador sí necesitan JS, y
+  por eso viven en un módulo aparte con pruebas, no en el marcado.
+
+### Lo que se midió
+
+- **Las barras laterales no se quedaban pegadas.** La rejilla llevaba
+  `align-items: start`, así que cada barra era tan alta como su contenido y
+  `position: sticky` no tenía recorrido: se iban con la página. Con
+  `stretch` se estiran a la fila y vuelven a quedarse.
+- **El resaltado de sección no arrancaba.** El script recorría los hijos de
+  `<main>`, que son la cabecera, la prosa y el pie: ninguno es un encabezado, así
+  que el reparto devolvía cero secciones y el script se iba sin hacer nada, sin
+  error. Ahora recorre `[data-doc-content]`, y hay un test que lo vigila.
+- **En un móvil, el botón de «Contenidos» estaba al final del artículo**, a
+  47.000 píxeles de distancia. Ahora la barra de lectura es fija, bajo la
+  cabecera, con el botón y el «estás aquí»; su altura se mide y se publica en
+  `--doc-bar-h` para que los anclas no queden debajo.
+- **El enlace «Saltar al contenido» de `/doc` no iba a ninguna parte**: apuntaba
+  a `#contenido`, que solo existe en las páginas de la guía.
+- **Las tablas de tres columnas se salían del papel en un móvil.** Con tres
+  columnas o menos, cada fila se convierte en una ficha con su etiqueta.

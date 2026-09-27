@@ -212,14 +212,14 @@ export function EditorPane(props: EditorPaneProps) {
   }
 
   return (
-    <main class={styles.pane} aria-label="Editor de nota">
+    <main class={styles.pane} data-x="note" aria-label="Editor de nota">
       <Show
         when={props.document}
         fallback={
-          <div class={styles.blankState} aria-busy={props.initializing}>
+          <div class={styles.blankState} data-x="note-empty" aria-busy={props.initializing}>
             <Show when={!props.initializing}>
               <div class={styles.emptyState}>
-                <span class={styles.emptyIcon}><NoteIcon /></span>
+                <span class={styles.emptyIcon} data-x="note-empty-icon"><NoteIcon /></span>
                 <h1>Una nota para escribir</h1>
                 <p>Crea una nota desde el explorador para empezar.</p>
                 <Button variant="primary" onClick={props.onCreate}>Nueva nota</Button>
@@ -233,6 +233,7 @@ export function EditorPane(props: EditorPaneProps) {
             {(documentPath) => (
               <div
                 class={styles.workspace}
+                data-x="note-workspace"
                 onDragOver={(event) => {
                   if (imageFileFromDataTransfer(event.dataTransfer)) event.preventDefault();
                 }}
@@ -241,18 +242,20 @@ export function EditorPane(props: EditorPaneProps) {
               >
                 <div
                   class={`${styles.scroll} ${props.loading ? styles.loading : ""}`}
+                  data-x="note-scroll"
                   aria-busy={props.loading}
                 >
-                  <div class={styles.documentColumn}>
-                    <div class={styles.heading}>
+                  <div class={styles.documentColumn} data-x="note-document">
+                    <div class={styles.heading} data-x="note-heading">
                       <div class={styles.headingMeta}>
-                        <span class={styles['path']} ><span class={styles["dir"]} >{getFather(documentPath)}</span> {documentPath.split("/").pop()}</span>
-                        <span class={styles.saveStatus} role="status" aria-live="polite">
+                        <span class={styles['path']} data-x="note-path" ><span class={styles["dir"]} >{getFather(documentPath)}</span> {documentPath.split("/").pop()}</span>
+                        <span class={styles.saveStatus} data-x="note-status" role="status" aria-live="polite">
                           {visibleStatus(props.status)}
                         </span>
                       </div>
                       <input
                         class={styles.titleInput}
+                        data-x="note-title"
                         value={titleDraft()}
                         placeholder="Título"
                         aria-label="Nombre y título de la nota"

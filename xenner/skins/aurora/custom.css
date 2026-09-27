@@ -1,0 +1,235 @@
+/* ===========================================================================
+   Aurora — el ejemplo que enseña que no hace falta ninguna imagen
+   ---------------------------------------------------------------------------
+   La otra mitad de la libertad: todo lo de aquí son gradientes, `filter` y
+   transiciones. Ni una sola imagen. Son gradientes calculados, no un PNG,
+   así que pesa cero y se ve igual en cualquier pantalla.
+
+   Si vienes de `glass-default`, el salto se ve: allí los colores eran opacos o
+   con alfa; aquí cada superficie tiene su propio degradado y el texto se
+   mantiene legible porque el gradiente va en `background-image` y el color de
+   texto va aparte. Ese es el truco: `background-color` de respaldo + gradiente
+   encima. Así si el gradiente no se soporta, queda el color plano y la
+   aplicación sigue siendo usable.
+   =========================================================================== */
+
+:root[data-skin-id="aurora"] {
+  --au-borde: rgba(148, 197, 255, 0.18);
+  --au-borde-fuerte: rgba(148, 197, 255, 0.42);
+  --au-texto: #e8f0ff;
+  --au-tenue: #9db2d4;
+  --au-vivo: #7dd3fc;
+  --au-lento: 420ms;
+}
+
+/* ------------------------------ el fondo -------------------------------- */
+:root[data-skin-id="aurora"] [data-x="app"] {
+  background-color: #0b1020; /* respaldo si algún gradiente no se soporta */
+  background-image:
+    radial-gradient(1100px 620px at 12% -8%, rgba(56, 132, 255, 0.30), transparent 62%),
+    radial-gradient(900px 540px at 92% 8%, rgba(167, 108, 255, 0.24), transparent 60%),
+    radial-gradient(800px 700px at 60% 108%, rgba(34, 211, 238, 0.16), transparent 62%);
+  background-attachment: fixed;
+}
+
+/* Un degradado que respira muy despacio. Es el tipo de cosa que hace que una
+   skin parezca viva... y también el tipo de cosa que mareaba, así que va
+   detrás de `prefers-reduced-motion` al final del archivo. */
+@keyframes au-latido {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+:root[data-skin-id="aurora"] [data-x="sidebar"] {
+  background-color: rgba(16, 24, 48, 0.72);
+  background-image: linear-gradient(
+    180deg,
+    rgba(30, 44, 82, 0.55),
+    rgba(12, 18, 36, 0.35)
+  );
+  backdrop-filter: blur(22px) saturate(140%);
+  border-right: 1px solid var(--au-borde);
+}
+
+/* La cabecera lleva un filete de luz que se desplaza al elegir una nota: un
+   detalle pequeño que es justo lo que `custom.css` permite y un `clave="valor"`
+   no. */
+:root[data-skin-id="aurora"] [data-x="sidebar-header"] {
+  position: relative;
+  border-bottom: 1px solid var(--au-borde);
+}
+
+:root[data-skin-id="aurora"] [data-x="sidebar-header"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--au-vivo), transparent);
+  animation: au-latido 7s ease-in-out infinite;
+}
+
+/* ------------------------------ las filas -------------------------------- */
+:root[data-skin-id="aurora"] [data-x="tree-row"] {
+  border-radius: 8px;
+  transition: background-color var(--au-lento) ease, box-shadow var(--au-lento) ease;
+}
+
+:root[data-skin-id="aurora"] [data-x="tree-row"]:hover {
+  box-shadow: inset 0 0 0 1px var(--au-borde);
+}
+
+:root[data-skin-id="aurora"] [data-x="tree-row"][data-selected] {
+  color: var(--au-texto);
+  box-shadow:
+    inset 0 0 0 1px var(--au-borde-fuerte),
+    inset 3px 0 0 var(--au-vivo);
+}
+
+/* `::before` para poner una marca delante de la fila elegida, sin tocar el
+   layout: si no está, no ocupa espacio. */
+:root[data-skin-id="aurora"] [data-x="tree-row"][data-selected]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--au-vivo);
+}
+
+:root[data-skin-id="aurora"] [data-x="tree-row-icon"] {
+  color: var(--au-tenue);
+  transition: color var(--au-lento) ease;
+}
+
+:root[data-skin-id="aurora"] [data-x="tree-row"][data-selected] [data-x="tree-row-icon"] {
+  color: var(--au-vivo);
+}
+
+/* -------------------------------- la nota -------------------------------- */
+:root[data-skin-id="aurora"] [data-x="note"] {
+  background-color: rgba(9, 13, 28, 0.55);
+  color: var(--au-texto);
+  --skin-note-background: transparent;
+  --skin-toolbar-background: rgba(24, 34, 64, 0.7);
+  --skin-input-background: rgba(20, 28, 54, 0.6);
+}
+
+:root[data-skin-id="aurora"] [data-x="note-title"] {
+  background: linear-gradient(92deg, #ffffff, var(--au-vivo));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.01em;
+}
+
+:root[data-skin-id="aurora"] [data-x="editor"] {
+  --skin-editor-size: 17px;
+  --skin-editor-line-height: 1.75;
+  --skin-content-width: 780px;
+}
+
+:root[data-skin-id="aurora"] [data-x="editor"] h1,
+:root[data-skin-id="aurora"] [data-x="editor"] h2 {
+  letter-spacing: -0.02em;
+}
+
+:root[data-skin-id="aurora"] [data-x="editor"] blockquote {
+  border-left: 2px solid var(--au-vivo);
+  color: var(--au-tenue);
+}
+
+/* ------------------------------- los botones ------------------------------ */
+:root[data-skin-id="aurora"] [data-x="button"] {
+  border-radius: 8px;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+:root[data-skin-id="aurora"] [data-x="button"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px -4px rgba(125, 211, 252, 0.35);
+}
+
+:root[data-skin-id="aurora"] [data-x="button"]:active {
+  transform: translateY(0);
+}
+
+:root[data-skin-id="aurora"] [data-x="button"][data-x-role="primary"] {
+  background-image: linear-gradient(135deg, #3b82f6, #22d3ee);
+  border: none;
+  color: #04121f;
+  font-weight: 600;
+}
+
+/* ------------------------------ las ventanas ------------------------------ */
+:root[data-skin-id="aurora"] [data-x="modal"] {
+  border: 1px solid var(--au-borde-fuerte);
+  border-radius: 16px;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7);
+}
+
+/* ------------------------------- la barra --------------------------------- */
+:root[data-skin-id="aurora"] [data-x="toolbar"] {
+  border: 1px solid var(--au-borde);
+  border-radius: 10px;
+  background-color: rgba(20, 28, 54, 0.72);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+}
+
+/* ===========================================================================
+   Variante clara
+   =========================================================================== */
+:root[data-skin-id="aurora"][data-color-scheme="light"] {
+  --au-borde: rgba(30, 64, 175, 0.14);
+  --au-borde-fuerte: rgba(30, 64, 175, 0.34);
+  --au-texto: #16233d;
+  --au-tenue: #5a6b8c;
+  --au-vivo: #1d6fd0;
+}
+
+:root[data-skin-id="aurora"][data-color-scheme="light"] [data-x="app"] {
+  background-color: #f6f8fd;
+  background-image:
+    radial-gradient(1000px 600px at 10% -10%, rgba(147, 197, 253, 0.55), transparent 60%),
+    radial-gradient(900px 520px at 94% 6%, rgba(221, 214, 254, 0.6), transparent 58%),
+    radial-gradient(760px 640px at 62% 106%, rgba(165, 243, 252, 0.42), transparent 60%);
+}
+
+:root[data-skin-id="aurora"][data-color-scheme="light"] [data-x="sidebar"] {
+  background-color: rgba(255, 255, 255, 0.72);
+  background-image: linear-gradient(180deg, rgba(239, 246, 255, 0.9), rgba(255, 255, 255, 0.5));
+}
+
+:root[data-skin-id="aurora"][data-color-scheme="light"] [data-x="note"] {
+  background-color: rgba(255, 255, 255, 0.6);
+  --skin-toolbar-background: rgba(255, 255, 255, 0.85);
+  --skin-input-background: rgba(255, 255, 255, 0.9);
+}
+
+:root[data-skin-id="aurora"][data-color-scheme="light"] [data-x="note-title"] {
+  background: linear-gradient(92deg, #16233d, var(--au-vivo));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+:root[data-skin-id="aurora"][data-color-scheme="light"] [data-x="button"]:hover {
+  box-shadow: 0 4px 18px -4px rgba(29, 111, 208, 0.3);
+}
+
+:root[data-skin-id="aurora"][data-color-scheme="light"] [data-x="button"][data-x-role="primary"] {
+  background-image: linear-gradient(135deg, #2563eb, #0891b2);
+  color: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin-id="aurora"] *,
+  :root[data-skin-id="aurora"] *::before,
+  :root[data-skin-id="aurora"] *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

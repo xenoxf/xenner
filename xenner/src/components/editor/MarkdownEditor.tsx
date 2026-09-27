@@ -547,10 +547,11 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   });
 
   return (
-    <div class={styles.shell}>
+    <div class={styles.shell} data-x="editor">
       <div
         ref={(element) => (root = element)}
         class={styles.editor}
+        data-x="editor-surface"
         data-toolbar={toolbarHover() ? "on" : "off"}
         onPointerMove={onEditorPointerMove}
         onPointerLeave={onEditorPointerLeave}

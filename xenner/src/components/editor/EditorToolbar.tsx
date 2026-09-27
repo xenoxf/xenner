@@ -172,6 +172,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
     <div
       class={styles.dock}
       role="toolbar"
+      data-x="toolbar"
       aria-orientation="horizontal"
       aria-label="Acciones del editor"
       onKeyDown={(event) => moveToolbarFocus(event, event.currentTarget)}
@@ -189,6 +190,8 @@ export function EditorToolbar(props: EditorToolbarProps) {
           ref={(element) => (insertTrigger = element)}
           type="button"
           class={`${styles.button} ${insertOpen() ? styles.open : ""}`}
+          data-x="toolbar-button"
+          data-x-open={insertOpen() ? "true" : undefined}
           disabled={props.loading || !props.ready}
           aria-label="Tipo de bloque de texto"
           aria-haspopup="dialog"

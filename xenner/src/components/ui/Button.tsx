@@ -13,5 +13,14 @@ export function Button(props: ButtonProps) {
       .filter(Boolean)
       .join(" ");
 
-  return <button {...buttonProps} class={className()} />;
+  // Ganchos de skin: `data-x` marca que es un botón y `data-x-role` cuál es,
+  // para poder atacar «el botón principal» sin conocer las clases hasheadas.
+  return (
+    <button
+      {...buttonProps}
+      class={className()}
+      data-x="button"
+      data-x-role={local.variant ?? "default"}
+    />
+  );
 }

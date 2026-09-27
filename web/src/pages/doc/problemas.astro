@@ -1,0 +1,175 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { pagina } from '../../data/doc';
+
+const doc = pagina('/doc/problemas/');
+---
+
+<DocsLayout doc={doc}>
+  <h2 id="problemas">Los fallos más habituales</h2>
+
+  <p>
+    Casi todo lo que verás aquí es «no se ve el cambio», no «se ha roto». Y cuando
+    algo de verdad no sale, es casi siempre la misma cosa: estás mirando otra skin.
+  </p>
+
+  <h3 id="la-skin-no-aparece-en-la-lista">La skin no aparece en la lista</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>El problema</th>
+        <th>La causa</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Falta <code>skin.txt</code></td>
+        <td>Sin ese archivo, la carpeta no se considera una skin. Se llama igual que los demás, y contiene <code>name</code>, <code>version</code> y <code>author</code>.</td>
+      </tr>
+      <tr>
+        <td>El nombre lleva espacios, tildes o <code>ñ</code></td>
+        <td>Solo valen letras sin tilde, números, guiones y guiones bajos. <code>mi tema</code> no vale; <code>mi-tema</code> sí.</td>
+      </tr>
+      <tr>
+        <td>La skin está en el sitio equivocado</td>
+        <td>Tiene que estar en la carpeta <code>skins/</code>, dentro de la de Xenner. Si la has dejado en el escritorio, no la encuentra.</td>
+      </tr>
+      <tr>
+        <td>Toca reiniciar</td>
+        <td>La lista se construye al arrancar. Si has creado la carpeta con la aplicación abierta, ciérrala y ábrela otra vez.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="cambie-un-color-y-no-pasa-nada">Cambié un color y no pasa nada</h3>
+
+  <ul>
+    <li>
+      <strong>¿Estás mirando la skin correcta?</strong> En <em>Ajustes →
+      Apariencia</em> sale la que está activa. Si has editado <code>sepia/</code>
+      pero la activa se llama <code>webcore</code>, no vas a ver nada, y el
+      archivo está perfectamente.
+    </li>
+    <li>
+      <strong>¿La has activado después de editar?</strong> Si elegiste la skin
+      antes de crearla, quizá se quedó otra seleccionada.
+    </li>
+    <li>
+      <strong>¿La clave existe en ese archivo?</strong> <code>itemHover</code>
+      solo funciona en <code>sidebar.txt</code>. Si lo pones en
+      <code>note.txt</code>, Xenner lo pasa por alto sin avisar. Es la causa
+      número uno de «no hace nada».
+    </li>
+    <li>
+      <strong>¿Está el signo <code>=</code>?</strong> <code>text #fff</code> no
+      es una línea, es un comentario mal puesto. <code>text="#fff"</code> sí.
+    </li>
+  </ul>
+
+  <div class="callout callout--tip">
+    <span class="callout__label">Cómo averiguarlo en diez segundos</span>
+    <p>
+      Deja la skin con un color imposible de confundir: pon
+      <code>background="#ff0000"</code> y <code>text="#ffff00"</code> en
+      <code>background.txt</code>. Si aparece rojo y amarillo, el problema es
+      que estabas mirando la skin equivocada. Si no aparece nada, es que ese
+      archivo no se está leyendo, y entonces el problema está en cómo se llama
+      la skin o en dónde está.
+    </p>
+  </div>
+
+  <h3 id="una-imagen-no-se-ve">Una imagen no se ve</h3>
+
+  <ul>
+    <li>
+      <strong>¿Está en <code>assets/</code>?</strong> Es la carpeta con ese
+      nombre exacto, dentro de la de tu skin. Si la has dejado suelta en la
+      carpeta de la skin, no la encuentra.
+    </li>
+    <li>
+      <strong>¿El nombre coincide exactamente?</strong> Mayúsculas y minúsculas
+      cuentan: <code>Fondo.PNG</code> no es <code>fondo.png</code>.
+    </li>
+    <li>
+      <strong>¿Está dentro del <code>url(...)</code>?</strong> Y sin barras
+      delante, porque la ruta es relativa a la carpeta de la skin.
+    </li>
+    <li>
+      <strong>¿El formato está en la lista?</strong> Un <code>.heic</code> o un
+      <code>.psd</code> no cargan, aunque el sistema los sepa abrir.
+    </li>
+    <li>
+      <strong>¿Pesa más de 4 MB?</strong> Si pesa más, no se ve y no avisa.
+    </li>
+  </ul>
+
+  <p>
+    Un detalle que sorprende: si pones una imagen en <code>background</code> de
+    <code>note.txt</code>, lo que se ve es el fondo de la nota, no el de la
+    ventana. Para el fondo de la ventana es <code>background.txt</code>.
+  </p>
+
+  <h3 id="el-texto-no-se-lee">El texto no se lee</h3>
+
+  <p>
+    Es el problema de una paleta demasiado apagada, y tiene arreglo rápido: sube
+    el contraste entre <code>text</code> y <code>background</code>. Si son muy
+    parecidos, oscurece el texto o acláralo. Y revisa <code>textDim</code> y
+    <code>placeholder</code>, que son los que más se olvidan y los que peor se
+    leen.
+  </p>
+
+  <p>
+    Si el problema es solo en el modo claro o solo en el oscuro, casi seguro que
+    has escrito la skin con <code>.txt</code> solamente, y el color es el mismo
+    en los dos. Eso se arregla con las variantes de <a href="/doc/css/">custom.css</a>.
+  </p>
+
+  <h3 id="se-aplica-a-medias">Se aplica a medias</h3>
+
+  <p>
+    Un color en un sitio y no en otro, normalmente es que hay dos capas. Si has
+    escrito el color en un <code>.txt</code> y además lo has cambiado en
+    <code>custom.css</code>, gana el CSS. Y si has puesto un color en dos
+    archivos que se aplican a la misma parte, gana el del componente que le
+    toca: <code>note.txt</code> para la nota, <code>sidebar.txt</code> para la
+    lista.
+  </p>
+
+  <h3 id="la-ventana-se-ve-rara-o-se-descuadra">La ventana se ve rara o se descuadra</h3>
+
+  <p>
+    Casi siempre es un <code>custom.css</code> con una regla que estira algo más
+    de lo que debería: un <code>width</code> enorme, un <code>padding</code>
+    desmedido, un <code>position</code> absoluto mal colocado.
+  </p>
+
+  <p>La salida rápida es borrar el archivo entero:</p>
+
+  <pre is:raw><code>rm skins/sepia/custom.css</code></pre>
+
+  <p>
+    Y si lo que quieres es deshacer la skin entera, borra la carpeta. O pon
+    <code>skinPath=""</code> en <code>config.txt</code> y vuelves a la de
+    fábrica sin borrar nada.
+  </p>
+
+  <h3 id="el-texto-de-la-nota-no-cambia-de-aspecto">El texto de la nota no cambia de aspecto</h3>
+
+  <p>
+    Los <code>.txt</code> no llegan al contenido de la nota. Los títulos, las
+    citas, el código y los enlaces de dentro del editor se cambian con
+    <code>custom.css</code>, y solo con CSS. Está en <a href="/doc/css/">Cambiarlo
+    todo con CSS</a>.
+  </p>
+
+  <h3 id="y-si-nada-de-esto-es">Y si nada de esto es</h3>
+
+  <p>
+    Entonces probablemente el problema sea de permisos: la carpeta está en un
+    sitio donde Xenner no puede escribir, o no puede leer. Pruébala en la
+    carpeta <code>skins/</code>, que es donde tiene permiso seguro, y si allí
+    funciona, es cosa de la carpeta donde la tienes.
+  </p>
+</DocsLayout>

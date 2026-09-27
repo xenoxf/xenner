@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!--
+    Un SVG en un hueco de imagen de CSS no puede ejecutar nada: en contexto de
+    imagen el motor desactiva el script y no carga recursos externos. Por eso una
+    skin puede trayerse su propio juego de iconos sin que sea una puerta.
+
+    Truco para ahorrar archivos: se pinta de negro y se tiñe con `mask-image` o
+    con `filter`. Así un solo icono sirve para todos los estados y colores, en
+    vez de un archivo por estado.
+  -->
+  <path fill="#000" d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm8 1.5V9h4.5L14 4.5ZM8 12h8v1.8H8V12Zm0 4h8v1.8H8V16Z"/>
+</svg>

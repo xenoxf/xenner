@@ -1,0 +1,256 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { pagina } from '../../data/doc';
+
+const doc = pagina('/doc/ejemplo/');
+---
+
+<DocsLayout doc={doc}>
+  <h2 id="ejemplo">Los seis archivos, uno a uno</h2>
+
+  <p>
+    La skin se va a llamar <strong>sepia</strong>, y va a tener papel cálido, tinta
+    marrón y sin bordes duros. Y dos versiones, una de día y otra de noche,
+    porque de noche un papel claro hace daño a la vista.
+  </p>
+
+  <h3 id="la-carpeta-y-el-manifiesto">1. La carpeta y el manifiesto</h3>
+
+  <p>
+    Copia una skin que te guste, bórrala por dentro y renómbrala
+    <code>sepia</code>. Empezar de cero en vez de borrar evita que se te pase un
+    archivo del original y te preguntes después de por qué sigue apareciendo un
+    color.
+  </p>
+
+  <pre is:raw><code>name="Sepia"
+version="1.0.0"
+author="tu nombre"</code></pre>
+
+  <h3 id="elegir-los-colores-antes-de-escribir-nada">2. Elegir los colores antes de escribir nada</h3>
+
+  <p>
+    Este es el paso que más se salta la gente y el que más resultados da. Una
+    skin son unos ocho colores que se repiten por todas partes, y si los eliges
+    de una vez, los seis archivos se escriben solos y sin colores que se
+    contradigan.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Para qué</th>
+        <th>Color</th>
+        <th>Dónde va</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>El papel</td>
+        <td><code>#f4ecd8</code></td>
+        <td><code>background</code> de la ventana</td>
+      </tr>
+      <tr>
+        <td>La tinta</td>
+        <td><code>#3b2f2a</code></td>
+        <td><code>text</code> de todo</td>
+      </tr>
+      <tr>
+        <td>La tinta suave</td>
+        <td><code>#7a6a5f</code></td>
+        <td><code>textDim</code></td>
+      </tr>
+      <tr>
+        <td>La sombra de las líneas</td>
+        <td><code>rgba(59, 47, 42, 0.16)</code></td>
+        <td><code>border</code></td>
+      </tr>
+      <tr>
+        <td>Lo que marca lo elegido</td>
+        <td><code>#9a5b2c</code></td>
+        <td><code>accent</code></td>
+      </tr>
+      <tr>
+        <td>Al pasar el ratón</td>
+        <td><code>rgba(154, 91, 44, 0.10)</code></td>
+        <td><code>itemHover</code>, <code>backgroundHover</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="los-seis-archivos">3. Los seis archivos</h3>
+
+  <p>
+    Con los colores ya decididos, cada archivo es corto. Fíjate en que casi todo
+    se repite: por eso saber qué clave hace falta en cada sitio es la mitad del
+    trabajo.
+  </p>
+
+  <p><code>background.txt</code> — el papel de detrás de todo:</p>
+
+  <pre is:raw><code># el papel, con un veteado muy suave
+background="#f4ecd8"
+overlay="radial-gradient(circle at 12% 8%, rgba(154,91,44,0.07), transparent 45%)"
+text="#3b2f2a"
+textDim="#7a6a5f"
+accent="#9a5b2c"</code></pre>
+
+  <p>
+    El <code>overlay</code> es un degradado radial muy tenue, solo un 7% de
+    opacidad: se nota si lo buscas y no estorba si no lo buscas. Esa es la
+    diferencia entre una skin con textura y una que parece sucia.
+  </p>
+
+  <p><code>sidebar.txt</code> — la lista, un pelo más oscura:</p>
+
+  <pre is:raw><code>background="#efe4cb"
+text="#3b2f2a"
+textDim="#7a6a5f"
+itemHover="rgba(154,91,44,0.10)"
+itemActive="rgba(154,91,44,0.18)"
+border="1px solid rgba(59,47,42,0.12)"
+accent="#9a5b2c"
+radius="0px"</code></pre>
+
+  <p><code>note.txt</code> — la hoja, lo más claro para no cansar la vista:</p>
+
+  <pre is:raw><code>background="#fbf6ea"
+text="#3b2f2a"
+border="1px solid rgba(59,47,42,0.16)"
+radius="6px"
+shadow="0 1px 3px rgba(59,47,42,0.08)"
+accent="#9a5b2c"
+font="Georgia, 'Noto Serif', serif"</code></pre>
+
+  <p>
+    <code>blur</code> no hace falta aquí: sin fondo transparente, no se ve nada.
+    Y <code>shadow</code> es una sombra mínima, de un píxel de difuminado. Con
+    papel, una sombra fuerte parece una mancha de humedad.
+  </p>
+
+  <p><code>button.txt</code> — invisible hasta que pasas por encima:</p>
+
+  <pre is:raw><code>background="transparent"
+backgroundHover="rgba(154,91,44,0.12)"
+text="#3b2f2a"
+textHover="#9a5b2c"
+border="1px solid transparent"
+borderHover="1px solid rgba(154,91,44,0.45)"
+radius="6px"
+accent="#9a5b2c"</code></pre>
+
+  <p>
+    El borde del botón es transparente hasta que pasas el ratón por encima, que
+    es cuando se enciende. Así la pantalla no se llena de cajas.
+  </p>
+
+  <p><code>input.txt</code> — los campos:</p>
+
+  <pre is:raw><code>background="#fbf6ea"
+text="#3b2f2a"
+placeholder="#a8977f"
+border="1px solid rgba(59,47,42,0.20)"
+focus="#9a5b2c"
+radius="4px"
+font="Georgia, 'Noto Serif', serif"</code></pre>
+
+  <p><code>toolbar.txt</code> — la barra flotante:</p>
+
+  <pre is:raw><code>background="#efe4cb"
+backgroundHover="rgba(154,91,44,0.12)"
+text="#3b2f2a"
+textDim="#7a6a5f"
+border="1px solid rgba(59,47,42,0.12)"
+radius="8px"
+accent="#9a5b2c"</code></pre>
+
+  <h3 id="activarla-y-mirarla">4. Activarla y mirarla</h3>
+
+  <p>
+    Pon <code>skinPath="sepia"</code> en <code>skins/config.txt</code> y mira.
+    Ahora viene la parte que no se explica en ninguna parte: deja la ventana
+    durante un rato y anota lo que te chirría. En una skin así lo típico es que
+    la nota abierta no se distingue lo suficiente de las demás, que el gris de
+    <code>textDim</code> está un pelo bajo de contraste, o que el
+    <code>accent</code> aparece en más sitios de los que creías.
+  </p>
+
+  <p>
+    Arreglar eso es cambiar un color en un archivo y mirar otra vez. Por eso
+    Xenner recarga solo: el bucle de probar es el trabajo.
+  </p>
+
+  <h3 id="la-variante-de-noche">5. La variante de noche</h3>
+
+  <p>
+    Con lo hecho hasta ahora, la skin es de papel claro siempre. De noche eso es
+    un blanco enorme en mitad de la pantalla. Se arregla en
+    <code>custom.css</code>, y no hay que tocar ninguno de los seis archivos.
+  </p>
+
+  <p>
+    La idea es: en vez de escribir el color en cada superficie, se declaran
+    unas pocas variables y se usan. Así la versión de noche son seis líneas, no
+    cuarenta.
+  </p>
+
+  <pre is:raw><code>/* mi-tema/custom.css */
+
+/* de día: los valores del papel */
+:root[data-skin-id="sepia"] {
+  --papel:    #f4ecd8;
+  --hoja:     #fbf6ea;
+  --panel:    #efe4cb;
+  --tinta:    #3b2f2a;
+  --tenue:    #7a6a5f;
+  --linea:    rgba(59, 47, 42, 0.14);
+  --viva:     #9a5b2c;
+}
+
+/* de noche: los mismos, para papel oscuro */
+:root[data-skin-id="sepia"][data-color-scheme="dark"] {
+  --papel:    #1c1614;
+  --hoja:     #241d1a;
+  --panel:    #191311;
+  --tinta:    #e8dcc8;
+  --tenue:    #9c8b7c;
+  --linea:    rgba(232, 220, 200, 0.14);
+  --viva:     #d9a066;
+}
+
+/* y ahora sí, una regla por superficie */
+[data-x="app"]     { background: var(--papel); color: var(--tinta); }
+[data-x="sidebar"] { background: var(--panel); color: var(--tinta); }
+[data-x="note"]    { background: var(--hoja);  color: var(--tinta); }
+
+[data-x="note-title"] { color: var(--tinta); }
+[data-x="note-path"]  { color: var(--tenue); }</code></pre>
+
+  <p>
+    Ahora resulta que <code>custom.css</code> va después de los
+    <code>.txt</code>, así que estas reglas ganan sobre los colores que
+    escribiste en el paso 3. No hace falta borrar nada: el <code>.txt</code> se
+    queda como documentación de la skin y el CSS manda.
+  </p>
+
+  <h3 id="un-detalle-la-tipografia-de-la-nota">6. Un detalle: la tipografía de la nota</h3>
+
+  <p>
+    Con una skin de papel, el texto de la nota es lo que más se nota. Con
+    <code>Georgia</code> se lee bien, pero el ancho de columna de serie deja
+    líneas demasiado largas. Eso no tiene clave en ningún <code>.txt</code>, y
+    por eso es un buen primer uso de <code>custom.css</code>:
+  </p>
+
+  <pre is:raw><code>[data-x="editor"] {
+  font-family: "Iowan Old Style", Georgia, "Noto Serif", serif;
+  font-size: 18px;
+  line-height: 1.7;
+  --skin-content-width: 680px;
+}</code></pre>
+
+  <p>
+    680 píxeles de ancho es más o menos 75 caracteres por línea. Más que eso y el
+    ojo se pierde al llegar al final de la línea.
+  </p>
+</DocsLayout>

@@ -1,0 +1,81 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { pagina } from '../../data/doc';
+
+/**
+ * `/doc/formato/` — cómo se escribe una línea y cómo se escribe un color.
+ *
+ * Son las dos páginas más cortas de la documentación y van juntas porque se leen
+ * seguidas: una es la gramática y la otra el vocabulario. Separarlas obligaría a
+ * saltar de URL para cambiar un color.
+ */
+const doc = pagina('/doc/formato/');
+---
+
+<DocsLayout doc={doc}>
+  <h2 id="formato">El formato, que son tres reglas</h2>
+
+  <p>Cada línea dice una cosa:</p>
+
+  <pre is:raw><code>clave="valor"</code></pre>
+
+  <p>Y con eso se puede:</p>
+
+  <ul>
+    <li>
+      <strong>Escribir comentarios.</strong> Una línea que empieza por
+      <code>#</code> no cuenta para nada. Útil para acordarte de qué cambiaste
+      hace tres meses.
+    </li>
+    <li>
+      <strong>Dejar comillas.</strong> Son opcionales, pero con comillas se ve
+      de un vistazo dónde acaba el valor, y hay valores que las necesitan.
+    </li>
+    <li>
+      <strong>Repetir una clave.</strong> Gana la última. Si estás probando
+      colores y no quieres borrar el anterior, pon los dos y quédate con el
+      último.
+    </li>
+  </ul>
+
+  <p>
+    Y hay dos cosas que Xenner hace por si te equivocas: si una clave no la
+    reconoce, la pasa por alto, y si un valor no tiene sentido, lo pasa por alto.
+    Puedes escribir lo que quieras en el archivo y, en el peor de los casos, esa
+    línea no hará nada. La aplicación nunca se queda en blanco.
+  </p>
+
+  <h2 id="colores">Los colores</h2>
+
+  <p>
+    Xenner acepta los dos estilos de escribir un color. El que ya conoce
+    cualquiera es el hexadecimal, con una almohadilla delante:
+  </p>
+
+  <pre is:raw><code>text="#e7e7e4"
+accent="#5b9bd5"</code></pre>
+
+  <p>
+    Si prefieres poder controlar también la transparencia, el otro es
+    <code>rgba()</code>, con cuatro números: rojo, verde, azul y opacidad de 0
+    (invisible) a 1 (opaco).
+  </p>
+
+  <pre is:raw><code>background="rgba(32, 32, 32, 0.85)"</code></pre>
+
+  <p>
+    Ese cuarto número es lo que separa una skin normal de una de cristal. Si
+    pones una opacidad por debajo de 1 y activas <code>blur</code>, Xenner
+    difumina lo que hay detrás de la superficie.
+  </p>
+
+  <div class="callout callout--tip">
+    <span class="callout__label">Un truco para decidir los colores</span>
+    <p>
+      El color que más pesa en una skin es <code>text</code>, el de la letra.
+      Elige primero el del fondo y luego mira el de la letra hasta que se lea
+      bien. Al revés cuesta más: probar veinte fondos hasta que uno funcione
+      con el texto que ya habías elegido.
+    </p>
+  </div>
+</DocsLayout>

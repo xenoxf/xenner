@@ -1,0 +1,185 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { pagina } from '../../data/doc';
+import { esc, md } from '../../data/texto';
+import {
+  HOOKS,
+  SHARED_KEYS,
+  SKIN_COMPONENT_DOCS,
+  type SkinComponentDoc,
+  type SkinKeyDoc,
+} from '../../data/skins';
+
+/**
+ * `/doc/claves/` — la referencia.
+ *
+ * Es la página más larga de la documentación y la única que no se escribe a
+ * mano: las claves, sus ejemplos y los archivos de ejemplo salen de
+ * `data/skins.ts`, que es la misma lista de la que se sirve la aplicación. Si
+ * mañana se añade una clave, sale aquí sin que nadie tenga que acordarse de
+ * escribirla dos veces.
+ *
+ * Los `id` de los apartados (`componente-note`…) los genera `seccion()` al
+ * pintar, así que no aparecen en este archivo. `doc.test.ts` lo tiene en cuenta
+ * y los contrasta contra `data/skins.ts`.
+ */
+const doc = pagina('/doc/claves/');
+
+function card(key: SkinKeyDoc): string {
+  return [
+    '<div class="key">',
+    '<code class="key__name">' + esc(key.key) + '</code>',
+    '<p class="key__sees">' + md(key.sees) + '</p>',
+    '<p class="key__type">Se escribe: <code>' + esc(key.example) + '</code>',
+    key.type ? ' &middot; ' + esc(key.type) : '',
+    '</p>',
+    key.note ? '<p class="key__note">' + md(key.note) + '</p>' : '',
+    '</div>',
+  ].join('');
+}
+
+/** Un archivo de ejemplo entero por componente, con sus claves propias puestas. */
+function sampleFile(doc: SkinComponentDoc): string {
+  return [
+    '# ' + doc.name.toLowerCase(),
+    'background="#202020"',
+    'text="#e7e7e4"',
+    'border="1px solid #3c3c39"',
+    'radius="10px"',
+  ]
+    .concat(doc.keys.map((key) => key.key + '=' + key.example))
+    .concat([
+      'shadow="0 8px 24px rgba(0,0,0,0.28)"',
+      'accent="#5b9bd5"',
+      'font="system-ui, sans-serif"',
+    ])
+    .join('\n');
+}
+
+function seccion(doc: SkinComponentDoc): string {
+  return [
+    '<h3 id="componente-' + doc.file.replace('.txt', '') + '">' +
+      '<code>' + esc(doc.file) + '</code> &mdash; ' + esc(doc.name) + '</h3>',
+    '<p>' + md(doc.sees) + '</p>',
+    '<p>Además de las ocho de arriba, en este archivo valen:</p>',
+    '<div class="keygrid">' + doc.keys.map(card).join('') + '</div>',
+    '<h4>Un ejemplo entero</h4>',
+    '<pre><code>' + esc(sampleFile(doc)) + '</code></pre>',
+  ].join('\n');
+}
+
+const totalClaves =
+  SHARED_KEYS.length +
+  SKIN_COMPONENT_DOCS.reduce((total, d) => total + d.keys.length, 0);
+
+const sharedCards = SHARED_KEYS.map(card).join('');
+const componentSections = SKIN_COMPONENT_DOCS.map(seccion).join('\n');
+const hookRows = HOOKS.map(
+  (hook) => '<tr><td><code>' + esc(hook.hook) + '</code></td><td><strong>' +
+    esc(hook.name) + '</strong> &mdash; ' + md(hook.sees) + '</td></tr>',
+).join('\n');
+---
+
+<DocsLayout doc={doc}>
+  <h2 id="claves">La lista y cada archivo</h2>
+
+  <p>
+    Hay {totalClaves} claves en total. Las ocho primeras valen en cualquier
+    archivo de componente; el resto dependen del trozo de pantalla que estés
+    cambiando.
+  </p>
+
+  <h3 id="como-se-escribe">Cómo se escribe</h3>
+
+  <p>
+    Las comillas son opcionales en casi todos los casos. Se ponen cuando el
+    valor lleva espacios de sobra, y son menos propensas a que se cuele algo sin
+    querer, así que ponerlas siempre no es mala idea.
+  </p>
+
+  <p>
+    Y estas son las cosas que Xenner pasa por alto, sin avisar y sin romper nada.
+    Están aquí para que sepas que no hay forma de estropear la aplicación desde
+    una skin:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Se ignora</th>
+        <th>Por qué</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Una clave que no existe</td>
+        <td>Para poder experimentar sin miedo. Escribe <code>fontt</code> en vez de <code>font</code> y no pasa nada.</td>
+      </tr>
+      <tr>
+        <td>Una clave en el archivo equivocado</td>
+        <td>Cada archivo solo acepta las suyas. <code>itemHover</code> funciona en <code>sidebar.txt</code> y se ignora en cualquier otro.</td>
+      </tr>
+      <tr>
+        <td>Una imagen que no existe</td>
+        <td>El trozo conserva su aspecto por defecto. Se pierde la imagen, no el botón.</td>
+      </tr>
+      <tr>
+        <td>Un <code>data:</code> que no sea una imagen</td>
+        <td>Solo se cargan imágenes incrustadas. Un <code>data:text/html</code> no es una imagen y se descarta.</td>
+      </tr>
+      <tr>
+        <td>Una dirección web dentro de <code>url()</code></td>
+        <td>Una skin nunca habla con internet. No es un capricho: es lo que evita que la apariencia que instalas reporte a alguien qué tienes abierto.</td>
+      </tr>
+      <tr>
+        <td>Una ruta fuera de la skin</td>
+        <td>Ni <code>/etc/passwd</code> ni <code>../../</code>. Solo archivos que estén dentro de <code>assets/</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="las-ocho-que-valen-en-todas-partes">Las ocho que valen en todas partes</h3>
+
+  <p>
+    Sirven en <code>background.txt</code>, <code>sidebar.txt</code>,
+    <code>note.txt</code>, <code>button.txt</code>, <code>input.txt</code> y
+    <code>toolbar.txt</code>. Lo que significan depende del archivo:
+    <code>background</code> en la nota es el papel donde escribes, y en la barra
+    lateral es el fondo de la lista.
+  </p>
+
+  <div class="keygrid" set:html={sharedCards} />
+
+  <div class="callout callout--tip">
+    <span class="callout__label">Sobre <code>font</code></span>
+    <p>
+      La pila de tipografías no es una lista de lo que tienes instalado. El
+      ordenador usa la primera que encuentre y se salta las que no. Si pones
+      cuatro que no tienes y al final una que sí, funciona; si ninguna de las
+      que pones está, se queda con la del sistema. Terminar siempre en
+      <code>serif</code>, <code>sans-serif</code> o <code>monospace</code>
+      convierte ese final en un plan B seguro.
+    </p>
+  </div>
+
+  <h3 id="las-claves-de-cada-archivo">Las claves de cada archivo</h3>
+
+  <div set:html={componentSections} />
+
+  <h3 id="el-manifiesto">El manifiesto</h3>
+
+  <p>
+    <code>skin.txt</code> es el único archivo obligatorio. Lo que Xenner lee de
+    él es el nombre que sale en la lista; las otras dos líneas salen al lado, en
+    letra pequeña.
+  </p>
+
+  <pre is:raw><code>name="Noche"
+version="1.0.0"
+author="tu nombre"</code></pre>
+
+  <p>
+    Las tres son opcionales. Sin <code>name</code> sale el nombre de la carpeta.
+    Si te pasas de 128 caracteres, se corta. Aquí las comillas no hacen falta.
+  </p>
+</DocsLayout>

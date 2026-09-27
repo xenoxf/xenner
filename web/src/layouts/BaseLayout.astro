@@ -9,6 +9,13 @@ interface Props {
   noindex?: boolean;
   /** Token de Search Console. Por defecto, el ya verificado en el repo. */
   googleVerification?: string;
+  /**
+   * A dónde lleva el enlace «Saltar al contenido». Cada layout tiene su
+   * contenedor y por eso lo declara: el de la documentación es su propio
+   * `<main>`, no el `<main id="contenido">` de las páginas de la guía. Con un
+   * destino que no existe el enlace no hace nada, y eso no se ve en ningún sitio.
+   */
+  skipHref?: string;
 }
 
 const {
@@ -19,6 +26,7 @@ const {
   googleVerification =
     import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION ??
     'fa6zFON181emDwrvIUEtbd_oiy5bwslWzIokdl-_An4',
+  skipHref = '#contenido',
 } = Astro.props;
 
 /* El título por defecto lleva la palabra que se busca ("creador de notas") y
@@ -139,7 +147,7 @@ const structuredData = {
     {!noindex && <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />}
   </head>
   <body>
-    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+    <a class="skip-link" href={skipHref}>Saltar al contenido</a>
     <slot />
   </body>
 </html>

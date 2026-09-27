@@ -105,6 +105,8 @@ export function SettingsModal(props: SettingsModalProps) {
           dialog = element;
         }}
         class={styles.modal}
+        data-x="modal"
+        data-x-modal="settings"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"

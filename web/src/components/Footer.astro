@@ -23,8 +23,8 @@ const elsewhere = GUIDE.filter((page) => page.path !== Astro.url.pathname);
         <a href="/#look">Apariencia</a>
       </nav>
 
-      <nav class="foot__col" aria-label="Guía">
-        <h2>Guía</h2>
+      <nav class="foot__col" aria-label="Documentación">
+        <h2>Documentación</h2>
         {elsewhere.map((page) => <a href={page.path}>{page.label}</a>)}
       </nav>
 

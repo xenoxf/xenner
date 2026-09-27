@@ -1,0 +1,235 @@
+/* ===========================================================================
+   Pixel — el ejemplo que enseña custom.css
+   ---------------------------------------------------------------------------
+   Esta skin casi no usa TXT: vive entera aquí, en CSS normal. Es a propósito,
+   para que se vea el reparto:
+
+     - lo puntual (un color, un borde)  ->  un TXT, con `clave="valor"`
+     - lo que no cabe en `clave="valor"` ->  aquí
+
+   Las tres cosas que solo se pueden hacer aquí:
+
+     1. IMÁGENES. `url(assets/marco.png)` sale de la carpeta de la skin. Xenner
+        no la lee del disco: la pide, la comprueba y te devuelve los bytes, así
+        que el `url()` se sustituye por un `data:` antes de llegar al CSS.
+     2. VARIANTES CLARA Y OSCURA. Los TXT no pueden: solo guardan un color. Aquí
+        se separa por `[data-color-scheme]`, que Xenner pone en <html> según el
+        modo de Apariencia, y una skin se adapta a los dos sin tocar nada.
+     3. GEOMETRÍA. `padding`, `letter-spacing`, `transform`: cosas que no hay
+        donde ponerlas en un `clave="valor"`.
+
+   El orden de este archivo importa: gana sobre los TXT y sobre los valores
+   embebidos de global.css, así que aquí se puede corregir cualquier cosa.
+   =========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Paleta. Las dos variantes, juntas y en un solo sitio.
+
+   Se declaran como variables propias y a partir de aquí se usa `var()`. Es la
+   misma idea que `--skin-*`: cambiar un color en un sitio lo cambia en todos.
+   `--` en el nombre es la convención para "esto no lo lee Xenner, es mío".
+   -------------------------------------------------------------------------- */
+:root[data-skin-id="pixel"] {
+  --px-borde: #ffd166;
+  --px-borde-oscuro: #7b5ca8;
+  --px-cara: #2b213a;
+  --px-cara-alta: #3a2d50;
+  --px-luz: #fff3c4;
+  --px-sombra: #191227;
+}
+
+/* ------------------------------ el fondo ------------------------------- */
+:root[data-skin-id="pixel"] [data-x="app"] {
+  background-color: var(--px-cara);
+  /* Rejilla de fondo, con dos gradientes que se cruzan. No necesita imagen. */
+  background-image:
+    linear-gradient(rgba(255, 209, 102, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 209, 102, 0.06) 1px, transparent 1px);
+  background-size: 32px 32px, 32px 32px;
+}
+
+/* ---------------------------- la barra lateral --------------------------- */
+:root[data-skin-id="pixel"] [data-x="sidebar"] {
+  background-color: var(--px-cara-alta);
+  border-right: 2px solid var(--px-borde-oscuro);
+}
+
+:root[data-skin-id="pixel"] [data-x="sidebar-header"] {
+  border-bottom: 2px solid var(--px-borde-oscuro);
+}
+
+/* Una fila del árbol. `border-image` es lo que hace posible esto: una sola
+   imagen de 24x24 estira sus bordes y esquinas a cualquier tamaño de ventana,
+   sin deformarse. Con `background-image` una imagen fija se rompe en cuanto la
+   ventana deja de medir lo que el dibujo original. */
+:root[data-skin-id="pixel"] [data-x="tree-row"] {
+  border: none;
+  border-image: url(assets/marco.png) 8 fill;
+  padding: 4px 6px;
+  margin: 2px 6px;
+  border-radius: 0;
+}
+
+:root[data-skin-id="pixel"] [data-x="tree-row"]:hover {
+  background-color: rgba(255, 209, 102, 0.14);
+}
+
+:root[data-skin-id="pixel"] [data-x="tree-row"][data-selected] {
+  background-color: rgba(255, 209, 102, 0.2);
+}
+
+/* La fila elegida lleva además un cursor de bloque, como en un NES. */
+:root[data-skin-id="pixel"] [data-x="tree-row"][data-selected]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 4px;
+  height: 14px;
+  transform: translateY(-50%);
+  background: var(--px-borde);
+}
+
+/* Un icono propio por skin, tintado. `mask-image` con un SVG negro pinta la
+   forma con el color que quieras, así que un archivo sirve para todos los
+   estados en vez de uno por color. */
+:root[data-skin-id="pixel"] [data-x="tree-row-icon"] {
+  background-color: var(--px-luz);
+  mask-image: url(assets/nota.svg);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+:root[data-skin-id="pixel"] [data-x="tree-row"][data-selected] [data-x="tree-row-icon"] {
+  background-color: var(--px-borde);
+}
+
+/* ------------------------------ la nota --------------------------------- */
+:root[data-skin-id="pixel"] [data-x="note"] {
+  background-color: var(--px-sombra);
+  padding: 18px;
+}
+
+:root[data-skin-id="pixel"] [data-x="note-title"] {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--px-borde);
+  text-shadow: 2px 2px 0 var(--px-borde-oscuro);
+}
+
+:root[data-skin-id="pixel"] [data-x="note-path"],
+:root[data-skin-id="pixel"] [data-x="note-status"] {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+  color: var(--px-borde-oscuro);
+}
+
+/* El texto de la nota, monoespaciado y con más aire: en una skin de 8 bits una
+   columna de 72 caracteres se lee mucho mejor que la del cuerpo por defecto. */
+:root[data-skin-id="pixel"] [data-x="editor"] {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.6;
+  --skin-editor-size: 15px;
+  --skin-content-width: 720px;
+}
+
+:root[data-skin-id="pixel"] [data-x="editor"] h1,
+:root[data-skin-id="pixel"] [data-x="editor"] h2,
+:root[data-skin-id="pixel"] [data-x="editor"] h3 {
+  color: var(--px-borde);
+  text-shadow: 2px 2px 0 var(--px-borde-oscuro);
+  letter-spacing: 0.03em;
+}
+
+:root[data-skin-id="pixel"] [data-x="editor"] code {
+  color: var(--px-luz);
+  background-color: var(--px-cara);
+  border: 1px solid var(--px-borde-oscuro);
+  border-radius: 0;
+  padding: 1px 5px;
+}
+
+:root[data-skin-id="pixel"] [data-x="editor"] blockquote {
+  border-left: 4px solid var(--px-borde-oscuro);
+  color: var(--px-borde-oscuro);
+}
+
+/* ------------------------------ los botones ------------------------------ */
+:root[data-skin-id="pixel"] [data-x="button"] {
+  border: none;
+  border-image: url(assets/marco.png) 8 fill;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--px-luz);
+  transition: none;
+}
+
+:root[data-skin-id="pixel"] [data-x="button"]:hover {
+  background-color: rgba(255, 209, 102, 0.22);
+  color: var(--px-luz);
+}
+
+:root[data-skin-id="pixel"] [data-x="button"]:active {
+  transform: translateY(1px);
+}
+
+:root[data-skin-id="pixel"] [data-x="button"][data-x-role="primary"] {
+  color: var(--px-cara);
+  background-color: var(--px-borde);
+}
+
+:root[data-skin-id="pixel"] [data-x="button"][data-x-role="primary"]:hover {
+  background-color: var(--px-luz);
+  color: var(--px-cara);
+}
+
+/* ------------------------------ los campos ------------------------------- */
+:root[data-skin-id="pixel"] [data-x="create-input"],
+:root[data-skin-id="pixel"] [data-x="note-title"] {
+  border: 2px solid var(--px-borde-oscuro);
+  border-radius: 0;
+  background-color: var(--px-cara);
+  color: var(--px-luz);
+}
+
+:root[data-skin-id="pixel"] [data-x="create-input"]:focus {
+  outline: 2px solid var(--px-borde);
+  outline-offset: 0;
+}
+
+/* ===========================================================================
+   Variante clara.
+
+   Los TXT no pueden tener dos paletas, así que una skin que se escribiera solo
+   con ellos se veía igual de night en ambos modos y quedaba ilegible en uno de
+   los dos. Aquí se arregla con dos reglas y sin tocar el motor: cuando el modo
+   claro está activo, <html> lleva [data-color-scheme="light"].
+   =========================================================================== */
+:root[data-skin-id="pixel"][data-color-scheme="light"] {
+  --px-borde: #b45309;
+  --px-borde-oscuro: #92400e;
+  --px-cara: #fffbeb;
+  --px-cara-alta: #fef3c7;
+  --px-luz: #78350f;
+  --px-sombra: #ffffff;
+}
+
+/* En claro la luz y la sombra del texto se invierten, porque en claro la sombra
+   tiene que ser oscura. */
+:root[data-skin-id="pixel"][data-color-scheme="light"] [data-x="note-title"],
+:root[data-skin-id="pixel"][data-color-scheme="light"] [data-x="editor"] h1,
+:root[data-skin-id="pixel"][data-color-scheme="light"] [data-x="editor"] h2,
+:root[data-skin-id="pixel"][data-color-scheme="light"] [data-x="editor"] h3 {
+  text-shadow: 2px 2px 0 rgba(146, 64, 14, 0.25);
+}
+
+/* Respetar la preferencia del sistema. Una skin con movimiento no puede
+   obligar a verlo. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin-id="pixel"] * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

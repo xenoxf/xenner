@@ -44,13 +44,13 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
   const noteCount = () => props.workspace?.info.noteCount ?? 0;
 
   return (
-    <aside class={styles.sidebar} aria-label="Explorador de archivos">
-      <header class={styles.header}>
+    <aside class={styles.sidebar} data-x="sidebar" aria-label="Explorador de archivos">
+      <header class={styles.header} data-x="sidebar-header">
         <div class={styles.titleRow}>
           <div class={styles.titleCopy}>
             <strong title={root()}>Notas</strong>
           </div>
-          <div class={styles.windowActions}>
+          <div class={styles.windowActions} data-x="sidebar-window-actions">
             <IconButton
               size="compact"
               disabled={!props.canChooseWorkspace}
@@ -78,8 +78,8 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
             </IconButton>
           </div>
         </div>
-        <div class={styles.toolbar}>
-          <button type="button" class={styles.primary} onClick={() => props.onStartCreation("note")}>
+        <div class={styles.toolbar} data-x="sidebar-toolbar">
+          <button type="button" class={styles.primary} data-x="button" data-x-role="primary" onClick={() => props.onStartCreation("note")}>
             <PlusIcon />
             <span>Nueva nota</span>
           </button>
@@ -91,7 +91,7 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
           >
             <FolderPlusIcon />
           </IconButton>
-          <span class={styles.count} title={`${noteCount()} notas`} aria-label={`${noteCount()} notas`}>
+          <span class={styles.count} data-x="sidebar-count" title={`${noteCount()} notas`} aria-label={`${noteCount()} notas`}>
             {noteCount()}
           </span>
         </div>
@@ -128,6 +128,7 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
 
       <div
         class={`${styles.scroll} ${props.loading ? styles.loading : ""}`}
+        data-x="tree"
         aria-busy={props.loading}
       >
         <Show when={props.creation?.parent === ""}>

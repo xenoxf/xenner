@@ -12,6 +12,11 @@ import BaseLayout from './BaseLayout.astro';
  * por búsquedas distintas. Un title único por URL es la señal más básica de
  * Search Console: si dos páginas compiten por el mismo título, una gana y la
  * otra desaparece.
+ *
+ * `contents` es para las páginas largas. La documentación de skins son miles de
+ * palabras en una sola página, a propósito —una guía partida en seis URLs obliga
+ * a saltar de página cada dos minutos—, así que necesita un índice para poder
+ * llegar al final sin recorrerlo entero.
  */
 interface Props {
   /** Title del <head>: la frase que se busca, 50-60 caracteres. */
@@ -26,11 +31,16 @@ interface Props {
   lead: string;
   /** Ruta de esta misma página, para que "otras páginas" la omita. */
   path: string;
+  /**
+   * Índice de la página: el `id` de cada `<h2>` y su texto. Solo lo pasan las
+   * páginas largas; el resto no lo necesitan y se ven mejor sin él.
+   */
+  contents?: readonly { id: string; label: string }[];
   /** Snippet de Open Graph si la página necesita el suyo. */
   image?: string;
 }
 
-const { title, description, eyebrow, heading, lead, path, image } = Astro.props;
+const { title, description, eyebrow, heading, lead, path, contents, image } = Astro.props;
 
 const otras = GUIDE.filter((page) => page.path !== path);
 ---
@@ -51,6 +61,23 @@ const otras = GUIDE.filter((page) => page.path !== path);
         <h1 class="page__title">{heading}</h1>
         <p class="page__lead">{lead}</p>
       </header>
+
+      {
+        contents && (
+          <nav class="toc" aria-labelledby="toc-title">
+            <h2 class="toc__title" id="toc-title">
+              En esta página
+            </h2>
+            <ol class="toc__list">
+              {contents.map((item) => (
+                <li>
+                  <a href={`#${item.id}`}>{item.label}</a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )
+      }
 
       <div class="prose">
         <slot />
@@ -129,6 +156,56 @@ const otras = GUIDE.filter((page) => page.path !== path);
   /* La prosa se mide para lectura; el bloque de enlaces, no. */
   .page__inner :global(.prose) {
     margin-top: clamp(2.5rem, 5vw, 3.5rem);
+  }
+
+  /* ---------- índice de las páginas largas ---------- */
+
+  .toc {
+    max-width: 42rem;
+    margin-top: clamp(2.5rem, 5vw, 3.5rem);
+    padding: 1.35rem 1.5rem;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--sunken);
+  }
+
+  .toc__title {
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .toc__list {
+    margin-top: 1rem;
+    padding-left: 1.15rem;
+    display: grid;
+    gap: 0.45rem;
+    list-style: decimal;
+  }
+
+  .toc__list li::marker {
+    color: var(--line-ui);
+    font-size: var(--t-sm);
+  }
+
+  .toc__list a {
+    color: var(--ink-2);
+    font-size: var(--t-sm);
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .toc__list a:hover {
+    color: var(--accent-ink);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+
+  /* Con el índice delante, la prosa ya no necesita tanto aire arriba. */
+  .toc + .prose {
+    margin-top: clamp(2rem, 4vw, 2.75rem);
   }
 
   .otras {

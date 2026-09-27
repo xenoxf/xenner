@@ -41,6 +41,8 @@ export function NoteHistoryPanel(props: NoteHistoryPanelProps) {
       <div
         ref={(element) => (dialog = element)}
         class={styles.modal}
+        data-x="modal"
+        data-x-modal="history"
         role="dialog"
         aria-modal="true"
         aria-labelledby="note-history-title"

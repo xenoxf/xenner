@@ -19,5 +19,13 @@ export function IconButton(props: IconButtonProps) {
       .filter(Boolean)
       .join(" ");
 
-  return <button {...buttonProps} class={className()} />;
+  return (
+    <button
+      {...buttonProps}
+      class={className()}
+      data-x="button"
+      data-x-role="icon"
+      data-x-size={local.size ?? "default"}
+    />
+  );
 }

@@ -1,0 +1,320 @@
+/* ==========================================================================
+   xenner — la documentación
+
+   Estilos del CONTENIDO de /doc. Viven aquí, y no en el <style> del layout, por
+   una razón técnica: las páginas escriben su texto dentro de `<slot>`, y el
+   `<style>` de un componente de Astro solo alcanza lo que está en su propio
+   marcado. Todo lo que llega por el slot necesita CSS global.
+
+   Los selectores llevan `.doc__main` delante a propósito. Así ganan a los de
+   `global.css` por especificidad y no por orden de llegada, que es lo que
+   rompe cuando alguien mueve un `import`.
+   ========================================================================== */
+
+.doc__main .prose {
+  max-width: var(--doc-measure, 42.5rem);
+}
+
+/*
+  El texto se corta antes que el código. Una línea de 42.5rem son unas 80
+  columnas, y a partir de ahí el ojo se pierde al llegar al final. Los ejemplos
+  de configuración, en cambio, necesitan todo el ancho: partir una regla de CSS
+  a la mitad es peor que una línea un poco larga.
+*/
+.doc__main .prose :where(p, li, h2, h3, h4, blockquote, .callout) {
+  max-width: var(--doc-text, 37rem);
+}
+
+.doc__main .prose h4 {
+  margin-top: 1.75rem;
+  color: var(--ink-3);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/*
+  En un `<h3>` de la referencia el nombre del archivo va como código, pero sin el
+  fondo gris: ahí dentro pesa demasiado y compite con el título.
+*/
+.doc__main .prose :is(h2, h3) code {
+  padding: 0;
+  color: var(--ink-3);
+  background: none;
+  font-size: 0.94em;
+  font-weight: 500;
+}
+
+/* ---------- enlace al ancla ---------- */
+
+.doc__main .prose :is(h2, h3) {
+  position: relative;
+}
+
+.doc__main .prose .ancla {
+  display: none;
+}
+
+@media (min-width: 70rem) {
+  .doc__main .prose .ancla {
+    display: inline;
+    margin-left: 0.4rem;
+    color: var(--ink-3);
+    font-size: 0.7em;
+    font-weight: 400;
+    text-decoration: none;
+    /* El sitio se reserva siempre: si el enlace apareciera al pasar el ratón,
+       el título se movería justo cuando se va a pulsar. */
+    opacity: 0;
+    transition: opacity var(--t-fast) var(--ease);
+  }
+
+  .doc__main .prose :is(h2, h3):hover .ancla,
+  .doc__main .prose .ancla:focus-visible {
+    opacity: 0.7;
+  }
+
+  .doc__main .prose .ancla:hover {
+    color: var(--accent-ink);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   Tablas
+   ========================================================================== */
+
+.doc__main .prose .desliza {
+  max-width: var(--doc-measure, 42.5rem);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.doc__main .prose .desliza:focus-visible {
+  outline-offset: -2px;
+}
+
+/*
+  Una tabla de dos columnas cabe en un móvil de 350px: la segunda se parte en
+  más líneas y ya está. Una de tres no cabe, y antes de que apareciera un
+  «desliza para verla» lo que había era una columna cortada con un texto que
+  se salía del papel y parecía un fallo. Con tres columnas o más, en pantallas
+  estrechas, cada fila se convierte en una ficha con su etiqueta, que es como se
+  leen las tablas en un teléfono. El marcado lo pone `docCode.ts`: cada celda
+  recibe en `data-label` el título de su columna.
+*/
+@media (max-width: 40rem) {
+  .doc__main .prose .desliza--apilada thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .doc__main .prose .desliza--apilada :is(tbody, tr, td) {
+    display: block;
+  }
+
+  .doc__main .prose .desliza--apilada tr {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc__main .prose .desliza--apilada tr:last-child {
+    border-bottom: 0;
+  }
+
+  .doc__main .prose .desliza--apilada td {
+    padding: 0.25rem 0.85rem;
+    display: grid;
+    grid-template-columns: minmax(4.5rem, 36%) minmax(0, 1fr);
+    gap: 0.6rem;
+  }
+
+  .doc__main .prose .desliza--apilada td[data-label]::before {
+    content: attr(data-label);
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    line-height: 1.8;
+    text-transform: uppercase;
+  }
+}
+
+/* ==========================================================================
+   Bloques de código
+   ========================================================================== */
+
+.doc__main .prose .code {
+  position: relative;
+  max-width: var(--doc-measure, 42.5rem);
+}
+
+/* El botón se pinta encima de la primera línea, así que el bloque le deja sitio
+   a la derecha para que el ejemplo no quede debajo. */
+.doc__main .prose .code pre {
+  padding-right: 3rem;
+}
+
+.doc__main .prose .code__copiar {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink-3);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.doc__main .prose .code:hover .code__copiar,
+.doc__main .prose .code__copiar:focus-visible,
+.doc__main .prose .code__copiar--hecho {
+  opacity: 1;
+}
+
+/* En un táctil no hay «al pasar el ratón», así que el botón se enseña siempre. */
+@media (hover: none) {
+  .doc__main .prose .code__copiar {
+    opacity: 0.75;
+  }
+}
+
+.doc__main .prose .code__copiar:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.doc__main .prose .code__copiar--hecho {
+  color: #1a7f5a;
+  border-color: #bfe0d1;
+  background: #f1f9f5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc__main .prose .code__copiar {
+    transition: none;
+  }
+}
+
+/*
+  Los tres únicos trozos con color, y los tres por encima de 4.5:1 sobre el fondo
+  del bloque (`--sunken`, #f4f2ee): la tinta a 17:1, la cadena a 5.5:1 y el
+  comentario a 4.9:1. Con el color como único aviso no valdría, así que el
+  comentario además va en cursiva y la clave en negrita.
+*/
+.doc__main .prose .cod {
+  font-style: normal;
+}
+
+.doc__main .prose .cod--clave {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.doc__main .prose .cod--str {
+  color: var(--accent-ink);
+}
+
+.doc__main .prose .cod--com {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+/* Las aclaraciones escritas a mano dentro del código salen como un comentario. */
+.doc__main .prose pre code > span {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+/* ==========================================================================
+   La referencia de claves
+   ========================================================================== */
+
+/*
+  Las fichas de clave en dos columnas. En una sola son treinta y pico seguidas y
+  son tres mil píxeles de scroll; en dos caben en una pantalla y se comparan.
+*/
+.doc__main .prose .keygrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 46rem) {
+  .doc__main .prose .keygrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.doc__main .prose .keygrid .key + .key {
+  margin-top: 0;
+}
+
+.doc__main .prose .key__type code {
+  overflow-wrap: anywhere;
+}
+
+/* La etiqueta de la clave es un bloque, así que sin esto su fondo cruzaría la
+   ficha entera de lado a lado en vez de ajustarse al nombre. */
+.doc__main .prose .key__name {
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   Imprimir
+   ========================================================================== */
+
+@media print {
+  .doc__rail,
+  .doc__toc,
+  .bar,
+  .doc__progress,
+  .doc__drawer,
+  .doc__backdrop,
+  .finder,
+  .pn,
+  .otras,
+  .code__copiar,
+  .skip-link,
+  .top {
+    display: none !important;
+  }
+
+  .doc {
+    display: block;
+    width: 100%;
+  }
+
+  .doc__main {
+    padding: 0;
+  }
+
+  .doc__main .prose,
+  .doc__head {
+    max-width: none;
+  }
+
+  .doc__main .prose :where(p, li) {
+    max-width: none;
+  }
+
+  .doc__main .prose :is(h2, h3) {
+    break-after: avoid;
+  }
+
+  .doc__main .prose :is(pre, .files, .key, .callout, .desliza) {
+    break-inside: avoid;
+  }
+}

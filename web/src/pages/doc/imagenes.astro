@@ -1,0 +1,204 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { pagina } from '../../data/doc';
+import { ASSET_EXTENSIONS } from '../../data/skins';
+
+const doc = pagina('/doc/imagenes/');
+
+const imageExts = ASSET_EXTENSIONS['Imágenes'].join(' ');
+const fontExts = ASSET_EXTENSIONS['Tipografías'].join(' ');
+---
+
+<DocsLayout doc={doc}>
+  <h2 id="imagenes">La carpeta assets</h2>
+
+  <p>
+    Los archivos de texto se quedan cortos en cuanto quieres algo que no sea un
+    color. A partir de aquí metes una carpeta <code>assets/</code> y ya puedes
+    poner tu foto, tu icono y tu letra.
+  </p>
+
+  <div class="files">
+    <div class="files__file">mi-tema/</div>
+    <div class="files__file">  skin.txt</div>
+    <div class="files__file">  background.txt</div>
+    <div class="files__file">  custom.css</div>
+    <div class="files__dir">  assets/</div>
+    <div class="files__file">    montana.jpg       <span class="files__opt">una foto de 4K, 2 MB</span></div>
+    <div class="files__file">    textura.png       <span class="files__opt">un tile que se repite</span></div>
+    <div class="files__file">    marco.png         <span class="files__opt">un marco que se estira</span></div>
+    <div class="files__file">    nota.svg          <span class="files__opt">un icono propio</span></div>
+    <div class="files__file">    Inter.woff2       <span class="files__opt">una tipografía</span></div>
+  </div>
+
+  <p>Los formatos que se aceptan son estos y ninguno más:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Formatos</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Imágenes</td>
+        <td>{imageExts}</td>
+      </tr>
+      <tr>
+        <td>Tipografías</td>
+        <td>{fontExts}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Ningún archivo puede pasar de <strong>4 MB</strong>, y no hay vídeo ni sonido:
+    la lista de arriba es la lista entera. Con una foto de 4K en JPEG te queda de
+    sobra para el fondo.
+  </p>
+
+  <h3 id="nombrar-un-archivo">Nombrar un archivo</h3>
+
+  <p>
+    Se nombra con su ruta dentro de <code>url()</code>. Sin barras delante, sin
+    <code>..</code>, sin <code>http</code>:
+  </p>
+
+  <pre is:raw><code>url(assets/montana.jpg)          <span>correcto</span>
+url(assets/iconos/hoja.svg)     <span>correcto, en una subcarpeta</span>
+url(montana.jpg)                <span>no: está en assets/</span>
+url(/usr/yo/foto.jpg)           <span>no: ruta absoluta</span>
+url(../../foto.jpg)             <span>no: se sale de la skin</span>
+url(https://.../foto.jpg)       <span>no: una skin no habla con internet</span></code></pre>
+
+  <p>Con comillas si el nombre tiene espacios:</p>
+
+  <pre is:raw><code>url('assets/mi foto.jpg')</code></pre>
+
+  <div class="callout callout--tip">
+    <span class="callout__label">Si te equivocas en el nombre, no se rompe nada</span>
+    <p>
+      Xenner deja la referencia como estaba y el navegador hace como si no
+      hubiera ninguna. La superficie conserva su color de fondo y el resto de
+      la skin se aplica igual. Perder una imagen es un error visible; romper el
+      botón sería un desastre.
+    </p>
+  </div>
+
+  <h3 id="un-fondo-de-foto">Un fondo de foto</h3>
+
+  <p>Lo más directo, en <code>background.txt</code>:</p>
+
+  <pre is:raw><code>background="url(assets/montana.jpg)"</code></pre>
+
+  <p>
+    Eso pone la foto del revés y sin escalar: si es más pequeña que la ventana
+    se verá repetida. Para controlarlo hace falta <code>custom.css</code>, que es
+    donde se escriben las propiedades que no caben en un valor:
+  </p>
+
+  <pre is:raw><code>/* mi-tema/custom.css */
+[data-x="app"] {
+  background-image: url(assets/montana.jpg);
+  background-size: cover;      <span>/* cubre toda la ventana, recortando */</span>
+  background-position: center; <span>/* lo que sobra se corta por el centro */</span>
+}</code></pre>
+
+  <p>
+    Con <code>background-size: cover</code> y una foto apaisada, una skin se ve
+    bien en un monitor panorámico y en uno cuadrado. Es la diferencia entre
+    «funciona en mi ordenador» y «funciona en todos».
+  </p>
+
+  <p>
+    Para texturas —rayas, puntos, un papel— casi siempre conviene un tile pequeño
+    en vez de una imagen grande, porque se repite y pesa menos. Se pone en
+    <code>background-image</code> y se le dice <code>background-size</code>.
+  </p>
+
+  <h3 id="iconos-propios-y-por-que-un-svg-solo">Iconos propios, y por qué un SVG solo</h3>
+
+  <p>
+    Un SVG es un dibujo hecho de vectores: se describe con líneas y curvas, no con
+    píxeles. Por eso se puede poner enorme sin ponerse borroso, y por eso pesa
+    poco. Para iconos, es lo que hay que usar.
+  </p>
+
+  <pre is:raw><code>[data-x="tree-row-icon"] {
+  background-color: #ffd166;
+  mask-image: url(assets/nota.svg);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}</code></pre>
+
+  <div class="callout callout--tip">
+    <span class="callout__label">El truco de <code>mask-image</code></span>
+    <p>
+      Si pintas un SVG con <code>mask-image</code>, el SVG no se ve: solo se ve
+      <em>su forma</em>, teñida del color de <code>background-color</code>. Y
+      como el color lo eliges tú en CSS, un solo archivo sirve para el icono
+      normal, el de la nota abierta, el apagado y el que quieras. Sin esto
+      necesitarías un archivo por estado y por color.
+    </p>
+  </div>
+
+  <p>
+    El SVG tiene que ser de un solo color y completamente opaco, que es como se
+    hacen los iconos. El color se lo pones después. Hay un SVG de ejemplo en
+    <code>skins/pixel/assets/nota.svg</code> con el archivo entero.
+  </p>
+
+  <h3 id="un-marco-alrededor-de-las-notas">Un marco alrededor de las notas</h3>
+
+  <p>
+    La razón de ser de <code>border-image</code>. Cortas una imagen en nueve
+    partes —las cuatro esquinas no se tocan, los cuatro lados se estiran, el
+    centro se repite— y el marco acompaña al tamaño de la ventana sin deformarse:
+  </p>
+
+  <pre is:raw><code>[data-x="note"] {
+  border: none;
+  border-image: url(assets/marco.png) 8 fill;
+  padding: 14px;
+}</code></pre>
+
+  <p>
+    El <code>8</code> son los píxeles de cada esquina. El <code>fill</code> es
+    lo que hace que el centro de la imagen se vea también en el área de relleno.
+    Con una imagen normal de fondo esto no se puede: se deformaría en cuanto la
+    ventana no mida lo que el dibujo.
+  </p>
+
+  <h3 id="tipografias">Tipografías</h3>
+
+  <p>Se puede llevar una letra dentro de la skin:</p>
+
+  <pre is:raw><code>/* mi-tema/custom.css */
+@font-face {
+  font-family: "Mi Letra";
+  src: url(assets/MiLetra.woff2) format("woff2");
+  font-display: swap;
+}
+
+[data-x="editor"] {
+  font-family: "Mi Letra", serif;
+}</code></pre>
+
+  <p>
+    <code>font-display: swap</code> importa: dice que si la letra tarda en
+    cargar, se muestre la de reserva en vez de un hueco vacío. En el
+    <code>src</code> va la extensión real dentro de <code>format()</code>, y si
+    tu tipografía no tiene <code>.woff2</code> también valen {fontExts.replace('.woff2, ', '')}.
+  </p>
+
+  <div class="callout callout--warn">
+    <span class="callout__label">De dónde sale la letra</span>
+    <p>
+      Muchas tipografías tienen licencia. Antes de meter una en tu skin, mira qué
+      dice la suya: casi todas permiten usarla y redistribuirla, pero algunas no.
+      Xenner no puede comprobarlo por ti.
+    </p>
+  </div>
+</DocsLayout>

@@ -1,0 +1,228 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { pagina } from '../../data/doc';
+import { esc, md } from '../../data/texto';
+import { HOOKS } from '../../data/skins';
+
+const doc = pagina('/doc/css/');
+
+const hookRows = HOOKS.map(
+  (hook) => '<tr><td><code>' + esc(hook.hook) + '</code></td><td><strong>' +
+    esc(hook.name) + '</strong> &mdash; ' + md(hook.sees) + '</td></tr>',
+).join('\n');
+---
+
+<DocsLayout doc={doc}>
+  <h2 id="css">Las reglas de custom.css</h2>
+
+  <p>
+    Los archivos de texto tienen una lista cerrada de claves, y está cerrada a
+    propósito: son painless. Pero hay cosas que no entran en
+    <code>clave="valor"</code>. Un espacio entre letras, un marco alrededor de las
+    notas, un icono con tu forma, un color para el modo claro y otro para el
+    oscuro, una animación. Para eso está <code>custom.css</code>, que es un
+    archivo de CSS normal dentro de tu skin.
+  </p>
+
+  <div class="callout callout--tip">
+    <span class="callout__label">No hace falta saber CSS</span>
+    <p>
+      Con este archivo ya no es «escribir una clave y cambiar un color», es
+      «programar». Si tu idea es recolorear Xenner, los <code>.txt</code> te
+      bastan de sobra. Llega aquí cuando quieras algo que no sea un color, y
+      entonces sí, dedicate un rato.
+    </p>
+  </div>
+
+  <h3 id="empezar">Empezar</h3>
+
+  <p>
+    Crea <code>custom.css</code> en la carpeta de tu skin. La primera línea útil
+    puede ser esta, y ya tienes un fondo con un degradado sin necesidad de
+    ninguna imagen:
+  </p>
+
+  <pre is:raw><code>/* mi-tema/custom.css */
+[data-x="app"] {
+  background-image: linear-gradient(160deg, #1b1035, #0b1020);
+}</code></pre>
+
+  <p>Guárdalo. La ventana cambia a los dos o tres segundos, sin reiniciar.</p>
+
+  <h3 id="a-que-se-puede-agarrar-data-x">A qué se puede agarrar: <code>data-x</code></h3>
+
+  <p>
+    Xenner está hecho con módulos de CSS, así que los nombres de clase cambian
+    en cada compilación y no sirven para nada. Por eso cada trozo de la ventana
+    lleva un atributo <code>data-x</code> con un nombre fijo. Es la lista
+    pública: no cambia sin avisar.
+  </p>
+
+  <div class="files">
+    <div class="files__file">[data-x="note-title"]     <span class="files__opt">el campo del título</span></div>
+    <div class="files__file">[data-x="tree-row"]       <span class="files__opt">una fila de la lista</span></div>
+    <div class="files__file">[data-x="sidebar"]        <span class="files__opt">la columna izquierda</span></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th><code>data-x</code></th>
+        <th>Qué es</th>
+      </tr>
+    </thead>
+    <tbody set:html={hookRows} />
+  </table>
+
+  <p>Se pueden combinar, y hay estados que se marcan con atributos aparte:</p>
+
+  <pre is:raw><code><span>/* la nota que está abierta */</span>
+[data-x="tree-row"][data-selected] { background: #ffd166; }
+
+<span>/* solo las carpetas */</span>
+[data-x="tree-item"][data-kind="directory"] { ... }
+
+<span>/* solo el botón grande de "Nueva nota" */</span>
+[data-x="button"][data-x-role="primary"] { ... }</code></pre>
+
+  <h3 id="y-dentro-del-texto-de-la-nota">Y dentro del texto de la nota</h3>
+
+  <p>
+    <code>[data-x="editor"]</code> es el editor, y dentro hay HTML normal, así
+    que valen las etiquetas de Markdown tal cual:
+  </p>
+
+  <pre is:raw><code>[data-x="editor"] {
+  font-size: 18px;
+  line-height: 1.8;
+  max-width: 700px;
+}
+
+[data-x="editor"] h1        { font-size: 2rem; }
+[data-x="editor"] blockquote { border-left: 3px solid #7dd3fc; }
+[data-x="editor"] code       { background: rgba(125,211,252,0.12); }
+[data-x="editor"] a          { color: #7dd3fc; }</code></pre>
+
+  <p>
+    Ese ancho, el tamaño de letra y el interlineado son tres cosas que ningún
+    <code>.txt</code> podía cambiar. Con CSS sí, y es la diferencia entre una
+    skin que se ve como Xenner con otros colores y una que se ve como tú
+    querías.
+  </p>
+
+  <h3 id="un-color-para-de-dia-y-otro-para-de-noche">Un color para de día y otro para de noche</h3>
+
+  <p>
+    Es la razón principal por la que existe este archivo. Con los
+    <code>.txt</code> solo hay un color por clave, así que una skin se ve igual
+    en los dos modos y queda ilegible en uno de ellos. Con CSS, Xenner escribe
+    en la página qué modo está activo, y tú decides:
+  </p>
+
+  <pre is:raw><code>/* de día */
+[data-x="app"] { background: #f6f8fd; color: #16233d; }
+[data-x="note"] { background: #ffffff; }
+
+/* de noche */
+[data-x="app"][data-color-scheme="dark"] { background: #0b1020; color: #e8f0ff; }
+[data-x="note"][data-color-scheme="dark"] { background: #151b33; }</code></pre>
+
+  <p>
+    Lo mejor es no repetir: define variables y usa <code>var()</code>, y la
+    variante es solo cambiar cuatro valores.
+  </p>
+
+  <pre is:raw><code>:root[data-skin-id="mi-tema"] {
+  --papel: #f6f8fd;
+  --tinta: #16233d;
+  --borde: rgba(22,35,61,0.14);
+}
+
+:root[data-skin-id="mi-tema"][data-color-scheme="dark"] {
+  --papel: #0b1020;
+  --tinta: #e8f0ff;
+  --borde: rgba(148,197,255,0.18);
+}
+
+[data-x="app"]  { background: var(--papel); color: var(--tinta); }
+[data-x="note"] { background: var(--papel); border-color: var(--borde); }</code></pre>
+
+  <p>
+    Ese <code>data-skin-id</code> es el identificador de la skin, y Xenner lo
+    escribe en la página al cargarla. Escribirlo delante de tus reglas es lo que
+    garantiza que solo apliquen a la tuya. Si quitas ese trozo, siguen
+    funcionando, pero si alguien edita tu skin mientras usa otra, verían cosas
+    raras.
+  </p>
+
+  <div class="callout">
+    <span class="callout__label">Por qué el CSS gana a los TXT</span>
+    <p>
+      El orden es: los valores que Xenner trae dentro, luego tus archivos de
+      texto, luego tu <code>custom.css</code>. Gana el último. Como una
+      declaración <code>!important</code> de una hoja le gana al estilo que
+      Xenner escribe en la página, <code>custom.css</code> puede corregir
+      incluso los colores que tú mismo definiste en los <code>.txt</code>. Es a
+      propósito: si algo no se puede expresar en los TXT, se dice aquí.
+    </p>
+  </div>
+
+  <h3 id="anadir-cosas-que-no-estaban">Añadir cosas que no estaban</h3>
+
+  <p>
+    <code>::before</code> y <code>::after</code> añaden contenido sin tocar el
+    sitio donde va. El truco es que, si no les pones contenido, no ocupan nada:
+  </p>
+
+  <pre is:raw><code><span>/* una barrita de color en la nota abierta */</span>
+[data-x="tree-row"][data-selected]::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 50%;
+  width: 3px; height: 18px;
+  transform: translateY(-50%);
+  background: #7dd3fc;
+}
+
+<span>/* un asterisco al lado del título */</span>
+[data-x="note-title"]::after {
+  content: " ✦";
+  color: #ffd166;
+}</code></pre>
+
+  <h3 id="cosas-que-tambien-funcionan">Cosas que también funcionan</h3>
+
+  <ul>
+    <li>
+      <strong>Transiciones y animaciones.</strong> <code>transition</code> para
+      que algo cambie con suavidad, <code>@keyframes</code> para algo que se
+      mueva solo.
+    </li>
+    <li>
+      <strong>Efectos.</strong> <code>filter</code> (desenfocar, cambiar el
+      brillo, poner en blanco y negro), <code>backdrop-filter</code> (el
+      cristal), <code>mix-blend-mode</code>.
+    </li>
+    <li>
+      <strong>Gradientes.</strong> <code>linear-gradient</code>,
+      <code>radial-gradient</code>, <code>conic-gradient</code>. Se pueden
+      encadenar separándolos por comas, y el primero es el de encima.
+    </li>
+  </ul>
+
+  <div class="callout callout--warn">
+    <span class="callout__label">Sobre el movimiento</span>
+    <p>
+      Si tu skin mueve cosas, ya de origen que respete a quien tiene
+      activada la preferencia de menos animación del sistema. En las dos skins de
+      ejemplo está escrito, y son cuatro líneas:
+    </p>
+  </div>
+
+  <pre is:raw><code>@media (prefers-reduced-motion: reduce) {
+  [data-x="app"] *, [data-x="app"] *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}</code></pre>
+</DocsLayout>

@@ -1,0 +1,1623 @@
+---
+import { DOC_PAGES, totalApartados, vecinos, type DocPage } from '../data/doc';
+import { GUIDE } from '../data/guide';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import BaseLayout from './BaseLayout.astro';
+import '../styles/doc.css';
+
+/**
+ * La documentación: ocho páginas, con el tema a la vista.
+ *
+ * Cuatro decisiones, y las cuatro importan:
+ *
+ * **Cada capítulo tiene su URL.** Antes era una sola página de once secciones.
+ * Funcionaba, pero no se podía enlazar a un apartado suelto, todas las búsquedas
+ * aterrizaban en la misma dirección y el navegador tenía que construir 36.000
+ * píxeles de golpe. Ahora hay una página por capítulo, cada una con su `title` y
+ * su `description` —que es como el resto del sitio— y el «anterior»/«siguiente»
+ * ata el recorrido entero.
+ *
+ * **Izquierda: las ocho páginas. Derecha: los apartados de esta.** Es el reparto
+ * de Astro Starlight y de VitePress, y evita la duplicación que tenía la versión
+ * anterior (las dos barras decían «En esta página» y listaban lo mismo). Con la
+ * izquierda plana, de ocho entradas, sobra sitio para el buscador y para un
+ * enlace al resto del sitio.
+ *
+ * **La barra de lectura va fija bajo la cabecera, no al final del artículo.**
+ * Estaba después del contenido, así que en un móvil el botón de «Contenidos»
+ * solo aparecía al final de los 47.000 píxeles: inaccesible justo donde hace
+ * falta. Ahora es una barra fija, con el botón y el «estás aquí», y el ancho que
+ * ocupa se mide y se publica en `--doc-bar-h` para que los anclas y el
+ * resaltado no la solapen.
+ *
+ * **El resaltado va con `aria-current="location"`, no con `page`.** En la barra
+ * de la derecha no hay varias páginas: hay una, y dentro una posición. WAI-ARIA
+ * 1.2 lo dice literal: `location` es «la posición actual dentro de un entorno o
+ * contexto». MDN y Starlight usan `true`, que es el valor genérico y menos
+ * preciso. La de la izquierda, que sí compara páginas, va con `page`.
+ */
+interface Props {
+  /** Su ficha en `data/doc.ts`. Todo lo demás sale de ahí. */
+  doc: DocPage;
+}
+
+const page = Astro.props.doc;
+
+const indice = DOC_PAGES.findIndex((p) => p.path === page.path);
+const { anterior, siguiente } = vecinos(page.path);
+const otras = DOC_PAGES.filter((p) => p.path !== page.path);
+const esIndice = page.path === '/doc/';
+const apartadosAqui = page.sections.reduce((total, s) => total + (s.subs?.length ?? 0), 0);
+
+/** Los ocho capítulos y sus cuarenta y un apartados, para el buscador. */
+const BUSCABLE = [
+  ...DOC_PAGES.map((p) => ({
+    label: p.label,
+    group: 'La documentación',
+    href: p.path,
+    detail: p.lead,
+  })),
+  ...DOC_PAGES.flatMap((p) =>
+    p.sections.flatMap((s) => [
+      {
+        label: s.label,
+        group: p.label,
+        href: `${p.path}#${s.id}`,
+        detail: p.lead,
+      },
+      ...(s.subs ?? []).map((sub) => ({
+        label: sub.label,
+        group: p.label,
+        href: `${p.path}#${sub.id}`,
+        detail: p.lead,
+      })),
+    ]),
+  ),
+];
+---
+
+<BaseLayout title={page.title} description={page.description} skipHref="#doc-main">
+  <Header />
+
+  <div class="doc">
+    <!-- ============ barra fija de lectura: solo por debajo de 70rem ============ -->
+    <div class="bar" data-doc-bar>
+      <button
+        class="bar__btn"
+        type="button"
+        data-drawer-open
+        aria-expanded="false"
+        aria-controls="doc-drawer"
+      >
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M3 5h14M3 10h14M3 15h14"></path>
+        </svg>
+        <span>Contenidos</span>
+      </button>
+      <p class="bar__here" data-here-bar hidden>
+        <span class="bar__num" data-here-num aria-hidden="true">1</span>
+        <span class="bar__label">
+          <b data-here-label></b>
+        </span>
+      </p>
+    </div>
+
+    <!-- ============ barra izquierda: las ocho páginas ============ -->
+    <aside class="doc__rail" data-doc-rail>
+      <div class="rail__sticky">
+        <div class="finder" data-finder>
+          <div class="finder__box">
+            <svg class="finder__icon" viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+              <circle cx="8.5" cy="8.5" r="5.2"></circle>
+              <path d="M12.4 12.4L16.5 16.5"></path>
+            </svg>
+            <input
+              class="finder__input"
+              type="search"
+              placeholder="Buscar en la documentación"
+              aria-label="Buscar en la documentación"
+              autocomplete="off"
+              spellcheck="false"
+              data-finder-input
+            />
+          </div>
+          <div class="finder__out" data-finder-out hidden>
+            <ul class="finder__list" data-finder-list></ul>
+            <p class="finder__nada" data-finder-nada hidden>
+              Nada con ese nombre. Prueba con «colores», «iconos» o «css».
+            </p>
+          </div>
+
+          <div class="finder__nav" data-finder-nav>
+            <nav aria-labelledby="rail-title" data-doc-index>
+              <h2 class="rail__title" id="rail-title">La documentación</h2>
+              <ol class="rail__list">
+                {
+                  DOC_PAGES.map((p, n) => (
+                    <li class="rail__item">
+                      <a
+                        class="rail__link"
+                        href={p.path}
+                        aria-current={p.path === page.path ? 'page' : undefined}
+                      >
+                        <span class="rail__num" aria-hidden="true">{n + 1}</span>
+                        <span class="rail__label">{p.label}</span>
+                      </a>
+                    </li>
+                  ))
+                }
+              </ol>
+            </nav>
+
+            <nav class="rail__otra" aria-labelledby="rail-title-sitio">
+              <h2 class="rail__title" id="rail-title-sitio">El resto del sitio</h2>
+              <ul class="rail__list">
+                {
+                  GUIDE.filter((p) => p.path !== '/doc/').map((p) => (
+                    <li class="rail__item">
+                      <a class="rail__link rail__link--chica" href={p.path}>
+                        <span class="rail__label">{p.label}</span>
+                      </a>
+                    </li>
+                  ))
+                }
+              </ul>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ============ contenido ============ -->
+    <main class="doc__main" id="doc-main" data-doc-main tabindex="-1">
+      <div class="doc__head">
+        <nav class="crumbs" aria-label="Ruta">
+          <a href="/">Inicio</a>
+          <span aria-hidden="true">/</span>
+          {
+            esIndice ? (
+              <span aria-current="page">Documentación</span>
+            ) : (
+              <>
+                <a href="/doc/">Documentación</a>
+                <span aria-hidden="true">/</span>
+                <span aria-current="page">{page.label}</span>
+              </>
+            )
+          }
+        </nav>
+        <h1 class="doc__title">{page.heading}</h1>
+        <p class="doc__lead">{page.lead}</p>
+        <p class="doc__meta">
+          {esIndice
+            ? `${DOC_PAGES.length} capítulos y ${totalApartados()} apartados, uno por página. El de cinco minutos es el más corto para empezar.`
+            : `Capítulo ${indice + 1} de ${DOC_PAGES.length}${apartadosAqui ? ` · ${apartadosAqui} ${apartadosAqui === 1 ? 'apartado' : 'apartados'}` : ''}`}
+        </p>
+      </div>
+
+      <div class="prose" data-doc-content>
+        <slot />
+      </div>
+
+      <!-- ============ anterior y siguiente ============ -->
+      {
+        (anterior || siguiente) && (
+          <nav class="pn" aria-label="Capítulo anterior y siguiente">
+            {anterior ? (
+              <a class="pn__link pn__link--atras" href={anterior.path} rel="prev">
+                <span class="pn__dir">
+                  <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 4l-6 6 6 6" />
+                  </svg>
+                  Anterior
+                </span>
+                <b class="pn__label">{anterior.label}</b>
+              </a>
+            ) : null}
+            {siguiente ? (
+              <a class="pn__link pn__link--alante" href={siguiente.path} rel="next">
+                <span class="pn__dir">
+                  Siguiente
+                  <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 4l6 6-6 6" />
+                  </svg>
+                </span>
+                <b class="pn__label">{siguiente.label}</b>
+              </a>
+            ) : null}
+          </nav>
+        )
+      }
+
+      <!-- ============ índice: las otras siete páginas ============ -->
+      {
+        esIndice && (
+          <nav class="otras" aria-labelledby="otras-title">
+            <h2 class="otras__title" id="otras-title">Los siete capítulos</h2>
+            <ul class="otras__list">
+              {otras.map((p, n) => (
+                <li class="otras__item">
+                  <a class="otras__link" href={p.path}>
+                    <span class="otras__num" aria-hidden="true">
+                      {DOC_PAGES.findIndex((x) => x.path === p.path) + 1}
+                    </span>
+                    <b>{p.label}</b>
+                    <span>{p.lead}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+    </main>
+
+    <!-- ============ barra derecha: los apartados de esta página ============ -->
+    <aside class="doc__toc" data-doc-toc>
+      <div class="rail__sticky">
+        <nav class="rail__nav" aria-labelledby="toc-title" data-doc-index>
+          <h2 class="rail__title" id="toc-title">En esta página</h2>
+          <ol class="rail__list rail__list--plana">
+            {
+              page.sections.map((s) => (
+                <li class="rail__item">
+                  <a class="rail__link rail__link--plana" href={`#${s.id}`}>
+                    <span class="rail__label">{s.label}</span>
+                  </a>
+                  {s.subs && s.subs.length > 0 && (
+                    <ul class="rail__subs">
+                      {s.subs.map((sub) => (
+                        <li>
+                          <a class="rail__sublink" href={`#${sub.id}`}>
+                            {sub.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))
+            }
+          </ol>
+        </nav>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ============ cuánto se ha leído ============ -->
+  <div class="doc__progress" aria-hidden="true">
+    <i data-doc-progress></i>
+  </div>
+
+  <!-- ============ móvil: fondo y cajón ============ -->
+  <div class="doc__backdrop" data-drawer-close hidden></div>
+
+  <div
+    class="doc__drawer"
+    id="doc-drawer"
+    data-drawer
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="drawer-title"
+  >
+    <div class="drawer__head">
+      <h2 id="drawer-title">La documentación</h2>
+      <button
+        class="drawer__close"
+        type="button"
+        data-drawer-close
+        aria-label="Cerrar los contenidos"
+      >
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M5 5l10 10M15 5L5 15"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="finder" data-finder>
+      <div class="finder__box">
+        <svg class="finder__icon" viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+          <circle cx="8.5" cy="8.5" r="5.2"></circle>
+          <path d="M12.4 12.4L16.5 16.5"></path>
+        </svg>
+        <input
+          class="finder__input"
+          type="search"
+          placeholder="Buscar en la documentación"
+          aria-label="Buscar en la documentación"
+          autocomplete="off"
+          spellcheck="false"
+          data-finder-input
+        />
+      </div>
+      <div class="finder__out" data-finder-out hidden>
+        <ul class="finder__list" data-finder-list></ul>
+        <p class="finder__nada" data-finder-nada hidden>
+          Nada con ese nombre.
+        </p>
+      </div>
+
+      <div class="finder__nav" data-finder-nav>
+        <nav class="rail__nav" aria-labelledby="drawer-caps" data-doc-index>
+          <h3 class="rail__title" id="drawer-caps">Capítulos</h3>
+          <ol class="rail__list">
+            {
+              DOC_PAGES.map((p, n) => (
+                <li class="rail__item">
+                  <a
+                    class="rail__link"
+                    href={p.path}
+                    aria-current={p.path === page.path ? 'page' : undefined}
+                  >
+                    <span class="rail__num" aria-hidden="true">{n + 1}</span>
+                    <span class="rail__label">{p.label}</span>
+                  </a>
+                </li>
+              ))
+            }
+          </ol>
+        </nav>
+
+        <nav class="rail__otra" aria-labelledby="drawer-aqui" data-doc-index>
+          <h3 class="rail__title" id="drawer-aqui">En esta página</h3>
+          <ol class="rail__list rail__list--plana">
+            {page.sections.map((s) => <li class="rail__item">
+              <a class="rail__link rail__link--plana" href={`#${s.id}`}>
+                <span class="rail__label">{s.label}</span>
+              </a>
+            </li>)}
+            {
+              page.sections.flatMap((s) =>
+                (s.subs ?? []).map((sub) => (
+                  <li class="rail__item">
+                    <a class="rail__sublink rail__sublink--suelta" href={`#${sub.id}`}>
+                      {sub.label}
+                    </a>
+                  </li>
+                )),
+              )
+            }
+          </ol>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  /*
+    El desplazamiento al ancla lo ajusta UN solo mecanismo. `scroll-padding-top`
+    va en el contenedor de scroll y cubre tres casos con una declaración:
+    los enlaces `#ancla`, el `scrollIntoView()` del resaltado y la restauración
+    de scroll al recargar.
+
+    Poner también `scroll-margin-top` en los encabezados lo duplicaría: con los
+    dos a 5rem el ancla aterriza a 10rem. Medido, no supuesto.
+
+    `--doc-offset` suma las tres cosas que hay entre el borde de la ventana y el
+    texto: la cabecera, la barra de lectura y un respiro. La barra es fija, así
+    que sin esto el ancla aterrizaría debajo de ella y quedaría tapado.
+  */
+  :global(html) {
+    scroll-padding-top: var(--doc-offset);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(html) {
+      scroll-behavior: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global(html) {
+      scroll-behavior: smooth;
+    }
+  }
+
+  :global(:root) {
+    /*
+      Alturas de la cabecera y de la barra. Los valores de aquí son el plan B:
+      el script los mide y los sobrescribe, porque 3.9rem es lo que mide la
+      cabecera con la tipografía del sistema, y con el texto ampliado o con el
+      zoom del navegador es otra cosa. De ese valor dependen el `scroll-padding`
+      y los dos `sticky`, así que si se equivoca, el ancla aterriza tapada.
+    */
+    --doc-header-h: 3.9rem;
+    --doc-bar-h: 0rem;
+    --doc-offset: calc(var(--doc-header-h) + var(--doc-bar-h) + 1.25rem);
+    --doc-rail: 15rem;
+    --doc-toc: 13.5rem;
+    /* El ancho de la columna y el largo de línea no son lo mismo: el texto se
+       corta antes que el código, que necesita sitio para los ejemplos. */
+    --doc-measure: 42.5rem;
+    --doc-text: 37rem;
+  }
+
+  /* ---------- la rejilla ---------- */
+
+  .doc {
+    width: var(--shell);
+    margin-inline: auto;
+    /*
+      Sin `padding-inline` a propósito: así el borde de la rejilla coincide con
+      el de la cabecera y el del pie. Con el relleno del `--gutter` dentro, las
+      barras quedaban 1.5rem más adentro que el logotipo.
+    */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--gutter);
+    /*
+      `stretch`, no `start`. Con `start` la altura de la barra era la de su
+      contenido, y `position: sticky` no tiene recorrido dentro de un bloque
+      tan bajo como su propio hijo: las dos barras se iban con la página. Es el
+      fallo clásico de pegar un `sticky` dentro de una rejilla.
+    */
+    align-items: stretch;
+  }
+
+  @media (max-width: 69.999rem) {
+    :global(:root) {
+      --doc-bar-h: 3rem;
+    }
+
+    .doc {
+      /* sitio para la barra fija, que si no se comería la entradilla */
+      padding-top: var(--doc-bar-h);
+    }
+  }
+
+  @media (min-width: 70rem) {
+    .doc {
+      grid-template-columns: var(--doc-rail) minmax(0, 1fr);
+    }
+  }
+
+  @media (min-width: 88rem) {
+    .doc {
+      grid-template-columns: var(--doc-rail) minmax(0, 1fr) var(--doc-toc);
+    }
+  }
+
+  /* ---------- barras laterales ---------- */
+
+  .doc__rail,
+  .doc__toc {
+    display: none;
+  }
+
+  @media (min-width: 70rem) {
+    .doc__rail {
+      display: block;
+    }
+  }
+
+  @media (min-width: 88rem) {
+    .doc__toc {
+      display: block;
+    }
+  }
+
+  .rail__sticky {
+    position: sticky;
+    top: var(--doc-offset);
+    max-height: calc(100svh - var(--doc-offset) - 1.5rem);
+    padding-block: 2.5rem 2rem;
+    overflow-y: auto;
+    /* Sin esto, llegar al final de la barra sigue desplazando la página. */
+    overscroll-behavior: contain;
+  }
+
+  .rail__nav + .rail__otra {
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .rail__title {
+    padding-inline: 0.7rem;
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .rail__list {
+    margin-top: 0.85rem;
+    display: grid;
+    gap: 1px;
+    list-style: none;
+    padding: 0;
+  }
+
+  .rail__item {
+    min-width: 0;
+  }
+
+  .rail__link {
+    position: relative;
+    padding: 0.42rem 0.7rem;
+    display: grid;
+    grid-template-columns: 1.35rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0.15rem;
+    border-radius: 8px;
+    color: var(--ink-2);
+    font-size: var(--t-sm);
+    text-decoration: none;
+    transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  }
+
+  .rail__link:hover {
+    color: var(--ink);
+    background: var(--sunken);
+  }
+
+  .rail__label {
+    min-width: 0;
+    line-height: 1.4;
+  }
+
+  .rail__num {
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  /*
+    «Estás aquí»: filete a la izquierda, peso y un fondo tenue. El filete y el
+    peso son el aviso principal y el color solo acompaña, porque si el aviso
+    fuera solo color no se distinguiría con daltonismo (WCAG 1.4.1).
+  */
+  .rail__link[aria-current] {
+    color: var(--ink);
+    background: var(--accent-sub);
+    font-weight: 600;
+  }
+
+  .rail__link[aria-current]::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.3rem;
+    bottom: 0.3rem;
+    width: 2px;
+    border-radius: 999px;
+    background: var(--accent-ink);
+  }
+
+  .rail__link[aria-current] .rail__num {
+    color: var(--accent-ink);
+  }
+
+  .rail__link--chica {
+    grid-template-columns: minmax(0, 1fr);
+    font-size: var(--t-xs);
+  }
+
+  /* La derecha lleva los apartados de esta página, con los `<h3>` debajo. */
+  .rail__list--plana {
+    gap: 2px;
+  }
+
+  .rail__link--plana {
+    grid-template-columns: minmax(0, 1fr);
+    font-size: var(--t-xs);
+    padding-block: 0.32rem;
+  }
+
+  .rail__subs {
+    margin: 0.1rem 0 0.35rem 0.7rem;
+    padding-left: 0.7rem;
+    display: grid;
+    gap: 1px;
+    list-style: none;
+    border-left: 1px solid var(--line);
+  }
+
+  .rail__sublink {
+    display: block;
+    padding: 0.22rem 0.5rem;
+    border-radius: 6px;
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    line-height: 1.45;
+    text-decoration: none;
+    transition: color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+  }
+
+  .rail__sublink:hover {
+    color: var(--ink-2);
+  }
+
+  .rail__sublink[aria-current] {
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  /* En el cajón, los apartados no cuelgan de nada: van planos, con un peldaño. */
+  .rail__sublink--suelta {
+    margin-left: 1.1rem;
+    border-left: 1px solid var(--line);
+  }
+
+  /* ---------- buscador ---------- */
+
+  .finder {
+    margin: 0 0 1.75rem;
+  }
+
+  .finder__box {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .finder__icon {
+    position: absolute;
+    left: 0.65rem;
+    color: var(--ink-3);
+    pointer-events: none;
+  }
+
+  .finder__input {
+    width: 100%;
+    min-height: 2.1rem;
+    padding: 0 0.6rem 0 2rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    color: var(--ink);
+    background: var(--surface);
+    font: inherit;
+    font-size: var(--t-xs);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .finder__input::placeholder {
+    color: var(--ink-3);
+  }
+
+  .finder__input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .finder__out {
+    margin-top: 0.6rem;
+  }
+
+  /* El margen de `.finder` se queda debajo de la lista, que es donde toca: entre
+     el campo y el primer título hace falta su propio aire. */
+  .finder__box + .finder__nav,
+  .finder__out + .finder__nav {
+    margin-top: 1.5rem;
+  }
+
+  .finder__list {
+    display: grid;
+    gap: 1px;
+    list-style: none;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--line);
+    overflow: hidden;
+  }
+
+  .finder__link {
+    display: block;
+    padding: 0.5rem 0.65rem;
+    background: var(--surface);
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .finder__link:hover,
+  .finder__link:focus-visible {
+    background: var(--sunken);
+  }
+
+  .finder__link b {
+    display: block;
+    font-size: var(--t-xs);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .finder__link span {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    line-height: 1.35;
+  }
+
+
+  .finder__nada {
+    padding: 0.6rem 0.65rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: 11px;
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    line-height: 1.5;
+  }
+
+  /* ---------- el contenido ---------- */
+
+  .doc__main {
+    min-width: 0;
+    padding-block: 2.5rem var(--air);
+  }
+
+  /*
+    El contenido va centrado en su columna, no pegado a la izquierda: entre 70 y
+    88rem la columna sobra (de 916 a 1143px para 680 de contenido) y sin
+    centrar quedaría un lado con 400px de blanco.
+  */
+  .doc__head,
+  .pn,
+  .otras {
+    margin-inline: auto;
+  }
+
+  .doc__head {
+    max-width: var(--doc-measure);
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+  }
+
+  .crumbs a {
+    color: var(--ink-3);
+    text-decoration: none;
+  }
+
+  .crumbs a:hover {
+    color: var(--accent-ink);
+  }
+
+  .doc__title {
+    margin-top: 1.1rem;
+    font-family: var(--serif);
+    font-size: clamp(2.1rem, 4.6vw, 3rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+
+  .doc__lead {
+    max-width: var(--doc-text);
+    margin-top: 1.1rem;
+    color: var(--ink-2);
+    /* Ni el tamaño de la portada (`--t-lg`): aquí son cinco líneas de 24px antes
+       de leer nada. A 20px cabe en tres y sigue siendo entradilla. */
+    font-size: 1.25rem;
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+
+  .doc__meta {
+    max-width: var(--doc-text);
+    margin-top: 0.9rem;
+    color: var(--ink-3);
+    font-size: var(--t-sm);
+  }
+
+  .doc__main :global(.prose) {
+    max-width: var(--doc-measure);
+    margin: clamp(2.5rem, 5vw, 3.5rem) auto 0;
+  }
+
+  /* ---------- anterior y siguiente ---------- */
+
+  .pn {
+    max-width: var(--doc-measure);
+    margin-top: clamp(2.5rem, 6vw, 3.5rem);
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  .pn__link {
+    padding: 0.85rem 1rem;
+    display: grid;
+    gap: 0.25rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    text-decoration: none;
+    transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+  }
+
+  .pn__link:hover {
+    border-color: var(--line-strong);
+    background: var(--sunken);
+  }
+
+  .pn__link--alante {
+    text-align: right;
+  }
+
+  .pn__dir {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .pn__link--alante .pn__dir {
+    justify-content: flex-end;
+  }
+
+  .pn__label {
+    color: var(--ink);
+    font-size: var(--t-base);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+
+  /* ---------- las otras páginas (solo en el índice) ---------- */
+
+  .otras {
+    max-width: var(--doc-measure);
+    margin-top: clamp(2.5rem, 6vw, 3.5rem);
+  }
+
+  .otras__title {
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .otras__list {
+    margin-top: 1.25rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--line);
+    overflow: hidden;
+  }
+
+  @media (min-width: 40rem) {
+    .otras__list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* Siete tarjetas en dos columnas dejan una celda suelta, y el hueco se ve. La
+     última, si queda sola en su fila, ocupa las dos. */
+  .otras__item:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .otras__item {
+    background: var(--bg);
+  }
+
+  .otras__link {
+    height: 100%;
+    padding: 1.05rem 1.15rem;
+    display: grid;
+    gap: 0.3rem;
+    grid-template-columns: auto minmax(0, 1fr);
+    color: inherit;
+    text-decoration: none;
+    transition: background-color var(--t-fast) var(--ease);
+  }
+
+  .otras__link:hover {
+    background: var(--sunken);
+  }
+
+  .otras__num {
+    grid-row: span 2;
+    min-width: 1.5rem;
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .otras__link b {
+    color: var(--ink);
+    font-size: var(--t-base);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+
+  .otras__link > span:last-child {
+    color: var(--ink-2);
+    font-size: var(--t-sm);
+    line-height: 1.55;
+  }
+
+  /* ---------- barra fija de lectura (solo móvil) ---------- */
+
+  .bar {
+    position: fixed;
+    z-index: 42;
+    top: var(--doc-header-h);
+    left: 0;
+    right: 0;
+    min-height: var(--doc-bar-h);
+    padding: 0.35rem var(--gutter);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: saturate(150%) blur(10px);
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    .bar {
+      background: var(--bg);
+    }
+  }
+
+  @media (min-width: 70rem) {
+    .bar {
+      display: none;
+    }
+  }
+
+  .bar__btn {
+    flex: none;
+    min-height: 2.2rem;
+    padding: 0 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    color: var(--ink);
+    background: var(--surface);
+    font-size: var(--t-xs);
+    font-weight: 600;
+  }
+
+  .bar__here {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--t-xs);
+  }
+
+  .bar__here[hidden] {
+    display: none;
+  }
+
+  .bar__num {
+    flex: none;
+    min-width: 1.3rem;
+    padding: 0 0.3rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    color: var(--accent-ink);
+    background: var(--accent-sub);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar__label {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ink-3);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bar__label b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ---------- cuánto se ha leído ---------- */
+
+  .doc__progress {
+    position: fixed;
+    z-index: 45;
+    /* Justo debajo de la barra de lectura, no de `--doc-offset`: ahí debajo va
+       el texto, y una línea en mitad del párrafo no es una barra de progreso. */
+    top: calc(var(--doc-header-h) + var(--doc-bar-h));
+    left: 0;
+    right: 0;
+    height: 2px;
+    pointer-events: none;
+  }
+
+  .doc__progress i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--accent-ink);
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  /* ---------- cajón ---------- */
+
+  .doc__backdrop {
+    position: fixed;
+    z-index: 148;
+    inset: 0;
+    background: rgb(0 0 0 / 0.34);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--t-mid) var(--ease), visibility 0s linear var(--t-mid);
+  }
+
+  .doc__drawer {
+    position: fixed;
+    z-index: 149;
+    inset: 0 auto 0 0;
+    width: min(21rem, 88vw);
+    padding: 1.1rem 0.9rem calc(1.5rem + env(safe-area-inset-bottom));
+    border-right: 1px solid var(--line);
+    background: var(--bg);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transform: translateX(-102%);
+    /*
+      `visibility` además de `transform`: sin él los once enlaces del cajón
+      seguían siendo tabulables estando fuera de la pantalla, y el tabulador se
+      metía en un menú invisible. El retardo en la transición es para que siga
+      viéndose mientras se desliza.
+    */
+    visibility: hidden;
+    transition: transform var(--t-mid) var(--ease), visibility 0s linear var(--t-mid);
+  }
+
+  .drawer__head {
+    position: sticky;
+    top: -1.1rem;
+    margin: -1.1rem -0.9rem 0.9rem;
+    padding: 1.1rem 0.9rem 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+  }
+
+  .drawer__head h2 {
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .drawer__close {
+    width: 2.6rem;
+    height: 2.6rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    color: var(--ink);
+    background: var(--surface);
+  }
+
+  :global(body[data-doc-drawer='open']) {
+    overflow: hidden;
+  }
+
+  :global(body[data-doc-drawer='open']) .doc__drawer {
+    transform: none;
+    visibility: visible;
+    transition: transform var(--t-mid) var(--ease);
+  }
+
+  :global(body[data-doc-drawer='open']) .doc__backdrop {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--t-mid) var(--ease);
+  }
+
+  @media (min-width: 70rem) {
+    .doc__drawer,
+    .doc__backdrop {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .doc__drawer,
+    .doc__backdrop {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  import { mapSections } from '../scripts/docSections.ts';
+  import { buscar } from '../scripts/docSearch.ts';
+  import { realzar } from '../scripts/docCode.ts';
+
+  /** Lo que pone en el grupo de un capítulo entero. */
+  const GRUPO = 'La documentación';
+
+  const datos = JSON.parse(
+    document.querySelector<HTMLScriptElement>('[data-doc-buscar]')?.textContent ?? '[]',
+  ) as { label: string; group: string; href: string; detail?: string }[];
+
+  /*
+    1. Qué bloque de la página pertenece a qué apartado.
+
+    El observable es `[data-doc-content]`, **no** `<main>`: el contenido de la
+    página va dentro de `<div class="prose">`, así que los hijos de `<main>` son
+    tres —la cabecera, la prosa y el pie— y ninguno es un encabezado. Se pasaba
+    esa lista al reparto, devolvía cero secciones y el script se iba por el
+    `return` de cabeza: sin barra que se encendiera, sin «estás aquí», sin
+    resaltado. El mapa está en `docSections.ts`, que tiene pruebas, porque
+    equivocarse ahí no rompe nada visible.
+  */
+  (() => {
+    const contenido = document.querySelector<HTMLElement>('[data-doc-content]');
+    if (!contenido) return;
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+
+    const { of: sectionOf, parentOf } = mapSections(contenido.children);
+    if (sectionOf.size === 0) return;
+
+    /* --- 2. Los dos índices (la barra de la derecha y el cajón) se encienden
+           con una sola escritura. `location` y no `page`: aquí no hay varias
+           páginas, hay una y una posición dentro. Los enlaces de la barra
+           izquierda no llevan hash, así que ni se registran ni se tocan. --- */
+    const linksById = new Map<string, HTMLAnchorElement[]>();
+    for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-doc-index] a')) {
+      const id = link.hash ? decodeURIComponent(link.hash.slice(1)) : '';
+      if (!id || !document.getElementById(id)) continue;
+      const list = linksById.get(id);
+      if (list) list.push(link);
+      else linksById.set(id, [link]);
+    }
+    if (linksById.size === 0) return;
+    const orden = [...linksById.keys()].filter((id) => !parentOf.has(id));
+
+    const barraAqui = document.querySelector<HTMLElement>('[data-here-bar]');
+    const aquiNum = document.querySelector<HTMLElement>('[data-here-num]');
+    const aquiLabel = document.querySelector<HTMLElement>('[data-here-label]');
+    const rail = document.querySelector<HTMLElement>('[data-doc-rail]');
+
+    let activo: string | null = null;
+    let bloqueadoHasta = 0;
+    const bloqueado = () => performance.now() < bloqueadoHasta;
+
+    function marcar(id: string | null) {
+      if (id === activo) return;
+      // Al apagar un apartado hay que apagar también a su `<h2>` madre: si no,
+      // al encender el siguiente apartado su madre se volvería a encender y el
+      // `removeAttribute` de aquí no lo tocaría.
+      if (activo) {
+        for (const link of linksById.get(activo) ?? []) {
+          // Quitar el atributo, nunca ponerlo a cadena vacía: si está vacío, la
+          // especificación dice que no debe exponerse.
+          link.removeAttribute('aria-current');
+        }
+        const madre = parentOf.get(activo);
+        if (madre) {
+          for (const link of linksById.get(madre) ?? []) link.removeAttribute('aria-current');
+        }
+      }
+      activo = id;
+      if (id) {
+        for (const link of linksById.get(id) ?? []) {
+          link.setAttribute('aria-current', 'location');
+        }
+        // La madre sigue encendida mientras se esté dentro del apartado: es lo
+        // que hace que la barra de la derecha no se vacíe a mitad de sección.
+        const madre = parentOf.get(id);
+        if (madre) {
+          for (const link of linksById.get(madre) ?? []) {
+            link.setAttribute('aria-current', 'location');
+          }
+        }
+      }
+
+      if (barraAqui && aquiNum && aquiLabel) {
+        const rotulo = id ? (linksById.get(id)?.[0].textContent ?? '').trim() : '';
+        barraAqui.hidden = !rotulo;
+        if (rotulo) {
+          const tema = id && parentOf.has(id) ? (parentOf.get(id) ?? id) : id;
+          const pos = tema ? orden.indexOf(tema) : -1;
+          aquiNum.textContent = pos >= 0 ? String(pos + 1) : '';
+          aquiLabel.textContent = rotulo;
+        }
+      }
+
+      // Mantener el activo a la vista dentro de la barra lateral. `nearest`
+      // mueve solo el contenedor scrollable más cercano —la barra—, nunca la
+      // página. Es el truco de VitePress.
+      if (rail && !reduce.matches && getComputedStyle(rail).position === 'sticky') {
+        rail
+          .querySelector<HTMLAnchorElement>('[aria-current]')
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+
+    /* --- 3. La franja de lectura.
+           Dos márgenes negativos recortan la ventana a una banda fina bajo la
+           cabecera y la barra de lectura. La distancia se LEE del
+           `scroll-padding-top` ya resuelto, que es exactamente donde aterrizan
+           los anclas: una sola fuente de verdad. Si la franja y el anclaje se
+           desincronizan, al pulsar un enlace se enciende la sección anterior. --- */
+    const margen = () => {
+      const arriba =
+        parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+      const alto = document.documentElement.clientHeight;
+      // 3px: ni tan fino que parpadee, ni tan alto que dos secciones coexistan.
+      return `-${arriba}px 0px -${Math.max(0, alto - arriba - 3)}px 0px`;
+    };
+
+    let observador: IntersectionObserver | undefined;
+
+    const observar = () => {
+      observador?.disconnect();
+      observador = new IntersectionObserver(
+        (entradas) => {
+          if (bloqueado()) return;
+          for (const { target, isIntersecting } of entradas) {
+            const id = sectionOf.get(target);
+            if (!id) continue;
+            for (const link of linksById.get(id) ?? []) {
+              // Un bloque que nunca hemos visto y que ya hemos sobrepasado no
+              // cuenta: evita que al recargar a mitad de página salte de golpe.
+              // Es el `seen` + `score` de MDN.
+              if (!link.dataset.visto) {
+                if (!isIntersecting) continue;
+                link.dataset.visto = '1';
+              }
+              const puntos = (Number(link.dataset.puntos) || 0) + (isIntersecting ? 1 : -1);
+              link.dataset.puntos = String(puntos);
+              if (puntos > 0) marcar(id);
+            }
+          }
+        },
+        { rootMargin: margen(), threshold: 0 },
+      );
+      for (const el of sectionOf.keys()) observador.observe(el);
+    };
+
+    /* --- 4. Los dos extremos, que el observador no resuelve solo.
+           Arriba: antes del primer encabezado no hay sección. Abajo: la última
+           nunca alcanza la franja, porque no queda scroll para subirla.
+           (VitePress: isBottom.) --- */
+    const bordes = () => {
+      if (bloqueado() || orden.length === 0) return;
+      const doc = document.documentElement;
+      if (doc.scrollHeight - scrollY - innerHeight < 2) {
+        marcar(orden[orden.length - 1]);
+        return;
+      }
+      if (scrollY < 2) marcar(orden[0]);
+    };
+    addEventListener('scroll', bordes, { passive: true });
+
+    function iniciar() {
+      const arrancar = () => {
+        observar();
+        // Al cargar en scrollY 0 no se dispara ningún evento scroll.
+        bordes();
+      };
+      if ('requestIdleCallback' in window) requestIdleCallback(arrancar);
+      else setTimeout(arrancar, 1);
+    }
+    iniciar();
+
+    // La franja depende de alturas medidas: hay que recalcular al redimensionar,
+    // y mientras tanto DESCONECTAR el observador, o los avisos llegan con el
+    // margen viejo y el resaltado parpadea. Es idea de Starlight.
+    let temporizador: ReturnType<typeof setTimeout> | undefined;
+    addEventListener(
+      'resize',
+      () => {
+        observador?.disconnect();
+        observador = undefined;
+        clearTimeout(temporizador);
+        temporizador = setTimeout(iniciar, 200);
+      },
+      { passive: true },
+    );
+
+    /* --- 5. Clic: encender al instante y callar al observador mientras dura el
+           scroll suave. Sin esto los dos se pelean: el observador marca
+           secciones intermedias durante el trayecto y al final puede dejar
+           encendida la anterior al destino. --- */
+    const pausa = () => (reduce.matches ? 0 : 700);
+    for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-doc-index] a')) {
+      link.addEventListener('click', () => {
+        const id = link.hash ? decodeURIComponent(link.hash.slice(1)) : '';
+        if (!linksById.has(id)) return;
+        marcar(id);
+        bloqueadoHasta = performance.now() + pausa();
+      });
+    }
+
+    const desdeHash = () => {
+      const id = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
+      if (id && linksById.has(id)) {
+        marcar(id);
+        bloqueadoHasta = performance.now() + pausa();
+      }
+    };
+    addEventListener('hashchange', desdeHash);
+    desdeHash();
+  })();
+
+  /*
+    2. Medir la cabecera y la barra, y publica sus alturas.
+  */
+  (() => {
+    const cabecera = document.querySelector<HTMLElement>('.top');
+    const barra = document.querySelector<HTMLElement>('[data-doc-bar]');
+    const raiz = document.documentElement;
+    if (!cabecera) return;
+
+    const puesto = new Map<string, string>();
+
+    const poner = (clave: string, valor: string) => {
+      if (puesto.get(clave) === valor) return;
+      puesto.set(clave, valor);
+      raiz.style.setProperty(clave, valor);
+    };
+
+    const medir = () => {
+      poner('--doc-header-h', `${Math.round(cabecera.getBoundingClientRect().height)}px`);
+      const visible = barra && getComputedStyle(barra).display !== 'none';
+      poner('--doc-bar-h', visible ? `${Math.round(barra!.getBoundingClientRect().height)}px` : '0px');
+    };
+
+    medir();
+    // El `ResizeObserver` solo avisa de tamaños, no de cambios de `display`, y
+    // la barra aparece y desaparece con las consultas de medios. Por eso el
+    // `resize` también está.
+    const ro = new ResizeObserver(medir);
+    ro.observe(cabecera);
+    if (barra) ro.observe(barra);
+    addEventListener('resize', medir, { passive: true });
+    // Las tipografías del sistema se pueden aplicar después del primer pintado.
+    document.fonts?.ready.then(medir).catch(() => {});
+  })();
+
+  /*
+    3. El buscador. Va en dos sitios a la vez —la barra de la izquierda y el
+       cajón del móvil— y los dos se alimentan del mismo índice, que viene
+       horneado en la página: los cuarenta y un apartados no están en el
+       documento, así que no se pueden sacar del DOM.
+  */
+  (() => {
+    const bloques = document.querySelectorAll<HTMLElement>('[data-finder]');
+    if (bloques.length === 0) return;
+
+    const limpiar = (v: string) => v.replace(/\s+/g, ' ').trim();
+
+    for (const bloque of bloques) {
+      const input = bloque.querySelector<HTMLInputElement>('[data-finder-input]');
+      const salida = bloque.querySelector<HTMLElement>('[data-finder-out]');
+      const lista = bloque.querySelector<HTMLUListElement>('[data-finder-list]');
+      const nada = bloque.querySelector<HTMLElement>('[data-finder-nada]');
+      const nav = bloque.querySelector<HTMLElement>('[data-finder-nav]');
+      if (!input || !salida || !lista || !nada || !nav) continue;
+
+      let ultimo = '';
+
+      const pintar = (consulta: string) => {
+        if (consulta === ultimo) return;
+        ultimo = consulta;
+
+        const hay = consulta.trim().length > 0;
+        salida.hidden = !hay;
+        nav.hidden = hay;
+        if (!hay) {
+          lista.replaceChildren();
+          return;
+        }
+
+        const hallados = buscar(datos, consulta, 8);
+        lista.replaceChildren(
+          ...hallados.map((hit) => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.className = 'finder__link';
+            a.href = hit.href;
+            const b = document.createElement('b');
+            b.textContent = limpiar(hit.label);
+            const s = document.createElement('span');
+            // «en Todo con CSS» dice en qué capítulo está; para un capítulo
+            // entero no hace falta decirlo.
+            s.textContent = hit.group === GRUPO ? 'Capítulo' : `en ${hit.group}`;
+            a.append(b, s);
+            li.append(a);
+            return li;
+          }),
+        );
+        nada.hidden = hallados.length > 0;
+      };
+
+      input.addEventListener('input', () => pintar(input.value));
+
+      input.addEventListener('keydown', (evento) => {
+        if (evento.key === 'Escape') {
+          if (input.value === '') return;
+          evento.preventDefault();
+          input.value = '';
+          pintar('');
+          return;
+        }
+        const primera = lista.querySelector<HTMLAnchorElement>('a');
+        if (primera && (evento.key === 'Enter' || evento.key === 'ArrowDown')) {
+          evento.preventDefault();
+          primera.click();
+        }
+      });
+    }
+
+    // «/» enfoca el buscador, como en la documentación de Stripe y de VitePress.
+    // Solo si no se está escribiendo ya en otro sitio.
+    addEventListener('keydown', (evento) => {
+      if (evento.key !== '/' || evento.metaKey || evento.ctrlKey || evento.altKey) return;
+      const activo = document.activeElement;
+      if (activo instanceof HTMLInputElement || activo instanceof HTMLTextAreaElement) return;
+      if (activo instanceof HTMLElement && activo.isContentEditable) return;
+      const primero = document.querySelector<HTMLInputElement>('[data-finder-input]');
+      if (!primero) return;
+      evento.preventDefault();
+      primero.focus();
+      primero.select();
+    });
+  })();
+
+  /*
+    4. El bloque de código: botón de copiar, coloredor de lo obvio y
+       envoltorio para las tablas anchas.
+  */
+  (() => {
+    const contenido = document.querySelector<HTMLElement>('[data-doc-content]');
+    if (!contenido) return;
+    realzar(contenido);
+  })();
+
+  /*
+    5. Cajón de contenidos del móvil.
+  */
+  (() => {
+    const abrir = document.querySelectorAll<HTMLButtonElement>('[data-drawer-open]');
+    const cerrar = document.querySelectorAll<HTMLElement>('[data-drawer-close]');
+    const panel = document.querySelector<HTMLElement>('[data-drawer]');
+    const fondo = document.querySelector<HTMLElement>('.doc__backdrop');
+    if (abrir.length === 0 || !panel || !fondo) return;
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    let previo: HTMLElement | null = null;
+
+    const mostrar = () => {
+      previo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      document.body.dataset.docDrawer = 'open';
+      fondo.hidden = false;
+      for (const b of abrir) b.setAttribute('aria-expanded', 'true');
+      panel.querySelector<HTMLButtonElement>('.drawer__close')?.focus();
+    };
+
+    const ocultar = () => {
+      if (document.body.dataset.docDrawer !== 'open') return;
+      delete document.body.dataset.docDrawer;
+      for (const b of abrir) b.setAttribute('aria-expanded', 'false');
+      previo?.focus();
+      // Se espera a que termine la transición antes de sacar el fondo del flujo.
+      setTimeout(() => {
+        if (document.body.dataset.docDrawer !== 'open') fondo.hidden = true;
+      }, reduce.matches ? 0 : 340);
+    };
+
+    for (const b of abrir) b.addEventListener('click', mostrar);
+    for (const b of cerrar) b.addEventListener('click', ocultar);
+
+    addEventListener('keydown', (evento) => {
+      if (document.body.dataset.docDrawer !== 'open') return;
+      if (evento.key === 'Escape') {
+        ocultar();
+        return;
+      }
+      if (evento.key !== 'Tab') return;
+
+      // Trampa de foco: sin esto el tabulador se va por detrás del cajón.
+      const focuses = [
+        ...panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input'),
+      ].filter((el) => el.offsetParent !== null);
+      if (focuses.length === 0) return;
+      const primero = focuses[0];
+      const ultimo = focuses[focuses.length - 1];
+      if (evento.shiftKey && document.activeElement === primero) {
+        evento.preventDefault();
+        ultimo.focus();
+      } else if (!evento.shiftKey && document.activeElement === ultimo) {
+        evento.preventDefault();
+        primero.focus();
+      }
+    });
+
+    // Un enlace del cajón navega y cierra: el de los capítulos, el de un
+    // apartado y también el de un resultado del buscador.
+    panel.addEventListener('click', (evento) => {
+      const destino = evento.target;
+      if (destino instanceof Element && destino.closest('a[href]')) ocultar();
+    });
+  })();
+
+  /*
+    6. Cuánto se ha leído. Una línea, sin florituras: el ancho va con
+       `scaleX`, que no dispara la maquetación, y el cálculo se agrupa con
+       `requestAnimationFrame` para no tocar el estilo en cada evento de scroll.
+  */
+  (() => {
+    const barra = document.querySelector<HTMLElement>('[data-doc-progress]');
+    const doc = document.querySelector<HTMLElement>('[data-doc-main]');
+    if (!barra || !doc) return;
+
+    let pedido = 0;
+    const medir = () => {
+      pedido = 0;
+      const total = doc.offsetHeight - innerHeight;
+      const hecho = total > 8 ? Math.min(1, Math.max(0, scrollY / total)) : 1;
+      barra.style.transform = `scaleX(${hecho})`;
+    };
+    const pedir = () => {
+      if (pedido) return;
+      pedido = requestAnimationFrame(medir);
+    };
+    medir();
+    addEventListener('scroll', pedir, { passive: true });
+    addEventListener('resize', pedir, { passive: true });
+  })();
+
+  /*
+    7. Enlace al ancla de cada encabezado, para poder compartir un apartado suelto.
+       Se añade con JS y no en el marcado por dos razones: sin JavaScript la
+       página sigue siendo la misma, y el texto de los encabezados se queda
+       limpio, que es lo que leen el `label` del índice y la prueba que compara
+       uno con otro.
+  */
+  (() => {
+    // Solo los del contenido. Los `<h2 id="rail-title">` y `<h2 id="toc-title">`
+    // de las barras también tienen identificador, y sin este filtro aparecía un
+    // `#` detrás de «La documentación» y de «En esta página».
+    for (const h of document.querySelectorAll<HTMLElement>('[data-doc-content] h2[id], [data-doc-content] h3[id]')) {
+      if (h.querySelector('a')) continue;
+      const a = document.createElement('a');
+      a.className = 'ancla';
+      a.href = `#${h.id}`;
+      a.textContent = '#';
+      a.setAttribute('aria-label', `Enlace a «${h.textContent?.trim() ?? ''}»`);
+      h.append(a);
+    }
+  })();
+</script>
+
+<script type="application/json" data-doc-buscar set:html={JSON.stringify(BUSCABLE)} is:inline />

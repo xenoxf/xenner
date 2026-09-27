@@ -6,6 +6,8 @@
   "permissions": [
     "allow-scan-skins",
     "allow-read-skin-file",
+    "allow-read-skin-asset",
+    "allow-skin-file-stamp",
     "allow-read-config",
     "allow-set-active-skin",
     "allow-create-skin",

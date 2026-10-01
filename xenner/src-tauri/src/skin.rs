@@ -1,8 +1,10 @@
 //! Backend de skins de xenner.
 //!
 //! Las skins sistémicas viven en el bundle. Las creadas por la persona usuaria
-//! viven en AppLocalData. El frontend solo recibe componentes ya validados; no
-//! tiene permisos generales de filesystem.
+//! viven en la carpeta de Xenner, que es la carpeta de configuración del sistema
+//! (`~/.config/xenner`, `%APPDATA%/xenner`…). Se resuelve en `config.rs`, que es
+//! quien sabe dónde está y quién la crea. El frontend solo recibe componentes ya
+//! validados; no tiene permisos generales de filesystem.
 //!
 //! # Assets (`assets/`, imágenes y fuentes)
 //!
@@ -38,8 +40,8 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
-const USER_SKINS_DIR: &str = "skins";
-const SKIN_PREFERENCE_FILE: &str = "skin-config.txt";
+use crate::config;
+
 const ALLOWED_FILES: &[&str] = &[
     "skin",
     "background",
@@ -56,7 +58,7 @@ const ALLOWED_FILES: &[&str] = &[
 const MAX_CUSTOM_CSS_BYTES: u64 = 512 * 1024;
 /// Tope por asset. Un fondo de 4K en PNG o JPEG entra de sobra; un vídeo no
 /// es un asset de skin.
-const MAX_ASSET_BYTES: u64 = 4 * 1024 * 1024;
+pub const MAX_ASSET_BYTES: u64 = 4 * 1024 * 1024;
 
 const MAX_SKINS: usize = 256;
 const MAX_SCAN_ENTRIES: usize = 512;
@@ -103,6 +105,31 @@ pub struct SkinInfo {
     pub editable: bool,
 }
 
+/// Un archivo que se escribe dentro de `assets/` de una skin.
+///
+/// `path` es relativo a la raíz de la skin, y tiene que empezar por `assets/`.
+/// `data_base64` es el contenido sin codificar: el frontend lo eligió con el
+/// diálogo del sistema y lo manda tal cual. Aquí se decodifica y se comprueba
+/// dos veces —tamaño y contenido— porque un SVG es texto y puede llevar cosas
+/// dentro que no queremos ni de lejos.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkinAssetUpload {
+    pub path: String,
+    pub data_base64: String,
+}
+
+/// Qué se le pide escribir a `create_skin`.
+///
+/// `components` es la vía cómoda: un mapa de componente → clave → valor, que es
+/// lo que rellena el panel con deslizadores. `files` es la vía sin atajos: el
+/// contenido literal de cada `.txt`, tal cual se va a guardar. Y `custom_css` es
+/// `custom.css` entero.
+///
+/// Las tres existen porque la persona que viene de la interfaz de color no
+/// quiere ver un archivo de texto, y la que abre un tema con un editor de texto
+/// no quiere tener que mover un deslizador. Que las dos rutas escriban lo mismo
+/// es la condición para que no se(des)incronicen; la última que gana.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateSkinRequest {
@@ -110,7 +137,20 @@ pub struct CreateSkinRequest {
     pub name: String,
     pub version: String,
     pub author: String,
+    #[serde(default)]
     pub components: BTreeMap<String, BTreeMap<String, String>>,
+    /// Contenido literal de cada componente. Si hay una clave aquí, manda sobre
+    /// `components` para ese componente.
+    #[serde(default)]
+    pub files: BTreeMap<String, String>,
+    #[serde(default)]
+    pub custom_css: Option<String>,
+    #[serde(default)]
+    pub assets: Vec<SkinAssetUpload>,
+    /// `true` para sobrescribir una skin propia que ya existe. Sin esto, editar
+    /// un tema que ya creaste fallaría con «ya existe».
+    #[serde(default)]
+    pub overwrite: bool,
 }
 
 /// Solo carpetas con caracteres seguros pueden ser skins.
@@ -294,6 +334,11 @@ fn safe_component_value(value: &str) -> bool {
         }
     }
 
+    // El recorrido va carácter a carácter y no byte a byte. Con bytes, una `á`
+    // o un emoji partían el string por la mitad y `value[cursor..cursor + 1]`
+    // reventaba: escribir `content="Mañana"` en un archivo de texto tumbaba el
+    // backend. Los índices que se usan después salen de `char_indices`, así que
+    // siempre caen en un límite de carácter.
     let mut outside = String::with_capacity(value.len());
     let mut cursor = 0usize;
     while cursor < value.len() {
@@ -309,9 +354,14 @@ fn safe_component_value(value: &str) -> bool {
                 return false;
             }
             cursor = end + 1;
-        } else {
-            outside.push_str(&value[cursor..cursor + 1]);
-            cursor += 1;
+            continue;
+        }
+        match value[cursor..].chars().next() {
+            Some(character) => {
+                outside.push(character);
+                cursor += character.len_utf8();
+            }
+            None => break,
         }
     }
 
@@ -442,18 +492,15 @@ fn system_skins_dir(app: &AppHandle) -> Option<PathBuf> {
     None
 }
 
+/// Dónde viven las skins de la persona usuaria. La resuelve `config.rs`, que
+/// además se encarga de que la carpeta exista.
 fn user_skins_dir(app: &AppHandle) -> Option<PathBuf> {
-    app.path()
-        .app_local_data_dir()
-        .ok()
-        .map(|path| path.join(USER_SKINS_DIR))
+    config::user_skins_dir(app).ok()
 }
 
+/// Dónde se guarda qué skin está activa.
 fn skin_preference_path(app: &AppHandle) -> Option<PathBuf> {
-    app.path()
-        .app_local_data_dir()
-        .ok()
-        .map(|path| path.join(SKIN_PREFERENCE_FILE))
+    config::skin_preference_path(app).ok()
 }
 
 /// Resuelve un componente y verifica containment físico. Esto bloquea tanto
@@ -656,11 +703,17 @@ fn safe_asset_path(skin_dir: &Path, relative: &str) -> Result<PathBuf, String> {
 
 /// Lee la skin activa.
 ///
-/// Antes esto siempre daba prioridad a `AppLocalData/skin-config.txt`, con lo
-/// que editar `skins/config.txt` a mano —que es lo que dice la documentación—
-/// no hacía nada en cuanto se elegía una skin desde la aplicación. Ahora gana el
-/// archivo **modificado más tarde**, que es lo que espera quien edita a mano
-/// después de haber usado el selector: lo último que tocaste es lo que manda.
+/// Antes esto siempre daba prioridad al archivo de preferencia de la v1, con
+/// lo que editar `skins/config.txt` a mano —que es lo que dice la
+/// documentación— no hacía nada en cuanto se elegía una skin desde la
+/// aplicación. Ahora gana el archivo **modificado más tarde**, que es lo que
+/// espera quien edita a mano después de haber usado el selector: lo último que
+/// tocaste es lo que manda.
+///
+/// Se comparan los dos sitios porque los dos existen y los dos se documentan:
+/// `skin-config.txt` en la carpeta de Xenner, que es lo que escribe Ajustes, y
+/// `skins/config.txt` dentro de una skin del bundle, que es lo que se puede
+/// editar a mano en un equipo viejo.
 fn read_config_blocking(app: &AppHandle) -> String {
     let preference = skin_preference_path(app).and_then(|path| {
         if !is_regular_file(&path) {
@@ -693,7 +746,7 @@ fn set_active_skin_blocking(app: &AppHandle, skin: String) -> Result<(), String>
     if !skin.is_empty() && !valid_skin_id(&skin) {
         return Err("skin inválida".into());
     }
-    let path = skin_preference_path(app).ok_or("no se pudo resolver AppLocalData")?;
+    let path = skin_preference_path(app).ok_or("no se pudo resolver la carpeta de Xenner")?;
     let content = format!("skinPath=\"{skin}\"\n");
     write_atomically(&path, &content).map_err(|error| format!("no se pudo guardar skin: {error}"))
 }
@@ -705,50 +758,189 @@ fn manifest_content(request: &CreateSkinRequest) -> String {
     format!("name=\"{name}\"\nversion=\"{version}\"\nauthor=\"{author}\"\n")
 }
 
-fn validate_component_request(
-    request: &CreateSkinRequest,
-) -> Result<Vec<(String, String)>, String> {
-    let mut files = Vec::new();
-    for (component, values) in &request.components {
-        let Some(allowed) = allowed_component_keys(component) else {
-            return Err(format!("componente desconocido: {component}"));
-        };
-        let mut content = String::new();
-        for (key, value) in values {
-            if !allowed.contains(&key.as_str()) || !safe_component_value(value) {
-                return Err(format!("valor no permitido en {component}.{key}"));
-            }
-            content.push_str(key);
-            content.push_str("=\"");
-            content.push_str(value);
-            content.push_str("\"\n");
+/// Convierte el mapa `componente → clave → valor` en el texto del `.txt`.
+///
+/// Se serializa en el orden en que viene el `BTreeMap`, que es alfabético, y
+/// no en el de la allowlist. Da igual cuál de los dos sea: la diferencia entre
+/// dos skin solo se nota al leerlas, y el orden alfabético es el que hace el
+/// archivo legible para quien lo abre en un editor de texto.
+fn component_text(component: &str, values: &BTreeMap<String, String>) -> Result<String, String> {
+    let Some(allowed) = allowed_component_keys(component) else {
+        return Err(format!("componente desconocido: {component}"));
+    };
+    let mut content = String::new();
+    for (key, value) in values {
+        if !allowed.contains(&key.as_str()) || !safe_component_value(value) {
+            return Err(format!("valor no permitido en {component}.{key}"));
         }
-        files.push((component.clone(), content));
+        content.push_str(key);
+        content.push_str("=\"");
+        content.push_str(value);
+        content.push_str("\"\n");
     }
-    if files.is_empty() {
-        return Err("la skin necesita al menos un componente".into());
-    }
-    Ok(files)
+    Ok(content)
 }
 
+/// Valida un `.txt` que viene literal, y lo devuelve **sin tocarlo**.
+///
+/// Ni una letra. Se quedan los comentarios, los espacios, el orden y las claves
+/// repetidas, que es como lo escribió la persona y como lo va a volver a leer en
+/// un editor de texto. Reordenar un archivo que alguien está leyendo es la peor
+/// forma de guardar un cambio.
+///
+/// Y no se es más estricto que el cargador a propósito. Una clave que no
+/// pertenece a este archivo, o un valor que el cargador iba a ignorar, se
+/// guardan igual: el creador no es un filtro, es un editor de texto con
+/// deslizadores. Que avise de que esa línea no va a hacer nada es cosa de la
+/// interfaz, que sí puede decirlo sin estorbar; aquí, bloquear el guardado
+/// obligaría a borrar lo que uno ha escrito para poder guardarlo.
+fn raw_component_text(component: &str, text: &str) -> Result<String, String> {
+    if allowed_component_keys(component).is_none() {
+        return Err(format!("componente desconocido: {component}"));
+    }
+    if text.len() as u64 > MAX_COMPONENT_BYTES {
+        return Err(format!("{component}.txt supera el tamaño máximo"));
+    }
+    Ok(text.to_string())
+}
+
+/// Junta las dos vías de escritura en una lista de archivos.
+///
+/// `files` gana sobre `components` para el mismo componente: si alguien ha
+/// escrito el texto a mano, ese texto es el que va a disco, sin mezclarse con
+/// los valores que generara el panel. Es la regla que hace que las dos puertas
+/// puedan convivir sin desincronicen.
+fn build_skin_files(request: &CreateSkinRequest) -> Result<Vec<(String, String)>, String> {
+    let mut archivos: BTreeMap<String, String> = BTreeMap::new();
+
+    for (component, values) in &request.components {
+        if values.is_empty() {
+            continue;
+        }
+        archivos.insert(component.clone(), component_text(component, values)?);
+    }
+    for (component, text) in &request.files {
+        raw_component_text(component, text)?;
+        archivos.insert(component.clone(), text.clone());
+    }
+
+    if archivos.is_empty() && request.custom_css.is_none() {
+        return Err("la skin necesita al menos un componente".into());
+    }
+    Ok(archivos.into_iter().collect())
+}
+
+/// La ruta de un asset dentro de la skin, comprobada pieza a pieza.
+///
+/// Se valida en vez de limpiarse a propósito: el nombre lo pone el frontend con
+/// estas mismas reglas, y si algo se cuela —un `../`, una barra, un nombre vacío
+/// — lo que tiene que pasar es un error con el motivo, no un archivo escrito
+/// donde no toca. Un asset guardado en el sitio equivocado es el peor resultado
+/// posible, y prefiero un tema que no se guarde a eso.
+fn validated_asset_relative(path: &str) -> Result<String, String> {
+    if path != path.trim() {
+        return Err("la ruta de un asset tiene espacios al principio o al final".into());
+    }
+    if !path.starts_with("assets/") {
+        return Err("los assets van dentro de la carpeta assets/".into());
+    }
+    let name = &path["assets/".len()..];
+    if name.is_empty() || name.contains('/') || name.contains('\\') {
+        return Err("nombre de asset no válido".into());
+    }
+    let Some((base, extension)) = name.rsplit_once('.') else {
+        return Err("el asset necesita extensión".into());
+    };
+    if base.is_empty() || !base.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        return Err(
+            "el nombre del asset solo admite letras, números, guiones y guiones bajos".into(),
+        );
+    }
+    let extension = extension.to_ascii_lowercase();
+    if !ASSET_TYPES.iter().any(|(candidate, _)| *candidate == extension) {
+        return Err(format!("extensión de asset no permitida: .{extension}"));
+    }
+    Ok(format!("assets/{base}.{extension}"))
+}
+
+/// Escribe los assets que trae la petición.
+///
+/// No devuelve ningún mapa: el frontend ya escribió `assets/<nombre>` en los
+/// valores antes de enviar la petición, así que aquí solo hace falta comprobar
+/// que ese nombre es válido y dejar el archivo donde el valor dice que está.
+/// Una correspondencia, sin traducción de ida y vuelta que se pueda desalinear.
+fn write_skin_assets(skin_dir: &Path, uploads: &[SkinAssetUpload]) -> Result<(), String> {
+    if uploads.is_empty() {
+        return Ok(());
+    }
+    let assets_dir = skin_dir.join("assets");
+    fs::create_dir_all(&assets_dir)
+        .map_err(|error| format!("no se pudo crear la carpeta de imágenes: {error}"))?;
+
+    for upload in uploads {
+        let relative = validated_asset_relative(&upload.path)?;
+        let decoded = BASE64
+            .decode(upload.data_base64.as_bytes())
+            .map_err(|_| format!("{relative} llegó dañado"))?;
+        if decoded.is_empty() {
+            return Err(format!("{relative} está vacío"));
+        }
+        if decoded.len() as u64 > MAX_ASSET_BYTES {
+            return Err(format!("{relative} supera el tamaño máximo"));
+        }
+
+        // El mismo archivo temporal que `write_atomically`, pero a bytes: un corte
+        // a mitad de escribir no debe dejar una imagen corrupta en su sitio.
+        let target = assets_dir.join(&relative["assets/".len()..]);
+        let mut file = AtomicWriteFile::open(&target)
+            .map_err(|error| format!("no se pudo guardar {relative}: {error}"))?;
+        file.write_all(&decoded).map_err(|error| error.to_string())?;
+        file.sync_all().map_err(|error| error.to_string())?;
+        file.commit().map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+/// Crea o actualiza una skin.
+///
+/// `overwrite` es lo que separa «crear» de «editar». Sin él, escribir sobre una
+/// skin propia que ya existe falla, que es lo que evita que dos temas acaben con
+/// el mismo nombre por accidente. Con él, se escribe al lado y se cambia al
+/// final, de modo que un fallo a mitad no deja el tema a medias.
 fn create_skin_blocking(app: &AppHandle, request: CreateSkinRequest) -> Result<SkinInfo, String> {
     if !valid_skin_id(&request.id) {
         return Err("identificador de skin inválido".into());
     }
-    let files = validate_component_request(&request)?;
-    let user_dir = user_skins_dir(app).ok_or("no se pudo resolver AppLocalData")?;
+
+    let mut files = build_skin_files(&request)?;
+    if let Some(css) = &request.custom_css {
+        if css.len() as u64 > MAX_CUSTOM_CSS_BYTES {
+            return Err("custom.css supera el tamaño máximo".into());
+        }
+        // El CSS no se limpia ni se reordena: es CSS, y un CSS con un error de
+        // sintaxis solo pierde esa hoja, como ya cuenta el doc del módulo.
+        files.push(("custom".into(), css.clone()));
+    }
+
+    let user_dir = user_skins_dir(app).ok_or("no se pudo resolver la carpeta de Xenner")?;
     fs::create_dir_all(&user_dir).map_err(|error| error.to_string())?;
     if !is_plain_directory(&user_dir) {
-        return Err("la carpeta de skins de usuario no es accesible".into());
+        return Err("la carpeta de temas no es accesible".into());
     }
     if let Some(system_dir) = system_skins_dir(app) {
         if is_plain_directory(&system_dir.join(&request.id)) {
-            return Err("ya existe una skin sistémica con ese identificador".into());
+            return Err("ya existe un tema incluido con ese identificador".into());
         }
     }
+
     let final_dir = user_dir.join(&request.id);
     if fs::symlink_metadata(&final_dir).is_ok() {
-        return Err("ya existe una skin con ese identificador".into());
+        if !request.overwrite {
+            return Err("ya existe una skin con ese identificador".into());
+        }
+        if !is_plain_directory(&final_dir) {
+            return Err("ese identificador ya existe y no es una carpeta".into());
+        }
     }
 
     let temporary_dir = user_dir.join(format!(".xenner-{}-tmp", request.id));
@@ -756,18 +948,38 @@ fn create_skin_blocking(app: &AppHandle, request: CreateSkinRequest) -> Result<S
         let _ = fs::remove_dir_all(&temporary_dir);
     }
     fs::create_dir(&temporary_dir).map_err(|error| error.to_string())?;
-    let result = (|| {
+
+    let escrito = (|| {
+        write_skin_assets(&temporary_dir, &request.assets)?;
         write_atomically(&temporary_dir.join("skin.txt"), &manifest_content(&request))
             .map_err(|error| error.to_string())?;
         for (component, content) in files {
             write_atomically(&temporary_dir.join(format!("{component}.txt")), &content)
                 .map_err(|error| error.to_string())?;
         }
-        fs::rename(&temporary_dir, &final_dir).map_err(|error| error.to_string())
+        Ok(())
     })();
-    if let Err(error) = result {
+    if let Err(error) = escrito {
         let _ = fs::remove_dir_all(&temporary_dir);
         return Err(error);
+    }
+
+    if is_plain_directory(&final_dir) {
+        // Sustituir una carpeta por otra no es atómico y aquí no compensa: se
+        // vacía la vieja y se mueve la nueva dentro. Lo que hubiera en el tema
+        // anterior y no se haya vuelto a escribir se queda, que es lo que espera
+        // quien edita: un `custom.css` de más no es un error, es una decisión.
+        if let Ok(existentes) = fs::read_dir(&final_dir) {
+            for entrada in existentes.flatten() {
+                let ruta = entrada.path();
+                let _ = fs::remove_dir_all(&ruta);
+                let _ = fs::remove_file(&ruta);
+            }
+        }
+    }
+    if let Err(error) = fs::rename(&temporary_dir, &final_dir) {
+        let _ = fs::remove_dir_all(&temporary_dir);
+        return Err(format!("no se pudo guardar el tema: {error}"));
     }
 
     Ok(SkinInfo {
@@ -980,6 +1192,119 @@ mod tests {
         // skin y la comprobación de contención lo rechaza. Un symlink que
         // apunta dentro de la skin sí se aceptaría: no es un salida del disco.
         assert!(safe_asset_path(&skin, "assets/logo.png").is_err());
+    }
+
+    #[test]
+    fn valida_la_ruta_de_un_asset_pieza_a_pieza() {
+        assert_eq!(
+            validated_asset_relative("assets/fondo.svg").expect("válida"),
+            "assets/fondo.svg"
+        );
+        assert_eq!(
+            validated_asset_relative("assets/mi_fondo-2.PNG").expect("válida"),
+            "assets/mi_fondo-2.png",
+            "la extensión se baja a minúsculas para que la ruta sea estable"
+        );
+
+        // Todo lo que pueda sacar el archivo de `assets/` está fuera, aunque el
+        // archivo se llame bien.
+        assert!(validated_asset_relative("../secreto.png").is_err());
+        assert!(validated_asset_relative("assets/../../secreto.png").is_err());
+        assert!(validated_asset_relative("assets/sub/carpeta.png").is_err());
+        assert!(validated_asset_relative("assets\\\\secreto.png").is_err());
+        assert!(validated_asset_relative("notas/mi-imagen.svg").is_err());
+        assert!(validated_asset_relative("assets/").is_err());
+        assert!(validated_asset_relative("assets/sin-extension").is_err());
+        assert!(validated_asset_relative("assets/.png").is_err());
+        assert!(validated_asset_relative("assets/fondo.exe").is_err());
+        assert!(validated_asset_relative("assets/mi imagen.png").is_err());
+        assert!(validated_asset_relative(" assets/fondo.png").is_err());
+    }
+
+    #[test]
+    fn un_txt_literal_se_guarda_exacto_como_esta_escrito() {
+        let texto = "# mi nota\n\ntext = \"#fff\"   # con un = de más\nradius=\"4px\"\n";
+        let guardado = raw_component_text("note", texto).expect("debería valer");
+
+        // Ni una letra. Comentarios, espacios, mayúsculas y el `=` de más dentro
+        // del comentario se quedan: es como lo escribió la persona y como lo va
+        // a releer. Reordenar un archivo que alguien tiene abierto en el Bloc de
+        // notas es la peor forma de guardar un cambio.
+        assert_eq!(guardado, texto);
+    }
+
+    #[test]
+    fn un_valor_con_acentos_no_tumba_el_backend() {
+        // Antes esto reventaba: el recorrido iba byte a byte y una `á` partía el
+        // string por la mitad. Cualquier valor con texto español —el nombre de
+        // una tipografía, un `content`— era un `panic` en el backend.
+        assert!(safe_component_value("Georgia, \"Noto Serif\", serif"));
+        assert!(safe_component_value("\"Mañana\""));
+        assert!(safe_component_value("\"日本語のフォント\""));
+        assert!(safe_component_value("\"🌙\""));
+        // Y con un `url(...)` alrededor, que es donde el recorrido salta de golpe.
+        assert!(safe_component_value("url(assets/ñandú.png)"));
+        assert!(safe_component_value("\"Toyo\" url(assets/ñ.png)"));
+        // Lo prohibido sigue prohibido, y con tildes dentro también.
+        assert!(!safe_component_value("\"más; rojo\""));
+        assert!(!safe_component_value("\"más\"; rojo"));
+    }
+
+    #[test]
+    fn el_texto_literal_manda_sobre_el_mapa() {
+        let request = CreateSkinRequest {
+            id: "ejemplo".into(),
+            name: "Ejemplo".into(),
+            version: "1.0.0".into(),
+            author: "Xenner".into(),
+            components: BTreeMap::from([(
+                "note".to_string(),
+                BTreeMap::from([("text".to_string(), "#000".to_string())]),
+            )]),
+            files: BTreeMap::from([(
+                "note".to_string(),
+                "# escrito a mano\ntext=\"#fff\"\n".to_string(),
+            )]),
+            custom_css: None,
+            assets: Vec::new(),
+            overwrite: false,
+        };
+
+        let archivos = build_skin_files(&request).expect("debería construir");
+        let note = archivos
+            .iter()
+            .find(|(component, _)| component == "note")
+            .map(|(_, text)| text.clone())
+            .expect("note.txt está");
+        assert_eq!(
+            note, "# escrito a mano\ntext=\"#fff\"\n",
+            "el comentario del archivo literal tiene que llegar al disco"
+        );
+    }
+
+    #[test]
+    fn escribir_assets_deja_el_archivo_donde_el_valor_dice() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let uploads = vec![SkinAssetUpload {
+            path: "assets/fondo.svg".into(),
+            data_base64: "PHN2Zy8+".into(),
+        }];
+        write_skin_assets(dir.path(), &uploads).expect("debería escribir");
+        assert_eq!(
+            fs::read_to_string(dir.path().join("assets/fondo.svg")).expect("leído"),
+            "<svg/>"
+        );
+    }
+
+    #[test]
+    fn escribir_assets_no_salta_a_otro_sitio() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let uploads = vec![SkinAssetUpload {
+            path: "../fuera.png".into(),
+            data_base64: "eA==".into(),
+        }];
+        assert!(write_skin_assets(dir.path(), &uploads).is_err());
+        assert!(!dir.path().parent().expect("padre").join("fuera.png").exists());
     }
 
     #[test]

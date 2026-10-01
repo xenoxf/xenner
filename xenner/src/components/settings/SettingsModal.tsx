@@ -6,6 +6,7 @@ import styles from "../../styles/components/SettingsModal.module.css";
 import type { Appearance } from "../../types/appearance";
 import type { SkinInfo } from "../../types/skin";
 import { CheckIcon, CloseIcon, InfoIcon } from "../ui/Icons";
+import { ConfigFolder } from "./ConfigFolder";
 import { FontSelect } from "./FontSelect";
 import { IconButton } from "../ui/IconButton";
 import { ModalBackdrop } from "../ui/ModalBackdrop";
@@ -19,6 +20,10 @@ export interface SettingsModalProps {
   onAppearanceChange(appearance: Appearance): void;
   onSkinChange(id: string): void;
   onSkinCreated(skin: SkinInfo): void;
+  /** El tema que se está editando, o `null` si se está creando uno nuevo. */
+  editingSkin: SkinInfo | null;
+  onSkinEdit(skin: SkinInfo): void;
+  onSkinEditCancel(): void;
   onClose(): void;
 }
 
@@ -98,6 +103,11 @@ export function SettingsModal(props: SettingsModalProps) {
   const canReset = (): boolean =>
     section() === "appearance" && !isDefaultAppearance(props.appearance);
 
+  // Con un tema abierto, «restablecer» no puede ser «volver a los valores de
+  // fábrica» sin más: sería mentir, porque no es el tema de fábrica. Se dice lo
+  // que va a pasar en su lugar.
+  const resetLabel = (): string => (props.editingSkin ? "Cerrar sin guardar" : "Restablecer");
+
   return (
     <ModalBackdrop onBackdropPointerDown={props.onClose}>
       <div
@@ -137,13 +147,16 @@ export function SettingsModal(props: SettingsModalProps) {
           <header class={styles.header}>
             <h2 id="settings-title">{current().label}</h2>
             <div class={styles.headerActions}>
-              <Show when={canReset()}>
+              <Show when={canReset() || props.editingSkin}>
                 <button
                   type="button"
                   class={styles.reset}
-                  onClick={() => props.onAppearanceChange({ ...DEFAULT_APPEARANCE })}
+                  onClick={() => {
+                    if (props.editingSkin) props.onSkinEditCancel();
+                    else props.onAppearanceChange({ ...DEFAULT_APPEARANCE });
+                  }}
                 >
-                  Restablecer
+                  {resetLabel()}
                 </button>
               </Show>
               <IconButton aria-label="Cerrar configuración" onClick={props.onClose}>
@@ -324,6 +337,21 @@ export function SettingsModal(props: SettingsModalProps) {
                                     ? `Incluido · ${skin.author}`
                                     : "Incluido"}
                               </small>
+                              <Show when={skin.origin === "user"}>
+                                <button
+                                  type="button"
+                                  class={styles.skinEdit}
+                                  onClick={(event) => {
+                                    // El botón de la tarjeta es el que elige el
+                                    // tema; este es otro botón dentro. Sin
+                                    // `stopPropagation` los dos responderían.
+                                    event.stopPropagation();
+                                    props.onSkinEdit(skin);
+                                  }}
+                                >
+                                  Editar
+                                </button>
+                              </Show>
                             </span>
                             <Show when={props.activeSkin === skin.id}>
                               <span class={styles.check}>
@@ -335,19 +363,31 @@ export function SettingsModal(props: SettingsModalProps) {
                       )}
                     </For>
                   </ul>
+                  <ConfigFolder variant="skins" />
                 </div>
               </Show>
 
               <Show when={section() === "create"}>
                 <div class={styles.group}>
-                  <h3 class={styles.groupTitle}>Crea un tema</h3>
+                  <h3 class={styles.groupTitle}>{props.editingSkin ? "Edita tu tema" : "Crea un tema"}</h3>
                   <p class={styles.groupHint}>
-                    Empieza de una paleta, ajusta lo que quieras y guárdalo con un nombre. Se
-                    añade a la lista de temas para que puedas usarlo cuando quieras.
+                    {props.editingSkin
+                      ? "Estás editando un tema que ya habías creado. Los cambios se guardan en los mismos archivos de antes."
+                      : "Empieza de una paleta, ajusta lo que quieras y guárdalo con un nombre. Se añade a la lista de temas para que puedas usarlo cuando quieras."}
                   </p>
+                  <Show when={props.editingSkin}>
+                    <button type="button" class={styles.linkish} onClick={props.onSkinEditCancel}>
+                      Volver a crear uno nuevo desde cero
+                    </button>
+                  </Show>
                   <div class={styles.embed}>
-                    <SkinCreator onCreated={props.onSkinCreated} />
+                    <SkinCreator
+                      editing={props.editingSkin ?? null}
+                      onCreated={props.onSkinCreated}
+                      onSaved={props.onSkinChange}
+                    />
                   </div>
+                  <ConfigFolder variant="create" />
                 </div>
               </Show>
             </div>

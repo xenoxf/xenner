@@ -431,6 +431,34 @@
   white-space: nowrap;
 }
 
+/* Botón de texto plano, para acciones que no son el elemento pulsable principal. */
+.linkish,
+.skinEdit {
+  align-self: flex-start;
+  margin-top: 3px;
+  padding: 0;
+  color: var(--skin-note-accent);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.linkish:hover,
+.skinEdit:hover {
+  color: var(--skin-button-textHover);
+}
+
+.linkish:focus-visible,
+.skinEdit:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 .skinCardCopy small {
   overflow: hidden;
   color: var(--skin-sidebar-textDim);

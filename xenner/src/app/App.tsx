@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 
 import { ToastRegion } from "../components/feedback/ToastRegion";
 import { AppShell } from "../components/layout/AppShell";
@@ -29,12 +29,17 @@ import {
   workspaceSupportsFolderPicker,
 } from "../workspace/store";
 import { useAppController } from "./useAppController";
+import type { SkinInfo } from "../types/skin";
 
 export default function App() {
   const controller = useAppController();
   const appearance = controller.appearance;
   const explorer = controller.explorer;
   const history = controller.history;
+  // El tema que se está editando. Vive aquí y no dentro del modal porque el
+  // modal se monta y se desmonta: si estuviera dentro, al cerrarlo y volver a
+  // abrirlo se perdería el contexto de qué tema se estaba tocando.
+  const [editingSkin, setEditingSkin] = createSignal<SkinInfo | null>(null);
 
   return (
     <AppShell>
@@ -104,10 +109,16 @@ export default function App() {
           activeSkin={appearance.activeSkin()}
           loading={appearance.skinLoading()}
           appearance={appearance.appearance()}
+          editingSkin={editingSkin()}
           onAppearanceChange={appearance.updateAppearance}
           onSkinChange={(id) => void appearance.changeSkin(id)}
           onSkinCreated={appearance.skinCreated}
-          onClose={() => controller.setSettingsOpen(false)}
+          onSkinEdit={setEditingSkin}
+          onSkinEditCancel={() => setEditingSkin(null)}
+          onClose={() => {
+            setEditingSkin(null);
+            controller.setSettingsOpen(false);
+          }}
         />
       </Show>
       <ToastRegion />

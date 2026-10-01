@@ -73,17 +73,33 @@ function previewUserSkins(): SkinInfo[] {
   }
 }
 
-function previewUserComponent(skin: string, component: string): string | null {
+/**
+ * Los archivos de un tema creado en el navegador.
+ *
+ * Se guardan como texto, no como un mapa de valores, por la misma razón que en
+ * el disco: el creador escribe texto y quien lo lee tiene que leer lo mismo. Si
+ * aquí se descompusiera en clave/valor y se volviera a montar, estaríamos
+ * comprobando una forma que no existe en ninguna parte más.
+ */
+function previewUserFiles(skin: string): Record<string, string> | null {
   if (typeof localStorage === "undefined") return null;
   try {
     const raw = localStorage.getItem(BROWSER_USER_SKINS_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Record<string, { components?: Record<string, Record<string, string>> }>;
-    const values = parsed[skin]?.components?.[component];
-    if (!values) return null;
-    return Object.entries(values)
-      .map(([key, value]) => `${key}="${value}"`)
-      .join("\n");
+    const parsed = JSON.parse(raw) as Record<string, { files?: Record<string, string> }>;
+    return parsed[skin]?.files ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function previewUserCss(skin: string): string | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(BROWSER_USER_SKINS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, { customCss?: string }>;
+    return parsed[skin]?.customCss ?? null;
   } catch {
     return null;
   }
@@ -169,19 +185,23 @@ function bundleConfig(): string {
 async function readComponentText(
   activeId: string,
   component: SkinComponent,
+  previewFiles: Record<string, string> | null,
 ): Promise<string | null> {
   if (!activeId) return null;
   const viaTauri = await tauriReadFile(activeId, component);
   if (viaTauri !== null) return viaTauri;
-  const preview = previewUserComponent(activeId, component);
-  if (preview !== null) return preview;
+  if (previewFiles && previewFiles[component] !== undefined) return previewFiles[component];
   return BUNDLE[`../../skins/${activeId}/${component}.txt`] ?? null;
 }
 
-async function readCustomCss(activeId: string): Promise<string | null> {
+async function readCustomCss(
+  activeId: string,
+  previewCss: string | null,
+): Promise<string | null> {
   if (!activeId) return null;
   const viaTauri = await tauriReadFile(activeId, "custom");
   if (viaTauri !== null && viaTauri.trim()) return viaTauri;
+  if (previewCss && previewCss.trim()) return previewCss;
   return BUNDLE[`../../skins/${activeId}/custom.css`] ?? null;
 }
 
@@ -250,8 +270,12 @@ export async function loadSkin(preferredId?: string): Promise<LoadedSkin> {
     if (preferredId !== undefined) await tauriSetActiveSkin(activeId);
 
     const [texts, customCss] = await Promise.all([
-      Promise.all(SKIN_COMPONENTS.map((component) => readComponentText(activeId, component))),
-      readCustomCss(activeId),
+      Promise.all(
+        SKIN_COMPONENTS.map((component) =>
+          readComponentText(activeId, component, previewUserFiles(activeId)),
+        ),
+      ),
+      readCustomCss(activeId, previewUserCss(activeId)),
     ]);
     if (request !== latestLoad) return { activeId, skins };
 

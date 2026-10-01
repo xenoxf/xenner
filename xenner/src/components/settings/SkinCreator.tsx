@@ -1,63 +1,228 @@
-import { createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 
 import {
-  DEFAULT_SKIN_DRAFT,
-  SKIN_COLOR_FIELDS,
-  SKIN_PALETTES,
-  SKIN_PRESETS,
-  SKIN_SHADOW_OPTIONS,
-} from "../../data/skin";
-import { buildSkinPreviewStyle, createUserSkin } from "../../skin/creator";
+  buildEditorPreviewStyle,
+  draftToEditor,
+  editorId,
+  readUserSkinFiles,
+  saveUserSkin,
+} from "../../skin/creator";
+import {
+  COMPONENTES,
+  COMPONENT_LABELS,
+  emptyEditor,
+  fileWith,
+  setValue,
+  unusedAssetPaths,
+  valuesWithAssets,
+} from "../../skin/editor";
+import {
+  explainIgnoredLine,
+  ignoredSkinLines,
+  type ParsedSkinComponent,
+} from "../../skin/parse";
+import { assetName, chooseSkinAsset, humanBytes } from "../../services/skinAssets";
 import styles from "../../styles/components/SkinCreator.module.css";
-import type { SkinDraft, SkinInfo } from "../../types/skin";
+import type { SkinDraft, SkinEditor, SkinInfo } from "../../types/skin";
 import { Button } from "../ui/Button";
-import { FontSelect } from "./FontSelect";
+import { ConfigFolder } from "./ConfigFolder";
+import { QuickPalette } from "./QuickPalette";
+import { SkinFilesEditor } from "./SkinFilesEditor";
 
-interface SkinCreatorProps {
+export interface SkinCreatorProps {
+  /** El tema que se está editando, o `null` para crear uno nuevo. */
+  editing?: SkinInfo | null;
   onCreated(skin: SkinInfo): void;
+  /** Se llama tras guardar un tema que ya existía, para refrescarlo en pantalla. */
+  onSaved?(id: string): void;
 }
 
+type Pestana = "rapido" | "archivos" | "css";
+
+const PESTANAS: readonly { id: Pestana; label: string; hint: string }[] = [
+  { id: "rapido", label: "Con deslizadores", hint: "Colores y formas" },
+  { id: "archivos", label: "Cada parte", hint: "Todo, clave por clave" },
+  { id: "css", label: "CSS", hint: "Lo que no cabe en un ajuste" },
+];
+
+/**
+ * El creador de temas, sin techo.
+ *
+ * Tres puertas a lo mismo, y las tres escriben los mismos archivos:
+ *
+ *   - **Con deslizadores**, para cambiar nueve colores y cuatro medidas. Es el
+ *     camino corto y no hace falta saber nada.
+ *   - **Cada parte por separado**, con todas sus claves y el valor escrito a
+ *     mano. Aquí cabe un degradado, una sombra larga, un `url()` con una imagen
+ *     propia. No hay lista cerrada de valores, solo de claves.
+ *   - **El CSS entero**, para lo que no cabe en un `clave="valor"`: dónde está
+ *     cada cosa, cuánto se mueve, una paleta distinta de día y de noche.
+ *
+ * Por qué tres y no uno: quien no sabe CSS nunca quiere escribirlo, y quien sí
+ * sabe no quiere mover un deslizador. Lo que no valía es que el del deslizador
+ * no pudiera ver el archivo, porque entonces el ajuste fino se acaba con él. Por
+ * eso el panel rápido y la edición a mano son la misma cosa de dos maneras, y
+ * una se cambia a la otra sin perder nada.
+ *
+ * Y en las dos formas hay imágenes: se elige un archivo del disco y se usa donde
+ * haga falta. Un SVG de fondo en un botón no es un truco, es un campo.
+ */
 export function SkinCreator(props: SkinCreatorProps) {
-  const [draft, setDraft] = createSignal<SkinDraft>({ ...DEFAULT_SKIN_DRAFT });
+  const [editor, setEditor] = createSignal<SkinEditor>(emptyEditor());
+  const [pestana, setPestana] = createSignal<Pestana>("rapido");
+  const [componenteAbierto, setComponenteAbierto] = createSignal<ParsedSkinComponent>("button");
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [aviso, setAviso] = createSignal<string | null>(null);
+  const [cargando, setCargando] = createSignal(false);
+  /** El CSS sin pasar por el store en cada tecla: 400 líneas a 60 fps no es una broma. */
+  const [cssPendiente, setCssPendiente] = createSignal<string | null>(null);
+  let abiertoId: string | null = null;
 
-  function update<K extends keyof SkinDraft>(key: K, value: SkinDraft[K]): void {
-    setDraft((current) => ({ ...current, [key]: value }));
+  // Abrir «Editar» sobre un tema existente tiene que leer sus archivos del disco.
+  // Se comprueba en cada render en vez de al montar porque el componente se
+  // monta una sola vez y el tema se elige después; el `abiertoId` es lo que
+  // evita volver a cargarlo en cada keystroke.
+  const objetivo = () => props.editing?.id ?? null;
+  if (objetivo() !== abiertoId) {
+    abiertoId = objetivo();
+    const id = abiertoId;
+    if (id === null) {
+      setEditor(emptyEditor());
+      setCargando(false);
+    } else {
+      setCargando(true);
+      void readUserSkinFiles(id)
+        .then((leido) => setEditor({ ...leido, name: props.editing?.name ?? leido.name }))
+        .catch(() =>
+          setError("No se pudieron leer los archivos del tema. Se abre uno en blanco."),
+        )
+        .finally(() => setCargando(false));
+    }
+  }
+  onCleanup(() => {
+    abiertoId = null;
+  });
+
+  const imagenesSinUso = createMemo(() => unusedAssetPaths(editor()));
+  const lineasAvisadas = createMemo(() => {
+    if (pestana() !== "archivos") return [];
+    return ignoredSkinLines(componenteAbierto(), editor().files[componenteAbierto()] ?? "");
+  });
+
+  function actualizar(cambio: (previo: SkinEditor) => SkinEditor): void {
+    setError(null);
+    setEditor((previo) => cambio(previo));
   }
 
-  function setMode(mode: SkinDraft["mode"]): void {
-    setDraft((current) => ({
-      ...current,
-      mode,
-      ...SKIN_PALETTES[mode],
+  function ponerValor(component: ParsedSkinComponent, key: string, value: string): void {
+    actualizar((previo) => setValue(previo, component, key, value));
+  }
+
+  async function anadirImagen(): Promise<void> {
+    setError(null);
+    setAviso(null);
+    try {
+      const tomadas = editor().assets.map((asset) => asset.path.split("/").pop() ?? "");
+      const elegido = await chooseSkinAsset(tomadas);
+      if (!elegido) return;
+
+      actualizar((previo) => ({ ...previo, assets: [...previo.assets, elegido] }));
+
+      // Se ofrece aplicada en el sitio donde suele ser lo que la persona quiere.
+      // El paso de escribir `url(...)` a mano es justo el que hay que quitar de
+      // en medio, y si en ese archivo no hay una clave de imagen se dice en voz
+      // alta, en vez de ponerla en un sitio donde no va a hacer nada.
+      const destino = componenteAbierto();
+      const clave = claveParaImagen(destino);
+      if (clave) {
+        ponerValor(destino, clave, `url("${elegido.path}")`);
+        setAviso(`Se ha puesto ${elegido.name} en «${COMPONENT_LABELS[destino]}».`);
+      } else {
+        setAviso(
+          `Añadido. Para usarlo escríbelo donde quieras: url("${elegido.path}")`,
+        );
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo elegir el archivo");
+    }
+  }
+
+  function quitarImagen(path: string): void {
+    actualizar((previo) => ({
+      ...previo,
+      assets: previo.assets.filter((asset) => asset.path !== path),
     }));
   }
 
-  function applyPreset(preset: (typeof SKIN_PRESETS)[number]): void {
-    setDraft((current) => ({ ...preset.draft, name: current.name }));
+  /**
+   * Renombrar una imagen reescribe su referencia en todos los archivos a la vez.
+   *
+   * Es lo que evita la mitad de los «funcionaba y ahora no»: cambiar el nombre
+   * sin tocar el `.txt` deja un `url()` apuntando a un archivo que ya no está.
+   */
+  function renombrarImagen(path: string, nuevaRuta: string): void {
+    actualizar((previo) => {
+      const archivos: Record<string, string> = { ...previo.files };
+      for (const component of COMPONENTES) {
+        const actual = archivos[component] ?? "";
+        if (actual.includes(path)) {
+          archivos[component] = actual.split(path).join(nuevaRuta);
+        }
+      }
+      return {
+        ...previo,
+        files: archivos,
+        assets: previo.assets.map((asset) =>
+          asset.path === path ? { ...asset, path: nuevaRuta } : asset,
+        ),
+      };
+    });
   }
 
-  async function submit(event: SubmitEvent): Promise<void> {
+  async function guardar(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (busy() || !draft().name.trim()) return;
+    if (busy() || !editor().name.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      const skin = await createUserSkin(draft());
-      props.onCreated(skin);
+      // Si el CSS se estaba escribiendo, va con el resto: si no, se perderían las
+      // últimas teclas al pulsar el botón.
+      const cssFinal = cssPendiente() ?? editor().customCss;
+      const listo = { ...editor(), customCss: cssFinal };
+      setCssPendiente(null);
+
+      const skin = await saveUserSkin(listo, {
+        id: editorId(listo, props.editing?.id),
+        overwrite: Boolean(props.editing),
+      });
+      if (props.editing) props.onSaved?.(skin.id);
+      else props.onCreated(skin);
+      setAviso(
+        props.editing
+          ? "Guardado. Xenner ya lo está aplicando."
+          : "Tema creado. Ya está en tu lista de temas.",
+      );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo crear el tema");
+      setError(cause instanceof Error ? cause.message : "No se pudo guardar el tema");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form class={styles.form} onSubmit={(event) => void submit(event)}>
-      <div class={styles.preview} data-mode={draft().mode} style={buildSkinPreviewStyle(draft())}>
+    <form class={styles.form} onSubmit={(event) => void guardar(event)}>
+      <div
+        class={styles.preview}
+        data-mode={editor().mode}
+        style={buildEditorPreviewStyle(editor())}
+      >
         <div class={styles.previewToolbar}>
-          <span class={styles.previewDots}><i /><i /><i /></span>
+          <span class={styles.previewDots}>
+            <i />
+            <i />
+            <i />
+          </span>
           <span class={styles.previewToolbarLine} />
         </div>
         <div class={styles.previewSidebar}>
@@ -66,7 +231,7 @@ export function SkinCreator(props: SkinCreatorProps) {
           <span />
         </div>
         <div class={styles.previewEditor}>
-          <strong>{draft().name || "Mi tema"}</strong>
+          <strong>{editor().name || "Mi tema"}</strong>
           <div class={styles.previewNote}>
             <span />
             <i />
@@ -75,161 +240,229 @@ export function SkinCreator(props: SkinCreatorProps) {
         </div>
       </div>
 
-      <section class={styles.creatorBlock}>
-        <div class={styles.blockHeader}>
-          <strong>Nombre</strong>
-        </div>
-        <label class={styles.nameControl} for="skin-name">
-          <span>Cómo se llamará tu tema</span>
-          <input
-            id="skin-name"
-            class={styles.nameInput}
-            value={draft().name}
-            maxlength={64}
-            required
-            onInput={(event) => update("name", event.currentTarget.value)}
-          />
-        </label>
-      </section>
+      <label class={styles.nameControl} for="skin-name">
+        <span>Cómo se llamará tu tema</span>
+        <input
+          id="skin-name"
+          class={styles.nameInput}
+          value={editor().name}
+          maxlength={64}
+          required
+          onInput={(event) =>
+            actualizar((previo) => ({ ...previo, name: event.currentTarget.value }))
+          }
+        />
+      </label>
 
-      <section class={styles.creatorBlock}>
-        <div class={styles.blockHeader}>
-          <strong>Empezar de una base</strong>
-          <button type="button" class={styles.resetButton} onClick={() => setDraft({ ...DEFAULT_SKIN_DRAFT })}>
-            Restablecer
-          </button>
-        </div>
-        <div class={styles.presets}>
-          <For each={SKIN_PRESETS}>
-            {(preset) => (
+      <div class={styles.tabs} role="tablist" aria-label="Cómo editar el tema">
+        <For each={PESTANAS}>
+          {(pestaña) => (
+            <button
+              type="button"
+              role="tab"
+              id={`skin-tab-${pestaña.id}`}
+              aria-selected={pestana() === pestaña.id}
+              aria-controls={`skin-panel-${pestaña.id}`}
+              class={pestana() === pestaña.id ? styles.tabOn : styles.tab}
+              onClick={() => setPestana(pestaña.id)}
+            >
+              <strong>{pestaña.label}</strong>
+              <small>{pestaña.hint}</small>
+            </button>
+          )}
+        </For>
+      </div>
+
+      <div
+        class={styles.panel}
+        role="tabpanel"
+        id="skin-panel-rapido"
+        aria-labelledby="skin-tab-rapido"
+        hidden={pestana() !== "rapido"}
+      >
+        <QuickPalette
+          value={editor()}
+          onChange={(draft) => actualizar(() => draftToEditor(draft))}
+        />
+      </div>
+
+      <div
+        class={styles.panel}
+        role="tabpanel"
+        id="skin-panel-archivos"
+        aria-labelledby="skin-tab-archivos"
+        hidden={pestana() !== "archivos"}
+      >
+        <div class={styles.componentTabs} role="tablist" aria-label="Qué parte de la ventana">
+          <For each={COMPONENTES}>
+            {(component) => (
               <button
                 type="button"
-                class={styles.preset}
-                onClick={() => applyPreset(preset)}
+                role="tab"
+                aria-selected={componenteAbierto() === component}
+                class={componenteAbierto() === component ? styles.componentOn : styles.component}
+                onClick={() => setComponenteAbierto(component)}
               >
-                <span class={styles.presetSwatch} style={buildSkinPreviewStyle(preset.draft)} />
-                {preset.label}
+                {COMPONENT_LABELS[component]}
               </button>
             )}
           </For>
         </div>
-      </section>
 
-      <section class={styles.creatorBlock}>
-        <div class={styles.blockHeader}>
-          <strong>Paleta</strong>
-          <div class={styles.modeSwitch} role="radiogroup" aria-label="Punto de partida: claro u oscuro">
-            <button
-              type="button"
-              class={draft().mode === "light" ? styles.active : undefined}
-              aria-pressed={draft().mode === "light"}
-              onClick={() => setMode("light")}
-            >
-              Claro
-            </button>
-            <button
-              type="button"
-              class={draft().mode === "dark" ? styles.active : undefined}
-              aria-pressed={draft().mode === "dark"}
-              onClick={() => setMode("dark")}
-            >
-              Oscuro
-            </button>
-          </div>
+        <SkinFilesEditor
+          component={componenteAbierto()}
+          values={valuesWithAssets(editor(), componenteAbierto())}
+          label={COMPONENT_LABELS[componenteAbierto()]}
+          onSet={(key, value) => ponerValor(componenteAbierto(), key, value)}
+          onRaw={(text) => actualizar((previo) => fileWith(previo, componenteAbierto(), text))}
+        />
+
+        <Show when={lineasAvisadas().length > 0}>
+          <ul class={styles.lineWarnings}>
+            <For each={lineasAvisadas()}>
+              {(linea) => <li>{explainIgnoredLine(linea)}</li>}
+            </For>
+          </ul>
+        </Show>
+      </div>
+
+      <div
+        class={styles.panel}
+        role="tabpanel"
+        id="skin-panel-css"
+        aria-labelledby="skin-tab-css"
+        hidden={pestana() !== "css"}
+      >
+        <div class={styles.cssHead}>
+          <strong>Tu CSS</strong>
+          <p>
+            Aquí va lo que no cabe en una línea de ajustes: dónde está cada cosa, cuánto
+            se mueve, y una paleta distinta de día y de noche. Es un archivo de CSS
+            normal, y si tiene un error solo se pierde esta parte.
+          </p>
         </div>
-        <div class={styles.colorGrid}>
-          <For each={SKIN_COLOR_FIELDS}>
-            {(field) => (
-              <label class={styles.colorField} for={`skin-${field.key}`}>
-                <span>{field.label}</span>
-                <span class={styles.colorControl}>
-                  <input
-                    id={`skin-${field.key}`}
-                    class={styles.colorInput}
-                    type="color"
-                    value={draft()[field.key]}
-                    onInput={(event) => update(field.key, event.currentTarget.value)}
+        <textarea
+          class={styles.cssArea}
+          spellcheck={false}
+          wrap="off"
+          aria-label="El CSS de tu tema"
+          value={cssPendiente() ?? editor().customCss}
+          onInput={(event) => {
+            const texto = event.currentTarget.value;
+            setCssPendiente(texto);
+          }}
+          onBlur={() => {
+            const texto = cssPendiente();
+            if (texto === null) return;
+            setCssPendiente(null);
+            setEditor((previo) => ({ ...previo, customCss: texto }));
+          }}
+        />
+      </div>
+
+      <section class={styles.assetsBlock}>
+        <div class={styles.blockHeader}>
+          <strong>Imágenes y tipografías</strong>
+          <button type="button" class={styles.addAsset} onClick={() => void anadirImagen()}>
+            Añadir un archivo…
+          </button>
+        </div>
+        <p class={styles.assetsHint}>
+          Elige un archivo de tu equipo y úsalo como fondo de un botón, de una nota o de
+          la ventana. SVG, PNG, JPG… y también tipografías.
+        </p>
+        <Show
+          when={editor().assets.length > 0}
+          fallback={<p class={styles.assetsEmpty}>Todavía no hay ninguna.</p>}
+        >
+          <ul class={styles.assetList}>
+            <For each={editor().assets}>
+              {(asset) => (
+                <li class={styles.asset}>
+                  <span
+                    class={styles.assetThumb}
+                    style={`background-image:url("${asset.dataUrl}")`}
+                    aria-hidden="true"
                   />
-                  <output>{draft()[field.key]}</output>
-                </span>
-              </label>
-            )}
-          </For>
-        </div>
+                  <span class={styles.assetBody}>
+                    <strong>{assetName(asset.path)}</strong>
+                    <input
+                      class={styles.assetRef}
+                      value={asset.path}
+                      aria-label={`Cómo se llama ${assetName(asset.path)} dentro del CSS`}
+                      onChange={(evento) =>
+                        renombrarImagen(asset.path, evento.currentTarget.value)
+                      }
+                    />
+                    <small>{humanBytes(asset.bytes)}</small>
+                    <Show when={imagenesSinUso().includes(asset.path)}>
+                      <em class={styles.assetIdle}>No lo está usando ningún archivo.</em>
+                    </Show>
+                  </span>
+                  <button
+                    type="button"
+                    class={styles.assetRemove}
+                    aria-label={`Quitar ${assetName(asset.path)}`}
+                    onClick={() => quitarImagen(asset.path)}
+                  >
+                    Quitar
+                  </button>
+                </li>
+              )}
+            </For>
+          </ul>
+        </Show>
       </section>
 
-      <section class={styles.creatorBlock}>
-        <div class={styles.blockHeader}>
-          <strong>Acabado</strong>
-        </div>
-        <div class={styles.controlsGrid}>
-          <label class={styles.rangeControl} for="skin-radius">
-            <span>Redondeo <output>{draft().radius}px</output></span>
-            <input
-              id="skin-radius"
-              type="range"
-              min="0"
-              max="40"
-              step="1"
-              value={draft().radius}
-              onInput={(event) => update("radius", Number(event.currentTarget.value))}
-            />
-          </label>
-          <label class={styles.rangeControl} for="skin-blur">
-            <span>Difuminado <output>{draft().blur}px</output></span>
-            <input
-              id="skin-blur"
-              type="range"
-              min="0"
-              max="32"
-              step="1"
-              value={draft().blur}
-              onInput={(event) => update("blur", Number(event.currentTarget.value))}
-            />
-          </label>
-          <label class={styles.rangeControl} for="skin-border-width">
-            <span>Grosor del borde <output>{draft().borderWidth}px</output></span>
-            <input
-              id="skin-border-width"
-              type="range"
-              min="0"
-              max="3"
-              step="1"
-              value={draft().borderWidth}
-              onInput={(event) => update("borderWidth", Number(event.currentTarget.value))}
-            />
-          </label>
-          <label class={styles.selectControl} for="skin-shadow">
-            <span>Sombra</span>
-            <select
-              id="skin-shadow"
-              value={draft().shadow}
-              onChange={(event) => update("shadow", event.currentTarget.value as SkinDraft["shadow"])}
-            >
-              <For each={SKIN_SHADOW_OPTIONS}>
-                {(option) => <option value={option.value}>{option.label}</option>}
-              </For>
-            </select>
-          </label>
-          <label class={styles.selectControl} for="skin-font">
-            <span>Tipografía de la interfaz</span>
-            <FontSelect
-              id="skin-font"
-              value={draft().font}
-              onChange={(font) => update("font", font)}
-            />
-          </label>
-        </div>
-      </section>
+      <ConfigFolder variant="create" />
 
+      <Show when={aviso()}>
+        {(mensaje) => (
+          <p class={styles.formOk} role="status">
+            {mensaje()}
+          </p>
+        )}
+      </Show>
       <Show when={error()}>
-        {(message) => <p class={styles.formError} role="alert">{message()}</p>}
+        {(mensaje) => (
+          <p class={styles.formError} role="alert">
+            {mensaje()}
+          </p>
+        )}
       </Show>
       <div class={styles.actions}>
-        <Button type="submit" variant="primary" disabled={busy()}>
-          {busy() ? "Creando…" : "Guardar tema"}
+        <Button type="submit" variant="primary" disabled={busy() || cargando()}>
+          {busy() ? "Guardando…" : props.editing ? "Guardar los cambios" : "Guardar tema"}
         </Button>
       </div>
     </form>
   );
 }
+
+/**
+ * Qué clave de un componente es la que la gente quiere para una imagen.
+ *
+ * No es arbitrario: es la clave que el formato ya llama «el fondo de esto», que es
+ * donde un SVG se pone sin tener que inventar nada. Donde no hay una clave de
+ * imagen propia, se dice en voz alta que hay que escribir la referencia a mano, en
+ * vez de dejarla en un sitio donde no va a hacer nada.
+ */
+function claveParaImagen(component: ParsedSkinComponent): string | null {
+  switch (component) {
+    case "background":
+      return "overlay";
+    case "sidebar":
+      return "itemHover";
+    case "note":
+      return "background";
+    case "toolbar":
+      return "background";
+    case "button":
+      return "background";
+    case "input":
+      return "background";
+  }
+  return null;
+}
+
+export type { SkinDraft };

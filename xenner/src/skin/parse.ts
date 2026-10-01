@@ -86,6 +86,11 @@ function isSafeValue(v: string): boolean {
   // Un solo recorrido: dentro de `url()` el `;` es legítimo (los `data:` lo
   // llevan), fuera rompería el formato. Se separa cada trozo y se valida con sus
   // propias reglas. Mismo criterio que `safe_component_value` en Rust.
+  //
+  // Se avanza carácter a carácter y no unidad a unidad: en JavaScript un emoji
+  // o un carácter fuera del plano básico ocupa dos unidades, y recorrerlas por
+  // separado parte el texto por la mitad. El backend tenía este mismo recorrido
+  // byte a byte y una `á` lo tumbaba.
   let outside = "";
   let cursor = 0;
   while (cursor < v.length) {
@@ -96,10 +101,12 @@ function isSafeValue(v: string): boolean {
       const reference = v.slice(openEnd, close).replace(/^[\s'"]+|[\s'"]+$/g, "");
       if (!isSafeReference(reference)) return false;
       cursor = close + 1;
-    } else {
-      outside += v[cursor];
-      cursor += 1;
+      continue;
     }
+    const punto = v.codePointAt(cursor);
+    const largo = punto !== undefined && punto > 0xffff ? 2 : 1;
+    outside += v.slice(cursor, cursor + largo);
+    cursor += largo;
   }
 
   return !outside.toLowerCase().includes("data:") && !/[;{}]/.test(outside);
@@ -149,4 +156,89 @@ export function parseSkinManifest(text: string): Record<string, string> {
 
 export function parseSkinConfig(text: string): Record<string, string> {
   return parseWithKeys(text, CONFIG_KEYS);
+}
+
+export interface IgnoredLine {
+  /** El número de línea contando desde 1, como lo enseña un editor. */
+  line: number;
+  /** La clave que no va a aplicarse, o `""` si la línea no es `clave=valor`. */
+  key: string;
+  /** Por qué no: una frase, no un código. */
+  why: IgnoredReason;
+}
+
+export type IgnoredReason =
+  | "clave-ajena"
+  | "sin-igual"
+  | "valor-invalido"
+  | "clave-vacia";
+
+/**
+ * Las líneas de un `.txt` que Xenner va a pasar por alto, y por qué.
+ *
+ * No bloquea nada: el cargador las ignora en silencio, que es lo que permite que
+ * un theme roto no rompa la app. Pero «en silencio» y «sin que nadie lo diga» son
+ * cosas distintas, y quien está escribiendo un archivo necesita lo segundo. Por
+ * eso esto informa y no corrige.
+ *
+ * Comparte `isSafeValue` y la allowlist con el parseo de verdad, así que no
+ * puede señalar una línea que en realidad sí va a funcionar. Duplicar estas
+ * reglas aquí es exactamente lo que salió mal la última vez que se duplicaron
+ * (`keys.ts`, y su comentario explica por qué).
+ */
+export function ignoredSkinLines(
+  component: ParsedSkinComponent,
+  text: string,
+): IgnoredLine[] {
+  const allowed = new Set<string>(COMPONENT_KEYS[component]);
+  const out: IgnoredLine[] = [];
+
+  text.split(/\r?\n/).forEach((raw, index) => {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) return;
+
+    const eq = line.indexOf("=");
+    if (eq < 0) {
+      out.push({ line: index + 1, key: "", why: "sin-igual" });
+      return;
+    }
+
+    const key = line.slice(0, eq).trim();
+    if (!key) {
+      out.push({ line: index + 1, key: "", why: "clave-vacia" });
+      return;
+    }
+    if (!allowed.has(key)) {
+      out.push({ line: index + 1, key, why: "clave-ajena" });
+      return;
+    }
+
+    const value = stripQuotes(line.slice(eq + 1).trim());
+    if (!isSafeValue(value)) {
+      out.push({ line: index + 1, key, why: "valor-invalido" });
+    }
+  });
+
+  return out;
+}
+
+/** La frase que se le enseña a la persona, sin jerga de parseador. */
+export function explainIgnoredLine(line: IgnoredLine): string {
+  switch (line.why) {
+    case "clave-ajena":
+      return `La línea ${line.line}: «${line.key}» no es una clave de este archivo, así que Xenner la pasa por alto.`;
+    case "sin-igual":
+      return `La línea ${line.line} no tiene el signo «=», así que Xenner la pasa por alto.`;
+    case "clave-vacia":
+      return `La línea ${line.line} no tiene nombre antes del «=», así que Xenner la pasa por alto.`;
+    case "valor-invalido":
+      return `La línea ${line.line}: el valor de «${line.key}» no es válido, así que Xenner la pasa por alto.`;
+  }
+}
+
+/** El texto entero de un componente, con los valores de un mapa ya puestos. */
+export function stringifySkinComponent(values: Record<string, string>): string {
+  return Object.entries(values)
+    .map(([key, value]) => `${key}="${value}"`)
+    .join("\n");
 }

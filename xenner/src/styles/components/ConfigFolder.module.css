@@ -1,0 +1,106 @@
+/*
+ * El bloque que enseña dónde está la carpeta de Xenner.
+ *
+ * Tokens de skin como en el resto, y nada de colores sueltos: si alguien cambia
+ * el tema, este bloque también. Se apoya en `data-x="button"` para el botón, así
+ * que un tema puede ajustarlo sin conocer estas clases.
+ */
+
+.folder {
+  display: grid;
+  gap: 9px;
+  padding: 12px 13px;
+  background-color: var(--skin-sidebar-background);
+  border: var(--skin-sidebar-border);
+  border-radius: calc(var(--skin-note-radius) * 0.7);
+}
+
+.folderHead {
+  display: grid;
+  gap: 3px;
+}
+
+.folderHead strong {
+  color: var(--skin-note-text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.folderHead small {
+  color: var(--skin-sidebar-textDim);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+/*
+ * La ruta va en su propia línea y se corta por donde haga falta: una ruta de
+ * Windows es larguísima y no cabía en un solo renglón, que es como llegaba a
+ * leerse antes de esto.
+ */
+.folderPath {
+  display: block;
+  padding: 7px 9px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-input-radius) * 0.8);
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.folderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.linkButton {
+  padding: 4px 2px;
+  color: var(--skin-note-accent);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 11.5px;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  color: var(--skin-button-textHover);
+}
+
+.linkButton:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.folderNote {
+  margin: 0;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.folderNote code {
+  font-size: 0.94em;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.formError {
+  margin: 0;
+  color: var(--skin-note-text);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.formError::before {
+  content: '⚠ ';
+  color: var(--skin-note-accent);
+}

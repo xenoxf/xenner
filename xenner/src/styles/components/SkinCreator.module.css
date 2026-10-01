@@ -207,13 +207,18 @@
   border-color: var(--skin-sidebar-accent);
 }
 
+/*
+ * La miniatura de un preset se pinta con sus propios colores, en vez de con los
+ * del tema abierto. Antes cogía los tokens de la skin activa, así que los cuatro
+ * presets se veían idénticos: la única pista de qué ibas a elegir era el nombre.
+ */
 .presetSwatch {
   display: block;
   width: 22px;
   height: 22px;
   flex: 0 0 auto;
-  background: linear-gradient(135deg, var(--skin-toolbar-accent), var(--skin-sidebar-background));
-  border: var(--skin-sidebar-border);
+  background: linear-gradient(135deg, var(--a) 0%, var(--b) 60%, var(--c) 100%);
+  border: 1px solid var(--d);
   border-radius: 6px;
 }
 
@@ -355,10 +360,451 @@
   font-size: 12px;
 }
 
+.formOk {
+  margin: 14px 0 0;
+  color: var(--skin-input-focus);
+  font-size: 12px;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
   padding-top: 20px;
+}
+
+/* ---------------------------------------------------------------- pestañas */
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background-color: var(--skin-sidebar-background);
+  border: var(--skin-sidebar-border);
+  border-radius: calc(var(--skin-note-radius) * 0.7);
+}
+
+.tab,
+.tabOn {
+  display: grid;
+  gap: 1px;
+  padding: 8px 9px;
+  color: var(--skin-sidebar-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-note-radius) * 0.5);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tab strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.tab small,
+.tabOn small {
+  color: var(--skin-sidebar-textDim);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.tabOn {
+  color: var(--skin-note-accent);
+  background-color: var(--skin-note-background);
+  border-color: var(--skin-input-border);
+}
+
+.tabOn small {
+  color: var(--skin-sidebar-textDim);
+}
+
+.tab:focus-visible,
+.tabOn:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 1px;
+}
+
+.panel {
+  padding-top: 4px;
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+.quick {
+  display: grid;
+  gap: 16px;
+}
+
+.quickNote {
+  margin: 10px 0 0;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.linkish {
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 0;
+  color: var(--skin-note-accent);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.linkish:hover {
+  color: var(--skin-button-textHover);
+}
+
+.linkish:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ------------------------------------------------------- partes y claves */
+
+.componentTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 14px 0 12px;
+}
+
+.component,
+.componentOn {
+  padding: 5px 9px;
+  color: var(--skin-sidebar-text);
+  background: var(--skin-sidebar-background);
+  border: var(--skin-sidebar-border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.componentOn {
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  border-color: var(--skin-input-focus);
+}
+
+.filesEditor {
+  display: grid;
+  gap: 12px;
+}
+
+.keyList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.keyRow {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  background-color: var(--skin-sidebar-background);
+  border: var(--skin-sidebar-border);
+  border-radius: calc(var(--skin-note-radius) * 0.55);
+}
+
+.keyHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.keyName {
+  padding: 0;
+  color: var(--skin-note-text);
+  background: none;
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.keyVacio,
+.keyImage {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+}
+
+.keyVacio {
+  color: var(--skin-sidebar-textDim);
+  border: 1px solid var(--skin-sidebar-border);
+}
+
+.keyImage {
+  color: var(--skin-note-accent);
+  border: 1px solid currentcolor;
+}
+
+.keyActions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.keyMini {
+  padding: 0;
+  color: var(--skin-sidebar-textDim);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 10px;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.keyMini:hover {
+  color: var(--skin-note-accent);
+}
+
+.keyValue {
+  width: 100%;
+  padding: 6px 8px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-input-radius) * 0.8);
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+}
+
+.keyValue:focus {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 1px;
+}
+
+.keyHint {
+  margin: 0;
+  color: var(--skin-sidebar-textDim);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.keyHint code {
+  font-size: 0.95em;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.newKey {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.newKeyInput {
+  flex: 1 1 8rem;
+  min-width: 0;
+  padding: 5px 8px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-input-radius) * 0.8);
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+}
+
+.newKeyButton,
+.addAsset {
+  padding: 5px 10px;
+  color: var(--skin-button-text);
+  background-color: var(--skin-button-background);
+  border: var(--skin-button-border);
+  border-radius: var(--skin-button-radius);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.newKeyButton:hover,
+.addAsset:hover {
+  color: var(--skin-button-textHover);
+  background-color: var(--skin-button-backgroundHover);
+  border-color: var(--skin-button-borderHover);
+}
+
+.rawToggle {
+  display: grid;
+  gap: 2px;
+}
+
+.rawArea,
+.cssArea {
+  width: 100%;
+  min-height: 220px;
+  padding: 10px 11px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-input-radius) * 0.9);
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+  line-height: 1.6;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.rawArea:focus,
+.cssArea:focus {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 1px;
+}
+
+.cssHead {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0 10px;
+}
+
+.cssHead strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cssHead p {
+  margin: 0;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.lineWarnings {
+  display: grid;
+  gap: 3px;
+  margin: 12px 0 0;
+  padding: 9px 11px;
+  list-style: none;
+  border-left: 2px solid var(--skin-note-accent);
+  border-radius: 0 calc(var(--skin-note-radius) * 0.5) calc(var(--skin-note-radius) * 0.5) 0;
+  background-color: var(--skin-note-backgroundHover);
+}
+
+.lineWarnings li {
+  color: var(--skin-note-text);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* --------------------------------------------------------------- imágenes */
+
+.assetsBlock {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: var(--skin-sidebar-border);
+}
+
+.assetsHint {
+  margin: 0 0 10px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.assetsEmpty {
+  margin: 0;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11.5px;
+}
+
+.assetList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.asset {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 9px 10px;
+  background-color: var(--skin-sidebar-background);
+  border: var(--skin-sidebar-border);
+  border-radius: calc(var(--skin-note-radius) * 0.55);
+}
+
+.assetThumb {
+  width: 40px;
+  height: 40px;
+  background-color: var(--skin-note-background);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  border: var(--skin-input-border);
+  border-radius: 7px;
+}
+
+.assetBody {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.assetBody strong {
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assetRef {
+  width: 100%;
+  padding: 3px 6px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: 5px;
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10.5px;
+}
+
+.assetBody small {
+  color: var(--skin-sidebar-textDim);
+  font-size: 10px;
+}
+
+.assetIdle {
+  color: var(--skin-note-accent);
+  font-size: 10.5px;
+  font-style: normal;
+}
+
+.assetRemove {
+  padding: 3px 0;
+  color: var(--skin-sidebar-textDim);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 10.5px;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+
+.assetRemove:hover {
+  color: var(--skin-note-accent);
 }
 
 @media (max-width: 700px) {
@@ -374,5 +820,18 @@
 @media (max-width: 470px) {
   .controlsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .asset {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .assetRemove {
+    grid-column: 2;
+    justify-self: start;
   }
 }

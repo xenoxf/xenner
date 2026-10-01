@@ -4,6 +4,9 @@
   "description": "Capability for the main window",
   "windows": ["main"],
   "permissions": [
+    "allow-config-info",
+    "allow-reveal-config-dir",
+    "allow-choose-skin-asset",
     "allow-scan-skins",
     "allow-read-skin-file",
     "allow-read-skin-asset",

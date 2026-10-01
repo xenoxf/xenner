@@ -55,7 +55,10 @@ const INGLES = [
   'unkown',
 ];
 
-const RAIZ = fileURLToPath(new URL('..', import.meta.url));
+const RAIZ = fileURLToPath(new URL('../../..', import.meta.url));
+
+/** Carpetas que no son código nuestro y que hay que saltarse. */
+const DESCARTAR = new Set(['node_modules', 'dist', 'target', 'build', 'coverage', '.astro']);
 
 /** Los archivos donde el texto se le por una persona. */
 function archivosDeTexto(): string[] {
@@ -65,11 +68,11 @@ function archivosDeTexto(): string[] {
   const encontrados: string[] = [];
   const recorrer = (carpeta: string) => {
     for (const nombre of readdirSync(carpeta)) {
-      if (nombre === 'node_modules' || nombre === 'dist' || nombre.startsWith('.')) continue;
+      if (DESCARTAR.has(nombre) || nombre.startsWith('.')) continue;
       const ruta = `${carpeta}/${nombre}`;
       if (statSync(ruta).isDirectory()) {
         recorrer(ruta);
-      } else if (/\.(ts|tsx|astro|css|md)$/.test(nombre) && nombre !== thisFile) {
+      } else if (/\.(ts|tsx|astro|css|md|rs|yml)$/.test(nombre) && nombre !== thisFile) {
         encontrados.push(ruta);
       }
     }
@@ -100,8 +103,9 @@ function prosaDe(contenido: string): { linea: number; texto: string }[] {
 
 test('no se cuela inglés en el texto que se enseña', () => {
   const fallos: string[] = [];
+  const archivos = archivosDeTexto();
 
-  for (const archivo of archivosDeTexto()) {
+  for (const archivo of archivos) {
     const contenido = readFileSync(archivo, 'utf-8');
     for (const { linea, texto } of prosaDe(contenido)) {
       for (const palabra of INGLES) {
@@ -116,6 +120,18 @@ test('no se cuela inglés en el texto que se enseña', () => {
   }
 
   assert.deepEqual(fallos, [], `\n${fallos.join('\n')}`);
+
+  // Que el recorrido siga mirando de verdad. Si `DESCARTAR` acabara tragándose
+  // media carpeta —un `target/` renombrado, un symloop— el test pasaría sin
+  // comprobar nada, y es el peor fallo que puede tener un test de texto.
+  assert.ok(archivos.length >= 60, `solo se han mirado ${archivos.length} archivos`);
+  // Y que mire las dos mitades del repositorio, no solo la web: las erratas
+  // estaban igual en los README, en el backend y en las notas de la release.
+  const fueraDeWeb = archivos.filter((archivo) => !archivo.startsWith(`${RAIZ}web/`));
+  assert.ok(
+    fueraDeWeb.length >= 10,
+    `solo se han mirado ${fueraDeWeb.length} archivos fuera de la web`,
+  );
 });
 
 test('el diccionario no promete más de lo que explica', () => {

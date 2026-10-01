@@ -1,8 +1,8 @@
 import type { Appearance, FontOption } from "../types/appearance";
 
 /**
- * Tipografías disponibles, agrupadas por sensation para que 30 opciones no
- * sejam un lista plana imposible de escanear.
+ * Tipografías disponibles, agrupadas por sensación para que 39 opciones no
+ * sean una lista plana imposible de escanear.
  *
  * Importante: son pilas de CSS, no webfonts. Xenner funciona sin conexión y sin
  * peticiones remotas, así que cada valor nombra la familia y de qué se sustituye
@@ -13,7 +13,7 @@ export const FONT_GROUPS = [
   { id: "sans", label: "Sans (la de siempre)" },
   { id: "serif", label: "Serif (de libro)" },
   { id: "mono", label: "Monoespaciada (código)" },
-  { id: "display", label: "CaracteresEspeciales" },
+  { id: "display", label: "Caracteres especiales" },
 ] as const;
 
 export type FontGroupId = (typeof FONT_GROUPS)[number]["id"];

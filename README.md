@@ -22,7 +22,7 @@ Xenner trabaja sobre una biblioteca local de archivos Markdown:
   cambios externos e historial acotado por nota.
 - **Pizarra dentro de la nota**: trazo a mano alzada con grosor, texto,
   figuras e imágenes, y selección por rectángulo.
-- **38 tipografías** agrupadas por sensación, con barra flotante al pasar el
+- **39 tipografías** agrupadas por sensación, con barra flotante al pasar el
   ratón por encima del texto y un modal de Ajustes con restablecer.
 - **Ventana transparente** con skin de vidrio ahumado por defecto.
 
@@ -77,7 +77,7 @@ Los detalles de cada pieza están en su propio README:
 
 ## Releases
 
-Las dos workflows de `.github/workflows/` se encargan:
+Los dos workflows de `.github/workflows/` se encargan:
 
 - **`ci.yml`**: en cada push a `main` y en cada pull request, corre los tests, el
   typecheck, `astro check` y `cargo check` de la app y de la web.

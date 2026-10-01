@@ -13,7 +13,7 @@ const INDICE: DocEntry[] = [
   { label: 'Empezar aquí', group: 'La documentación', href: '/doc/', detail: 'Qué es una skin' },
   { label: 'El formato', group: 'La documentación', href: '/doc/formato/', detail: 'Una línea por ajuste' },
   { label: 'Los colores', group: 'El formato', href: '/doc/formato/#colores', detail: 'Hexadecimal y rgba' },
-  { label: 'Todas las claves', group: 'La documentación', href: '/doc/claves/', detail: 'Painless' },
+  { label: 'Todas las claves', group: 'La documentación', href: '/doc/claves/', detail: 'No pueden doler' },
   {
     label: 'A qué se puede agarrar: data-x',
     group: 'Cambiarlo todo con CSS',
@@ -40,9 +40,11 @@ test('plegar quita acentos y baja las mayúsculas', () => {
 
 test('plegar trata igual la vocal con tilde que sin ella', () => {
   // 'á' puede venir como un solo carácter (U+00E1) o como 'a' + acento. Las dos
-  // formas tienen que plegar a lo mismo.
+  // formas tienen que plegar a lo mismo. La descompuesta se construye con
+  // `normalize('NFD')` a propósito: escribirla a mano en el archivo es
+  // imposible de distinguir de la precompuesta, y el test se vuelve vacío.
   const precompuesta = plegar('áéíóúñÁÉ');
-  const descompuesta = plegar('áéíóúñÁÉ');
+  const descompuesta = plegar('áéíóúñÁÉ'.normalize('NFD'));
   assert.equal(precompuesta, descompuesta);
   assert.equal(precompuesta, 'aeiounae');
 });

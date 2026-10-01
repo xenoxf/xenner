@@ -75,7 +75,7 @@ test('un visitante de Linux recibe el AppImage y debajo deb y rpm', () => {
   );
 });
 
-test('los tres formatos de Linux offering son descargables y distintos', () => {
+test('los tres formatos de Linux ofrecidos son descargables y distintos', () => {
   const choice = pickPrimary(MATRIX_OUTPUT.assets, 'linux', 'x64');
   assert.ok(choice);
 

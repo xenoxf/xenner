@@ -6,8 +6,8 @@
    control, pero con la energía de una app que se usa a diario.
 
    El acento es un rojo de teja antes que el naranja habitual en este tipo de
-   sitios: en el crema de `--coffee-100` se leen los dos igual de bien, pero el
-   rojo peg más con el papel y con el nombre de la app.
+   sitios: sobre el crema de fondo se leen los dos igual de bien, pero el
+   rojo pega más con el papel y con el nombre de la app.
 
    Contraste verificado por cálculo de luminancia relativa (WCAG 2.2 AA):
      --text-primary   sobre --bg-body  13.6:1
@@ -311,15 +311,6 @@ ol {
 .cta--line:hover {
   border-color: var(--ink-3);
   background: var(--sunken);
-}
-
-.cta--ghost {
-  color: var(--ink);
-  background: transparent;
-}
-
-.cta--ghost:hover {
-  background: rgba(194, 65, 12, 0.08);
 }
 
 .cta--large {
@@ -706,49 +697,4 @@ ol {
 
 .steps > * + * {
   margin-top: 0.85rem;
-}
-
-/* ---------- una tira de antes y después ---------- */
-
-.compare {
-  margin-top: 1.75rem;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--line);
-  overflow: hidden;
-}
-
-.compare > div {
-  padding: 0.9rem 1rem;
-  background: var(--surface);
-}
-
-.compare pre {
-  margin: 0;
-  padding: 0.75rem 0.85rem;
-  border-radius: 10px;
-  background: var(--sunken);
-  font-size: var(--t-xs);
-  line-height: 1.7;
-  overflow-x: auto;
-}
-
-.compare p {
-  margin-top: 0.5rem;
-  color: var(--ink-3);
-  font-size: var(--t-xs);
-}
-
-@media (max-width: 640px) {
-  .compare {
-    grid-template-columns: 1fr;
-  }
-
-  .prose table {
-    display: block;
-    overflow-x: auto;
-  }
 }

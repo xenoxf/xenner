@@ -5,6 +5,21 @@ import type { SkinColorKey, SkinDraft, SkinPalette, SkinPreset, SkinShadow } fro
 /** La pila de la tipografía de sistema: valor por defecto de cualquier tema. */
 export const DEFAULT_FONT_VALUE = FONT_OPTIONS[0].value;
 
+/**
+ * La pila de una tipografía por su identificador.
+ *
+ * Los presets tienen que nombrar la pila exacta, no una palabra suelta como
+ * `"serif"`: el desplegable de Ajustes compara contra la pila entera, así que
+ * con un valor inventado la previsualización pintaba una letra y el desplegable
+ * seguía enseñando otra. Un tema que se ve distinto de lo que dice el menú es
+ * peor que un tema feo.
+ */
+function fontValue(id: string): string {
+  const option = FONT_OPTIONS.find((font) => font.id === id);
+  if (!option) throw new Error(`El preset usa la tipografía "${id}", que no está en FONT_OPTIONS.`);
+  return option.value;
+}
+
 export const SKIN_PALETTES: Record<ColorScheme, SkinPalette> = {
   dark: {
     background: "#191919",
@@ -84,7 +99,7 @@ export const SKIN_PRESETS: readonly SkinPreset[] = [
       radius: 5,
       borderWidth: 1,
       shadow: "soft",
-      font: "serif",
+      font: fontValue("serif"),
     },
   },
   {
@@ -99,7 +114,7 @@ export const SKIN_PRESETS: readonly SkinPreset[] = [
       blur: 8,
       borderWidth: 1,
       shadow: "strong",
-      font: "display",
+      font: fontValue("script"),
     },
   },
   {

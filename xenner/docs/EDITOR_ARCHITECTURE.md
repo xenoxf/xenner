@@ -170,7 +170,7 @@ moderna, no en una superficie decorativa:
 - controles de 6–10 px que ganan superficie únicamente al interactuar.
 
 La selección de colores sigue pasando por variables de skin, nunca por colores
-hardcodeados en los componentes. Una skin TXT solo sobreescribe las claves que
+hardcodeados en los componentes. Una skin TXT solo sobrescribe las claves que
 declara; el resto lo resuelve el CSS según el modo activo.
 
 ### 7.3 Catálogo

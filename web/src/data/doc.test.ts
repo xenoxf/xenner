@@ -253,14 +253,14 @@ test('el resaltado tiene los ganchos que necesita, y no se rompe en silencio', (
   assert.equal(
     indices.length,
     4,
-    `se esperaban 4 índices (la de la derecha, y los dos del cajón) y hay ${indices.length}`,
+    `se esperaban 4 índices (el de la izquierda, el de la derecha y los dos del cajón) y hay ${indices.length}`,
   );
 });
 
 test('el cajón de móvil está en el markup, no solo en el script', () => {
   const layout = readFileSync(LAYOUT, 'utf-8');
   // Si el botón para abrirlo desaparece, el cajón queda inalcanzable en móvil
-  // y solo se ve hurting en un móvil de verdad.
+  // y el fallo solo aparece probándolo en un móvil de verdad.
   for (const trozo of ['data-drawer-open', 'data-drawer', 'aria-modal', 'data-drawer-close']) {
     assert.ok(layout.includes(trozo), `el cajón necesita «${trozo}»`);
   }

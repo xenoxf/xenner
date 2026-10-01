@@ -91,7 +91,12 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
           >
             <FolderPlusIcon />
           </IconButton>
-          <span class={styles.count} data-x="sidebar-count" title={`${noteCount()} notas`} aria-label={`${noteCount()} notas`}>
+          <span
+            class={styles.count}
+            data-x="sidebar-count"
+            title={`${noteCount()} ${noteCount() === 1 ? "nota" : "notas"}`}
+            aria-label={`${noteCount()} ${noteCount() === 1 ? "nota" : "notas"}`}
+          >
             {noteCount()}
           </span>
         </div>

@@ -16,7 +16,7 @@
 export interface SkinKeyDoc {
   /** La clave, tal cual se escribe en el TXT. */
   key: string;
-  /** Qué se ve en pantalla. Una frase, la decisión de la persona que skin-ea. */
+  /** Qué se ve en pantalla. Una frase, la decisión de quien hace la skin. */
   sees: string;
   /** Qué se escribe dentro de las comillas. */
   type: string;
@@ -60,7 +60,7 @@ export const SHARED_KEYS: readonly SkinKeyDoc[] = [
   },
   {
     key: 'radius',
-    sees: 'Lo redondeadas que están las esquinas.',
+    sees: 'Lo redondeado que tienen las esquinas.',
     type: 'una longitud',
     example: '"10px"',
     note: 'A 0 son esquinas vivas. A la mitad de la altura del elemento es una cápsula.',
@@ -203,7 +203,7 @@ export const SKIN_COMPONENT_DOCS: readonly SkinComponentDoc[] = [
   {
     file: 'toolbar.txt',
     name: 'La barra del editor',
-    sees: 'La barra flotante que aparece sobre el texto, con negrita, títulos y demás.',
+    sees: 'La barra flotante que aparece sobre el texto, con negrita, títulos, listas y demás.',
     keys: [
       {
         key: 'textDim',

@@ -188,7 +188,7 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   function hideToolbarSoon(): void {
     if (toolbarHideTimer) clearTimeout(toolbarHideTimer);
     // Al salir hay un hueco entre el texto y la barra; sin este margen la barra
-    // desaparecería justo en mitad del trayecto y no secould clicar en ella.
+    // desaparecería justo en mitad del trayecto y no se podría clicar en ella.
     toolbarHideTimer = setTimeout(() => {
       toolbarHideTimer = null;
       setToolbarHover(false);

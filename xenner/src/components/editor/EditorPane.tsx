@@ -204,11 +204,15 @@ export function EditorPane(props: EditorPaneProps) {
     void insertImage(file);
   }
 
-  function getFather(path: string) {
-    let father = path.split("/");
-    father.pop()
-    
-    return father.concat(" / ")
+  /**
+   * La carpeta de la nota, con « / » detrás y un hueco al final que hace de
+   * separador con el nombre del archivo. Se escribe así a propósito: si la nota
+   * está en la raíz no hay carpeta, y de ese hueco se ocupa el nombre.
+   */
+  function carpetaDe(path: string): string {
+    const partes = path.split("/");
+    partes.pop();
+    return partes.length > 0 ? `${partes.join(" / ")} / ` : "";
   }
 
   return (
@@ -248,7 +252,7 @@ export function EditorPane(props: EditorPaneProps) {
                   <div class={styles.documentColumn} data-x="note-document">
                     <div class={styles.heading} data-x="note-heading">
                       <div class={styles.headingMeta}>
-                        <span class={styles['path']} data-x="note-path" ><span class={styles["dir"]} >{getFather(documentPath)}</span> {documentPath.split("/").pop()}</span>
+                        <span class={styles.path} data-x="note-path"><span class={styles.dir}>{carpetaDe(documentPath)}</span> {documentPath.split("/").pop()}</span>
                         <span class={styles.saveStatus} data-x="note-status" role="status" aria-live="polite">
                           {visibleStatus(props.status)}
                         </span>

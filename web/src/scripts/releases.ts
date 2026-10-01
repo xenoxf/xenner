@@ -234,9 +234,9 @@ export function detectArch(hints: PlatformHints): Arch {
  * El sistema operativo del visitante, o `null` si no se reconoce.
  *
  * Android queda fuera a propósito: su user agent dice "Linux", así que sin
- * mirarlo más una visiting con el móvil en Android caería en la tarjeta de
+ * mirarlo más una visita con el móvil en Android caería en la tarjeta de
  * Linux y le ofreceríamos un AppImage que no puede instalar. Tampoco se
- * recognise como macOS un iPhone o un iPad, que comparten casi todo el UA con
+ * reconoce como macOS un iPhone o un iPad, que comparten casi todo el UA con
  * el Mac salvo en el servicio `CPU OS`.
  */
 export function detectPlatform(hints: PlatformHints): Platform | null {
@@ -255,21 +255,13 @@ export function detectPlatform(hints: PlatformHints): Platform | null {
   return null;
 }
 
-/** Cómo se llama cada sistema en la web. */
-export const PLATFORM_NAMES: Record<Platform, string> = {
-  mac: 'macOS',
-  windows: 'Windows',
-  linux: 'Linux',
-};
-
-/** Cómo se nombra la arquitectura en la web. */
-export const ARCH_NAMES: Record<Arch, string> = {
-  arm64: 'ARM',
-  x64: 'x86_64',
-  unknown: '',
-};
-
-/** Qué se dice de cada plataforma en la tarjeta, más allá del formato. */
+/**
+ * Qué se dice de cada plataforma en la tarjeta, más allá del formato.
+ *
+ * Vive aquí y no en `Download.astro` porque es contenido: si el texto cambia,
+ * este es el sitio donde se busca. `PLATFORM_NAMES` y `ARCH_NAMES` no están aquí
+ * a propósito, son de la presentación de una tarjeta concreta y viven en ella.
+ */
 export const PLATFORM_NOTES: Record<Platform, string> = {
   mac: 'Apple Silicon e Intel',
   windows: 'Windows 10 y 11 (64 bits)',

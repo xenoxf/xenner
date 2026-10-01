@@ -14,7 +14,7 @@ export function readLegacyNotes(): LegacyNotesResult {
       notes: sanitized.notes,
       raw,
       issue: sanitized.rejected
-        ? `Se omitieron ${sanitized.rejected} notas antiguas inválidas.`
+        ? `Se omitieron ${sanitized.rejected} ${sanitized.rejected === 1 ? "nota antigua" : "notas antiguas"} inválida${sanitized.rejected === 1 ? "" : "s"}.`
         : null,
     };
   } catch (error) {

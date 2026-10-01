@@ -6,7 +6,8 @@ import { ASSET_EXTENSIONS } from '../../data/skins';
 const doc = pagina('/doc/imagenes/');
 
 const imageExts = ASSET_EXTENSIONS['Imágenes'].join(' ');
-const fontExts = ASSET_EXTENSIONS['Tipografías'].join(' ');
+// `.woff2` ya se nombra justo antes, así que aquí solo salen las alternativas.
+const fontExts = ASSET_EXTENSIONS['Tipografías'].filter((ext) => ext !== '.woff2').join(' ');
 ---
 
 <DocsLayout doc={doc}>
@@ -190,7 +191,7 @@ url(https://.../foto.jpg)       <span>no: una skin no habla con internet</span><
     <code>font-display: swap</code> importa: dice que si la letra tarda en
     cargar, se muestre la de reserva en vez de un hueco vacío. En el
     <code>src</code> va la extensión real dentro de <code>format()</code>, y si
-    tu tipografía no tiene <code>.woff2</code> también valen {fontExts.replace('.woff2, ', '')}.
+    tu tipografía no tiene <code>.woff2</code> también valen {fontExts}.
   </p>
 
   <div class="callout callout--warn">

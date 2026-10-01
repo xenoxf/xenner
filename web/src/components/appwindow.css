@@ -317,8 +317,8 @@ body:has(.win__mode input:checked) .win {
 }
 
 /*
-  Solo los parrafos de texto. El resto de bloques (.win__task, .win__code...)
-  traen su propia clase, asi que no necesitan recurrir a !important.
+  Solo los párrafos de texto. El resto de bloques (.win__task, .win__code...)
+  traen su propia clase, así que no necesitan recurrir a !important.
 */
 .win__doc > p:not([class]) {
   max-width: 36rem;

@@ -382,7 +382,7 @@ const CARDS = [
   import { REPO_SLUG } from '../config';
 
   /* `userAgentData` solo existe en Chromium y no está en los tipos de TS de
-     lib.dom que usa este proyecto. Se lee sin|type-check porque es opcional. */
+     lib.dom que usa este proyecto. Se lee sin type-check porque es opcional. */
   function uaArch(): string | undefined {
     const data = (navigator as Navigator & { userAgentData?: { architecture?: string } }).userAgentData;
     return data?.architecture;
@@ -395,6 +395,10 @@ const CARDS = [
     win: 'windows',
     linux: 'linux',
   };
+
+  /* Cómo se llama cada sistema y cada arquitectura *en la tarjeta*. No salen de
+     releases.ts porque son de la presentación de esta tarjeta, y no del análisis
+     de la release: ahí lo que vive son los nombres de los archivos. */
 
   const PLATFORM_NAMES: Record<Platform, string> = {
     mac: 'macOS',
@@ -586,7 +590,7 @@ const CARDS = [
     }
   }
 
-  /* Y después se pregunta a GitHub, para que publicar una release nova enseñe los
+  /* Y después se pregunta a GitHub, para que publicar una release nueva enseñe los
      instaladores sin tener que volver a construir la web. La API pública limita
      a 60 peticiones por hora y por IP; si se llega al límite o no hay red, la
      respuesta es 403 o una excepción y aquí no se cae nada. */

@@ -42,7 +42,7 @@ function readAll(): ReadResult {
 
     return {
       notes: sanitized.notes,
-      issue: `Se omitieron ${sanitized.rejected} entradas inválidas al abrir el almacenamiento.`,
+      issue: `Se omitieron ${sanitized.rejected} ${sanitized.rejected === 1 ? "entrada" : "entradas"} inválidas al abrir el almacenamiento.`,
       corruptRaw: raw,
     };
   } catch (error) {

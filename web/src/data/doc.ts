@@ -102,7 +102,7 @@ export const DOC_PAGES: readonly DocPage[] = [
     heading: 'Todas las claves',
     description:
       'Todas las claves que acepta una skin de Xenner con un ejemplo cada una: colores, bordes, sombras, imágenes, tipografías y los ajustes de cada archivo.',
-    lead: 'Hay una lista cerrada de claves, y es cerrada a propósito: son painless. Si escribes una que no existe, Xenner la pasa por alto y sigue funcionando.',
+    lead: 'Hay una lista cerrada de claves, y es cerrada a propósito: no pueden doler. Si escribes una que no existe, Xenner la pasa por alto y sigue funcionando.',
     sections: [
       {
         id: 'claves',

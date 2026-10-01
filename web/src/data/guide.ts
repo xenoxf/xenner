@@ -25,7 +25,7 @@ export const GUIDE: readonly GuidePage[] = [
   {
     path: '/doc/',
     label: 'Hacer una skin',
-    summary: 'La documentación completa, en una sola página.',
+    summary: 'La documentación completa, en ocho páginas.',
   },
   {
     path: '/pizarra/',

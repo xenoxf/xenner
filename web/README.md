@@ -122,7 +122,7 @@ Cada release hay que subirla en cuatro archivos, y se olvidó uno la primera vez
 | --- | --- |
 | `xenner/src-tauri/tauri.conf.json` | `version` — la que Tauri usa para nombrar los instaladores |
 | `xenner/src-tauri/Cargo.toml` | `package.version` |
-| `xenner/src-tauri/Cargo.lock` | `[[package]] version` — se actuala sola con `cargo update -p xenner` |
+| `xenner/src-tauri/Cargo.lock` | `[[package]] version` — se actualiza sola con `cargo update -p xenner` |
 | `web/src/layouts/BaseLayout.astro` | `softwareVersion` — es lo que Google muestra en el resultado enriquecido |
 
 El orden importa: si se sube la release con la app todavía en `0.1.0`, los
@@ -133,7 +133,7 @@ descarga no lleva el número que dice la página.
 ## Arquitectura
 
 - `src/pages/index.astro`: portada.
-- `src/pages/{editor-de-notas,notas-markdown,skins,pizarra,alternativa-notion,instalar}.astro`:
+- `src/pages/{editor-de-notas,notas-markdown,pizarra,alternativa-notion,instalar}.astro`:
   una página por búsqueda, con el texto en el propio archivo.
 - `src/data/guide.ts`: títulos, resúmenes y rutas de esas páginas. La navegación
   se genera desde aquí, así que añadir una página es añadir una entrada.
@@ -208,7 +208,7 @@ descarga no lleva el número que dice la página.
   búsqueda, se puede enlazar a un apartado suelto, el navegador no tiene que
   construirla entera y hay un «anterior» y un «siguiente» que atan el recorrido.
   `doc.test.ts` comprueba que el índice y los encabezados de cada página no se
-  separan.
+  separen.
 - **Lo que se puede arreglar sin JavaScript se arregla en CSS.** El botón de
   copiar, el resaltado de comentarios y el envoltorio de las tablas son
   mejoras de lujo: si el script no llega a ejecutarse, el texto se sigue viendo,
@@ -235,8 +235,6 @@ descarga no lleva el número que dice la página.
 - **Las tablas de tres columnas se salían del papel en un móvil.** Con tres
   columnas o menos, cada fila se convierte en una ficha con su etiqueta.
 
-### Lo que se midió
-
 - **La fecha de la release se leía en la zona del visitante.** Se pintaba con
   `toLocaleDateString` sin `timeZone`, así que la 1.1.0, publicada a la 01:26 UTC
   del día 1, se leía como «septiembre de 2026» desde cualquier huso al oeste de
@@ -252,12 +250,3 @@ descarga no lleva el número que dice la página.
   marcando esos selectores como `:global()`. Merece la pena porque el síntoma
   —una flecha gigante— señalaba al DOM y no a los estilos: el elemento que
   estaba mal era el nodo, no el CSS.
-
-**Los botones de descarga salían con el icono gigante.** Los estilos de los
-elementos que crea el script (`download__btn`, `download__alt*`) estaban en el
-`<style>` del componente, que Astro compila con un atributo `data-astro-cid-*` en
-los selectores. Los nodos que crea `document.createElement` en tiempo de ejecución
-no llevan ese atributo, así que no los alcanzaba ninguna regla: sin
-`min-height`, sin `padding` y con el SVG de la flecha estirado. Se resolvió
-marcando esos selectores como `:global()`. Merece la pena porque el síntoma
-—un icono de flecha enorme— no señalaba el estilo, sino el DOM.

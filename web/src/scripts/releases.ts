@@ -13,9 +13,9 @@
  * del archivo, como hace Glenker. Con los nombres que genera Tauri eso no
  * encuentra nada, porque no los lleva:
  *
- *   xenner_0.1.0_aarch64.dmg          <- macOS, sin la palabra macos
- *   xenner_0.1.0_x64-setup.exe        <- Windows, sin la palabra windows
- *   xenner_0.1.0_amd64.deb            <- Linux, sin la palabra linux
+ *   xenner_<version>_aarch64.dmg     <- macOS, sin la palabra macos
+ *   xenner_<version>_x64-setup.exe   <- Windows, sin la palabra windows
+ *   xenner_<version>_amd64.deb       <- Linux, sin la palabra linux
  *
  * La extensión, en cambio, no miente: un .dmg solo se abre en macOS y un .exe
  * o un .msi solo en Windows. Por eso la plataforma se decide por extensión y

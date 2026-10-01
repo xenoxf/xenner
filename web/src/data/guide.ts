@@ -39,7 +39,7 @@ export const GUIDE: readonly GuidePage[] = [
   },
   {
     path: '/instalar/',
-    label: 'Cómo se ejecuta',
-    summary: 'Requisitos y comandos.',
+    label: 'Instalar y ejecutar',
+    summary: 'Instalarlo, o levantarlo desde el código.',
   },
 ];

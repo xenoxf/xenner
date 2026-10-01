@@ -109,6 +109,22 @@ objetivos de `.github/workflows/release.yml`, replicados en
 `releases.dom.test.ts`. Si esa matriz cambia, esa comprobación salta antes de que
 lo haga una tarjeta vacía en producción.
 
+### La versión vive en cuatro sitios
+
+Cada release hay que subirla en cuatro archivos, y se olvidó uno la primera vez:
+
+| Archivo | Campo |
+| --- | --- |
+| `xenner/src-tauri/tauri.conf.json` | `version` — la que Tauri usa para nombrar los instaladores |
+| `xenner/src-tauri/Cargo.toml` | `package.version` |
+| `xenner/src-tauri/Cargo.lock` | `[[package]] version` — se actuala sola con `cargo update -p xenner` |
+| `web/src/layouts/BaseLayout.astro` | `softwareVersion` — es lo que Google muestra en el resultado enriquecido |
+
+El orden importa: si se sube la release con la app todavía en `0.1.0`, los
+binarios se llaman `xenner_0.1.0_x64-setup.exe` dentro de una release `v1.1.0`.
+Funciona —el reparto es por extensión y no por versión— pero el archivo que se
+descarga no lleva el número que dice la página.
+
 ## Arquitectura
 
 - `src/pages/index.astro`: portada.

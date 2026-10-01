@@ -11,9 +11,27 @@ const readme = `${REPO}#readme`;
   eyebrow="Guía"
   title="Cómo se ejecuta Xenner: requisitos y comandos"
   heading="Cómo se ejecuta"
-  lead="Xenner se levanta desde el código. No hay instalador publicado todavía."
-  description="Cómo ejecutar Xenner desde el código: Node 22.12 o superior, pnpm, Rust estable y las librerías de sistema que pida Tauri 2 en tu plataforma."
+  lead="Instálalo desde la portada o levántalo desde el código."
+  description="Cómo instalar Xenner en macOS, Windows y Linux, y cómo ejecutarlo desde el código: Node 22.12 o superior, pnpm, Rust estable y las librerías de sistema que pida Tauri 2."
 >
+  <h2>Instalarlo</h2>
+  <p>
+    En la <a href="/#descargar">portada</a> eliges tu sistema y descargas el
+    instalador. No hace falta cuenta ni registro: los binarios de cada versión
+    están en los archivos de la
+    <a href={`${REPO}/releases`} target="_blank" rel="noreferrer">release de GitHub</a>.
+  </p>
+  <ul>
+    <li><b>macOS</b>: abre el <code>.dmg</code> y arrastra Xenner a Aplicaciones. Como todavía no está firmado ni notarizado, la primera vez Gatekeeper lo bloquea: botón derecho sobre el archivo → Abrir.</li>
+    <li><b>Windows</b>: ejecuta el <code>.exe</code>. SmartScreen puede pedirte que confirmes que el editor es de confianza, porque tampoco está firmado.</li>
+    <li><b>Linux</b>: el <code>.AppImage</code> se ejecuta sin instalar nada, marcando el archivo como ejecutable. También hay <code>.deb</code> para Debian y Ubuntu y <code>.rpm</code> para Fedora.</li>
+  </ul>
+  <p>
+    Tus notas no viajan con la app: eliges la carpeta con el diálogo del sistema
+    y ahí se quedan. Instalar Xenner no borra ni toca nada.
+  </p>
+
+  <h2>Levantarlo desde el código</h2>
   <p>
     El proyecto está en
     <a href={REPO} target="_blank" rel="noreferrer">GitHub</a>. Se ejecuta como
@@ -51,6 +69,12 @@ cargo check</code></pre>
   <p>
     <code>pnpm tauri build</code> compila la aplicación y deja el instalador en
     la carpeta que configure Tauri.
+  </p>
+  <p>
+    Es lo mismo que hace la workflow <code>Release</code> del repositorio: al
+    publicar una release compila para macOS, Windows y Linux y cuelga los
+    instaladores en esa misma release. Para compilar tú los tres sistemas hace
+    falta un equipo por sistema, porque Rust compila de forma nativa.
   </p>
 
   <h2>Y la web de este sitio</h2>

@@ -21,12 +21,12 @@ import {
  * formato, la tarjeta se vacía y falla este archivo antes que la web.
  */
 const CI_ASSETS: ReleaseAsset[] = [
-  { name: 'xenner_0.1.0_aarch64.dmg', size: 12_582_912, browser_download_url: 'https://d/mac-arm.dmg' },
-  { name: 'xenner_0.1.0_x64.dmg', size: 13_631_488, browser_download_url: 'https://d/mac-x64.dmg' },
-  { name: 'xenner_0.1.0_x64-setup.exe', size: 10_485_760, browser_download_url: 'https://d/win.exe' },
-  { name: 'xenner_0.1.0_amd64.AppImage', size: 15_728_640, browser_download_url: 'https://d/lin.AppImage' },
-  { name: 'xenner_0.1.0_amd64.deb', size: 9_437_184, browser_download_url: 'https://d/lin.deb' },
-  { name: 'xenner-0.1.0.x86_64.rpm', size: 9_699_840, browser_download_url: 'https://d/lin.rpm' },
+  { name: 'xenner_1.2.3_aarch64.dmg', size: 12_582_912, browser_download_url: 'https://d/mac-arm.dmg' },
+  { name: 'xenner_1.2.3_x64.dmg', size: 13_631_488, browser_download_url: 'https://d/mac-x64.dmg' },
+  { name: 'xenner_1.2.3_x64-setup.exe', size: 10_485_760, browser_download_url: 'https://d/win.exe' },
+  { name: 'xenner_1.2.3_amd64.AppImage', size: 15_728_640, browser_download_url: 'https://d/lin.AppImage' },
+  { name: 'xenner_1.2.3_amd64.deb', size: 9_437_184, browser_download_url: 'https://d/lin.deb' },
+  { name: 'xenner-1.2.3.x86_64.rpm', size: 9_699_840, browser_download_url: 'https://d/lin.rpm' },
 ];
 
 const url = (name: string): string => `https://d/${name}`;
@@ -38,16 +38,16 @@ function primaryName(assets: ReleaseAsset[], platform: Platform, arch: Arch): st
 /* ------------------------------------------------------------------ extensión */
 
 test('formatLabel escribe cada formato como lo ve el visitante', () => {
-  assert.equal(formatLabel('xenner_0.1.0_aarch64.dmg'), 'DMG');
-  assert.equal(formatLabel('xenner_0.1.0_amd64.AppImage'), 'AppImage');
-  assert.equal(formatLabel('xenner_0.1.0_amd64.deb'), 'deb');
-  assert.equal(formatLabel('xenner-0.1.0.x86_64.rpm'), 'RPM');
-  assert.equal(formatLabel('xenner_0.1.0_x64-setup.exe'), 'EXE');
-  assert.equal(formatLabel('xenner_0.1.0_x64.msi'), 'MSI');
+  assert.equal(formatLabel('xenner_1.2.3_aarch64.dmg'), 'DMG');
+  assert.equal(formatLabel('xenner_1.2.3_amd64.AppImage'), 'AppImage');
+  assert.equal(formatLabel('xenner_1.2.3_amd64.deb'), 'deb');
+  assert.equal(formatLabel('xenner-1.2.3.x86_64.rpm'), 'RPM');
+  assert.equal(formatLabel('xenner_1.2.3_x64-setup.exe'), 'EXE');
+  assert.equal(formatLabel('xenner_1.2.3_x64.msi'), 'MSI');
   // Un nombre sin punto no tiene formato conocido: la etiqueta sale vacía, para
   // que quien la pinte decida qué hacer en vez de pintar un «Descargar» vacío.
   assert.equal(formatLabel('sin_extension'), '');
-  assert.equal(formatLabel('xenner_0.1.0.tar.gz'), 'gz');
+  assert.equal(formatLabel('xenner_1.2.3.tar.gz'), 'gz');
 });
 
 test('formatSize redondea según el tamaño', () => {
@@ -60,7 +60,7 @@ test('formatSize redondea según el tamaño', () => {
 test('normalizeVersion quita la v delante si está', () => {
   assert.equal(normalizeVersion('v1.2.3'), '1.2.3');
   assert.equal(normalizeVersion('1.2.3'), '1.2.3');
-  assert.equal(normalizeVersion('V0.1.0'), '0.1.0');
+  assert.equal(normalizeVersion('V1.2.3'), '1.2.3');
   assert.equal(normalizeVersion(null), '');
 });
 
@@ -69,15 +69,15 @@ test('normalizeVersion quita la v delante si está', () => {
 test('la plataforma se decide por extensión, no por el nombre', () => {
   // Ninguno de estos nombres contiene macos, windows ni linux: si se buscara la
   // plataforma en el nombre, las tres tarjetas saldrían vacías.
-  assert.equal(primaryName(CI_ASSETS, 'mac', 'arm64'), 'xenner_0.1.0_aarch64.dmg');
-  assert.equal(primaryName(CI_ASSETS, 'windows', 'x64'), 'xenner_0.1.0_x64-setup.exe');
-  assert.equal(primaryName(CI_ASSETS, 'linux', 'x64'), 'xenner_0.1.0_amd64.AppImage');
+  assert.equal(primaryName(CI_ASSETS, 'mac', 'arm64'), 'xenner_1.2.3_aarch64.dmg');
+  assert.equal(primaryName(CI_ASSETS, 'windows', 'x64'), 'xenner_1.2.3_x64-setup.exe');
+  assert.equal(primaryName(CI_ASSETS, 'linux', 'x64'), 'xenner_1.2.3_amd64.AppImage');
 });
 
 test('dentro de una plataforma se respeta la arquitectura', () => {
-  assert.equal(primaryName(CI_ASSETS, 'mac', 'arm64'), 'xenner_0.1.0_aarch64.dmg');
-  assert.equal(primaryName(CI_ASSETS, 'mac', 'x64'), 'xenner_0.1.0_x64.dmg');
-  assert.equal(primaryName(CI_ASSETS, 'linux', 'x64'), 'xenner_0.1.0_amd64.AppImage');
+  assert.equal(primaryName(CI_ASSETS, 'mac', 'arm64'), 'xenner_1.2.3_aarch64.dmg');
+  assert.equal(primaryName(CI_ASSETS, 'mac', 'x64'), 'xenner_1.2.3_x64.dmg');
+  assert.equal(primaryName(CI_ASSETS, 'linux', 'x64'), 'xenner_1.2.3_amd64.AppImage');
 });
 
 test('un .rpm con nomenclatura de RPM se reconoce como x64', () => {
@@ -89,36 +89,36 @@ test('un .rpm con nomenclatura de RPM se reconoce como x64', () => {
 });
 
 test('sin binario para la plataforma devuelve null y no inventa nada', () => {
-  const soloMac: ReleaseAsset[] = [{ name: 'xenner_0.1.0_aarch64.dmg', size: 1, browser_download_url: url('a.dmg') }];
+  const soloMac: ReleaseAsset[] = [{ name: 'xenner_1.2.3_aarch64.dmg', size: 1, browser_download_url: url('a.dmg') }];
   assert.equal(pickPrimary(soloMac, 'windows', 'x64'), null);
   assert.equal(pickPrimary(soloMac, 'linux', 'x64'), null);
   assert.equal(pickPrimary([], 'mac', 'arm64'), null);
 });
 
 test('si no hay binario para la arquitectura se ofrece el que hay, marcado', () => {
-  const soloIntel: ReleaseAsset[] = [{ name: 'xenner_0.1.0_x64.dmg', size: 1, browser_download_url: url('m.dmg') }];
+  const soloIntel: ReleaseAsset[] = [{ name: 'xenner_1.2.3_x64.dmg', size: 1, browser_download_url: url('m.dmg') }];
   const choice = pickPrimary(soloIntel, 'mac', 'arm64');
-  assert.equal(choice?.asset.name, 'xenner_0.1.0_x64.dmg');
+  assert.equal(choice?.asset.name, 'xenner_1.2.3_x64.dmg');
   assert.equal(choice?.exactArch, false);
 });
 
 test('con la arquitectura desconocida se toma el primero sin quejarse', () => {
   const choice = pickPrimary(CI_ASSETS, 'mac', 'unknown');
-  assert.equal(choice?.asset.name, 'xenner_0.1.0_aarch64.dmg');
+  assert.equal(choice?.asset.name, 'xenner_1.2.3_aarch64.dmg');
   assert.equal(choice?.exactArch, false);
 });
 
 test('el .zip sustituye al .dmg cuando la release solo trae .zip', () => {
-  const soloZip: ReleaseAsset[] = [{ name: 'xenner_0.1.0_aarch64.zip', size: 1, browser_download_url: url('m.zip') }];
+  const soloZip: ReleaseAsset[] = [{ name: 'xenner_1.2.3_aarch64.zip', size: 1, browser_download_url: url('m.zip') }];
   const choice = pickPrimary(soloZip, 'mac', 'arm64');
-  assert.equal(choice?.asset.name, 'xenner_0.1.0_aarch64.zip');
+  assert.equal(choice?.asset.name, 'xenner_1.2.3_aarch64.zip');
   assert.equal(choice?.exactArch, true);
 });
 
 test('un .tar.gz de mac no se cuela como descarga para Linux', () => {
   // .tar.gz no es un formato de instalación y no está en ninguna lista.
-  const conTar: ReleaseAsset[] = [...CI_ASSETS, { name: 'xenner_0.1.0_aarch64.app.tar.gz', size: 1, browser_download_url: url('m.tar.gz') }];
-  assert.equal(primaryName(conTar, 'linux', 'x64'), 'xenner_0.1.0_amd64.AppImage');
+  const conTar: ReleaseAsset[] = [...CI_ASSETS, { name: 'xenner_1.2.3_aarch64.app.tar.gz', size: 1, browser_download_url: url('m.tar.gz') }];
+  assert.equal(primaryName(conTar, 'linux', 'x64'), 'xenner_1.2.3_amd64.AppImage');
 });
 
 /* -------------------------------------------------------------- alternativas */
@@ -148,7 +148,7 @@ test('sin principal, las alternativas son todos los formatos disponibles', () =>
   // archivo de cada formato. El que se acabó pintando como principal se le
   // pasa en la llamada, para que no se repita en la lista de alternativas.
   const alternates = pickAlternates(CI_ASSETS, 'windows', 'x64', null);
-  assert.deepEqual(alternates.map((a) => a.name), ['xenner_0.1.0_x64-setup.exe']);
+  assert.deepEqual(alternates.map((a) => a.name), ['xenner_1.2.3_x64-setup.exe']);
 });
 
 /* ------------------------------------------------------------- detección SO */
@@ -215,7 +215,7 @@ test('detectArch no se inventa una arquitectura', () => {
 /* ------------------------------------------------------------------ release */
 
 test('isUsableRelease acepta una release y rechaza basura', () => {
-  const good = { tag_name: 'v0.1.0', name: null, html_url: 'u', published_at: null, assets: [] };
+  const good = { tag_name: 'v1.2.3', name: null, html_url: 'u', published_at: null, assets: [] };
   assert.equal(isUsableRelease(good), true);
   // El 404 de la API viene con un mensaje, no con una release.
   assert.equal(isUsableRelease({ message: 'Not Found' }), false);
@@ -225,7 +225,7 @@ test('isUsableRelease acepta una release y rechaza basura', () => {
 });
 
 test('una release sin assets es válida pero no ofrece nada que descargar', () => {
-  const vacia = { tag_name: 'v0.1.0', name: null, html_url: 'u', published_at: null, assets: [] };
+  const vacia = { tag_name: 'v1.2.3', name: null, html_url: 'u', published_at: null, assets: [] };
   assert.equal(isUsableRelease(vacia), true);
   assert.equal(pickPrimary(vacia.assets, 'mac', 'arm64'), null);
 });

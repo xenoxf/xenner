@@ -181,34 +181,60 @@ jobs:
             binutils \
             unzip
 
-      - name: Localizar la release y sus archivos
-        id: release
+      # Se usa curl en vez de gh api porque gh exige credenciales de usuario y
+      # en un runner solo está el GITHUB_TOKEN, que va en la cabecera. Con gh la
+      # llamada devolvía 401 y este job caía en el primer paso.
+      #
+      # La API devuelve los assets de toda la página, así que se filtra por
+      # release_id antes de mirar nada: sin ese filtro, el job compara los
+      # assets de la 1.1.0 con los de la 1.1.1 y se lía.
+      - name: Localizar los paquetes de esta release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ github.event.release.id }}
+          REPO: ${{ github.repository }}
         run: |
-          if [ -n "${{ github.event.release.id }}" ]; then
-            RELEASE_ID="${{ github.event.release.id }}"
-          else
-            RELEASE_ID=$(gh api "repos/${{ github.repository }}/releases/tags/${{ inputs.version }}" --jq .id)
+          set -euo pipefail
+          if [ -z "$RELEASE_ID" ]; then
+            echo "No hay release en este evento: nada que comprobar."
+            echo "vacio=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
-          gh api "repos/${{ github.repository }}/releases/assets?per_page=100" \
-            --jq '.[] | select(.release_id == '"$RELEASE_ID"') | .name' > assets.txt
-          echo "Archivos en la release:"; cat assets.txt
+          curl -sf -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/releases/$RELEASE_ID/assets?per_page=100" \
+            -o assets.json
+          python3 - <<'PY' > paquetes.txt
+          import json
+          with open('assets.json', encoding='utf-8') as fh:
+              assets = json.load(fh)
+          for asset in assets:
+              if asset['name'].endswith(('.deb', '.AppImage')):
+                  print(asset['name'])
+          PY
+          echo "Paquetes de esta release:"; cat paquetes.txt
+          test -s paquetes.txt
 
       - name: Bajar los paquetes de Linux
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
+          set -euo pipefail
           mkdir -p paquetes
-          for nombre in $(grep -E '\.(deb|AppImage)$' assets.txt); do
-            echo "→ $nombre"
-            gh api -H "Accept: application/octet-stream" \
-              "repos/${{ github.repository }}/releases/assets/$(
-                gh api "repos/${{ github.repository }}/releases/assets?per_page=100" \
-                  --jq ".[] | select(.name == \"$nombre\") | .id" | head -1)" \
-              > "paquetes/$nombre"
-          done
+          while read -r nombre; do
+            id=$(python3 -c "
+          import json, sys
+          with open('assets.json', encoding='utf-8') as fh:
+              assets = json.load(fh)
+          print(next(a['id'] for a in assets if a['name'] == sys.argv[1]))
+          " "$nombre")
+            echo "→ $nombre (id $id)"
+            curl -sfL -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/octet-stream" \
+              "https://api.github.com/repos/$REPO/releases/assets/$id" \
+              -o "paquetes/$nombre"
+          done < paquetes.txt
           ls -la paquetes/
 
       - name: El .deb está bien formado y trae lo suyo
@@ -217,14 +243,17 @@ jobs:
           DEB=$(ls paquetes/*.deb | head -1)
           echo "Paquete: $DEB"
 
-          # Un .deb que dpkg no lee o no tiene el lanzador no sirve de nada, y
-          # Tauri lo genera sin avisar si algo va mal por el camino.
+          # `dpkg-deb -c` escribe en memoria mientras `grep -q` lee: en cuanto
+          # grep encuentra lo suyo sale y dpkg se come un SIGPIPE. Con
+          # `set -o pipefail` eso tumbaba el job con "tar:Tubería rota" incluso
+          # con todo correcto. Se guarda la lista en un archivo y se busca en él.
           dpkg-deb --info "$DEB"
-          dpkg-deb --contents "$DEB" | grep -q 'usr/bin/xenner' \
+          dpkg-deb --contents "$DEB" > contenido.txt
+          grep -q 'usr/bin/xenner' contenido.txt \
             || { echo "FALTA: no hay /usr/bin/xenner dentro del paquete"; exit 1; }
-          dpkg-deb --contents "$DEB" | grep -q 'xenner.desktop' \
+          grep -q 'xenner.desktop' contenido.txt \
             || { echo "FALTA: no hay la entrada de menú"; exit 1; }
-          dpkg-deb --contents "$DEB" | grep -q 'usr/lib/xenner/skins/config.txt' \
+          grep -q 'usr/lib/xenner/skins/config.txt' contenido.txt \
             || { echo "FALTA: no viajan las skins, la app arrancaría sin interfaz"; exit 1; }
           echo "Estructura correcta."
 

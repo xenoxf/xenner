@@ -115,10 +115,15 @@ jobs:
             libgtk-3-dev \
             patchelf
 
+      # El prefijo lleva la versión del runner porque la caché guarda target/ con
+      # objetos ya compilados, y esos objetos dependen de la glibc del runner.
+      # Sin distinguirlos, una caché hecha en 24.04 se restaura en 22.04 y
+      # cargo no encuentra los crates ya compilados.
       - name: Cache de compilaciones de Rust
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: xenner/src-tauri
+          prefix-key: v1-rust-glibc235
 
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile

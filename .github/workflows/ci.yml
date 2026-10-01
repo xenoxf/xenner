@@ -58,10 +58,16 @@ jobs:
       - name: Instalar Rust estable
         uses: dtolnay/rust-toolchain@stable
 
+      # El prefijo lleva la versión del runner porque la caché guarda target/ con
+      # objetos ya compilados, y esos objetos dependen de la glibc del runner.
+      # Al bajar a 22.04 sin cambiar el prefijo, rust-cache restauró una caché
+      # hecha en 24.04 y cargo check falló con "can't find crate for tauri": los
+      # .rlib de la caché no servían para el sistema nuevo.
       - name: Cache de compilaciones de Rust
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: xenner/src-tauri
+          prefix-key: v1-rust-glibc235
 
       # Tauri v2 en Linux enlaza contra webkit2gtk, así que `cargo check` lo
       # necesita aunque no se llegue a compilar la app entera. Los -dev de glib y

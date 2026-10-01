@@ -57,8 +57,17 @@ jobs:
             platform: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: nsis
+          # Ubuntu 22.04 a propósito, aunque 24.04 sea más reciente. Un binario
+          # compilado en 24.04 pide GLIBC_2.39 y no arranca en nada que tenga una
+          # glibc más antigua: ni Debian 12 (2.36) ni Ubuntu 22.04 (2.35). En
+          # 22.04 sale un binario compatible con glibc 2.35, que cubre Debian 12
+          # en adelante y Ubuntu 22.04 en adelante.
+          #
+          # libwebkit2gtk-4.1-dev sí existe en jammy (backport de seguridad,
+          # 2.50.4), así que compilar contra la versión antigua de webkit no
+          # obliga a usar una webkit más vieja.
           - label: Linux · x64
-            platform: ubuntu-24.04
+            platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             bundles: deb,rpm,appimage
 
@@ -102,6 +111,8 @@ jobs:
             librsvg2-dev \
             libxdo-dev \
             libssl-dev \
+            libglib2.0-dev \
+            libgtk-3-dev \
             patchelf
 
       - name: Cache de compilaciones de Rust
@@ -147,3 +158,112 @@ jobs:
           args: >-
             --target ${{ matrix.target }}
             --bundles ${{ matrix.bundles }}
+
+  # El fallo que motivó este job: la 1.1.0 se compiló en Ubuntu 24.04, el binario
+  # pidió GLIBC_2.39 y no arrancaba en Debian 12 ni en Ubuntu 22.04. El
+  # empaquetado daba verde y el .deb era técnicamente válido: lo único roto era
+  # para quién funcionaba.
+  #
+  # Este job baja lo que se acaba de subir y lo comprueba de verdad: que el .deb
+  # sea instalable, que el binario no pida una glibc más nueva que la del runner
+  # más antiguo que se quiere cubrir y que las skins viajen dentro. Falla aquí y
+  # no en el ordenador de quien lo descarga.
+  verify:
+    name: Comprobar los binarios de Linux
+    needs: build
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Instalar herramientas de inspección
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            binutils \
+            unzip
+
+      - name: Localizar la release y sus archivos
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${{ github.event.release.id }}" ]; then
+            RELEASE_ID="${{ github.event.release.id }}"
+          else
+            RELEASE_ID=$(gh api "repos/${{ github.repository }}/releases/tags/${{ inputs.version }}" --jq .id)
+          fi
+          echo "id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          gh api "repos/${{ github.repository }}/releases/assets?per_page=100" \
+            --jq '.[] | select(.release_id == '"$RELEASE_ID"') | .name' > assets.txt
+          echo "Archivos en la release:"; cat assets.txt
+
+      - name: Bajar los paquetes de Linux
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p paquetes
+          for nombre in $(grep -E '\.(deb|AppImage)$' assets.txt); do
+            echo "→ $nombre"
+            gh api -H "Accept: application/octet-stream" \
+              "repos/${{ github.repository }}/releases/assets/$(
+                gh api "repos/${{ github.repository }}/releases/assets?per_page=100" \
+                  --jq ".[] | select(.name == \"$nombre\") | .id" | head -1)" \
+              > "paquetes/$nombre"
+          done
+          ls -la paquetes/
+
+      - name: El .deb está bien formado y trae lo suyo
+        run: |
+          set -euo pipefail
+          DEB=$(ls paquetes/*.deb | head -1)
+          echo "Paquete: $DEB"
+
+          # Un .deb que dpkg no lee o no tiene el lanzador no sirve de nada, y
+          # Tauri lo genera sin avisar si algo va mal por el camino.
+          dpkg-deb --info "$DEB"
+          dpkg-deb --contents "$DEB" | grep -q 'usr/bin/xenner' \
+            || { echo "FALTA: no hay /usr/bin/xenner dentro del paquete"; exit 1; }
+          dpkg-deb --contents "$DEB" | grep -q 'xenner.desktop' \
+            || { echo "FALTA: no hay la entrada de menú"; exit 1; }
+          dpkg-deb --contents "$DEB" | grep -q 'usr/lib/xenner/skins/config.txt' \
+            || { echo "FALTA: no viajan las skins, la app arrancaría sin interfaz"; exit 1; }
+          echo "Estructura correcta."
+
+      # Compara versiones de verdad con `sort -V`, no con un `case` de globos: un
+      # patrón tipo GLIBC_2.[4-9]* deja pasar la 2.39, que es exactamente el caso
+      # que había que cazar.
+      - name: El binario no pide una glibc más nueva que la de 22.04
+        run: |
+          set -euo pipefail
+          rm -rf extraido
+          mkdir extraido
+          dpkg-deb -x "$(ls paquetes/*.deb | head -1)" extraido
+
+          # 2.35 es la glibc de Ubuntu 22.04, la más antigua que se cubre: Debian
+          # 12 va por 2.36 y Ubuntu 24.04 por 2.39, así que un binario que para
+          # en 2.35 arranca en todas las de la lista.
+          MAXIMO=GLIBC_2.35
+          REQUERIDA=$(objdump -T extraido/usr/bin/xenner \
+            | grep -oE 'GLIBC_[0-9.]+' | sort -u -V | tail -1)
+          echo "El binario usa como mucho: $REQUERIDA  (máximo: $MAXIMO)"
+          if [ "$(printf '%s\n%s\n' "$REQUERIDA" "$MAXIMO" | sort -V | tail -1)" != "$MAXIMO" ]; then
+            echo "FALLA: el binario pide $REQUERIDA y solo se cubre hasta $MAXIMO."
+            echo "Lo normal es que el runner de compilación sea demasiado nuevo."
+            exit 1
+          fi
+          echo "Compatible con glibc 2.35 en adelante."
+
+      - name: El AppImage tampoco pide una glibc nueva
+        run: |
+          set -euo pipefail
+          APPIMAGE=$(ls paquetes/*.AppImage | head -1)
+          chmod +x "$APPIMAGE"
+          rm -rf squashfs-root
+          "$APPIMAGE" --appimage-extract usr/bin/xenner >/dev/null
+          MAXIMO=GLIBC_2.35
+          REQUERIDA=$(objdump -T squashfs-root/usr/bin/xenner \
+            | grep -oE 'GLIBC_[0-9.]+' | sort -u -V | tail -1)
+          echo "El AppImage usa como mucho: $REQUERIDA  (máximo: $MAXIMO)"
+          if [ "$(printf '%s\n%s\n' "$REQUERIDA" "$MAXIMO" | sort -V | tail -1)" != "$MAXIMO" ]; then
+            echo "FALLA: el AppImage pide $REQUERIDA y solo se cubre hasta $MAXIMO."
+            exit 1
+          fi

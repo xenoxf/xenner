@@ -93,6 +93,19 @@ workflow**. Sube los binarios a una release nueva en borrador, así que no apare
 hasta que la publiques. El primer binario de una versión tarda bastante —Rust en
 fresco, sin caché—; los siguientes, minutos.
 
+### Linux se compila en Ubuntu 22.04, no en 24.04
+
+Linux se compila en el runner más antiguo que se quiere soportar. Un binario
+compilado en Ubuntu 24.04 pide `GLIBC_2.39` y no arranca en Debian 12 (2.36) ni
+en Ubuntu 22.04 (2.35), que es justo donde se instala la mayoría de la gente.
+Compilando en 22.04 el binario para en `GLIBC_2.35` y cubre todo lo posterior.
+
+Por eso hay un job `verify` que baja los paquetes ya publicados y comprueba que
+el binario no pida una glibc más nueva que esa, que el `.deb` tenga lanzador,
+entrada de menú y skins, y que el AppImage tampoco pida una glibc nueva. El
+empaquetado puede salir verde y el binario ser inútil para la mitad de la gente,
+que es lo que pasó con la 1.1.0.
+
 ## Documentación
 
 - [`xenner/docs/SKIN_SPEC.md`](xenner/docs/SKIN_SPEC.md) — especificación del

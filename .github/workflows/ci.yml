@@ -24,8 +24,12 @@ permissions:
 
 jobs:
   app:
+    # 22.04 y no 24.04 a propósito. `cargo check` here se enlaza contra la glibc
+    # del runner, así que comprobarlo en el más antiguo que se soporta en la
+    # release avisa de APIs que no existen en Debian 12 o Ubuntu 22.04, en vez de
+    # descubrirlo cuando alguien ya ha descargado el binario.
     name: App de escritorio
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
 
@@ -60,7 +64,8 @@ jobs:
           workspaces: xenner/src-tauri
 
       # Tauri v2 en Linux enlaza contra webkit2gtk, así que `cargo check` lo
-      # necesita aunque no se llegue a compilar la app entera.
+      # necesita aunque no se llegue a compilar la app entera. Los -dev de glib y
+      # gtk son los que necesitan los crates de tauri-linux más transitivos.
       - name: Instalar librerías de sistema
         run: |
           sudo apt-get update
@@ -69,7 +74,9 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libxdo-dev \
-            libssl-dev
+            libssl-dev \
+            libglib2.0-dev \
+            libgtk-3-dev
 
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile
@@ -86,6 +93,7 @@ jobs:
 
   web:
     name: Sitio público
+    # La web no produce binarios, así que aquí da igual la versión del runner.
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7

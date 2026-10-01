@@ -109,6 +109,11 @@ objetivos de `.github/workflows/release.yml`, replicados en
 `releases.dom.test.ts`. Si esa matriz cambia, esa comprobación salta antes de que
 lo haga una tarjeta vacía en producción.
 
+Los nombres no llevan el sistema dentro, pero tampoco la versión: eso significa
+que un `.deb` que no arranca sigue siendo un `.deb` bien formado. La web no puede
+saber si el binario funciona en la máquina de quien lo descarga, y por eso la
+comprobación de que funcione es del job `verify` de la release, no de aquí.
+
 ### La versión vive en cuatro sitios
 
 Cada release hay que subirla en cuatro archivos, y se olvidó uno la primera vez:

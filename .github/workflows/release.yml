@@ -65,21 +65,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # pnpm va ANTES que setup-node a propósito: con `cache: pnpm`,
+      # setup-node ejecuta `pnpm store path` para leer el lockfile y si el gestor
+      # de paquetes todavía no está instalado el paso falla con
+      # "Unable to locate executable file: pnpm". Al revés que como se suele
+      # escribir, que es el orden que falla.
+      #
+      # La versión va fijada a mano y no leída de `packageManager`: pnpm 12
+      # registra ese campo en el lockfile como `packageManagerDependencies`, así
+      # que añadirlo al package.json reescribiría el lockfile con los binarios
+      # `@pnpm/exe.*` de todas las plataformas.
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.6.0
+
       - name: Instalar Node
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: xenner/pnpm-lock.yaml
-
-      # Versión fijada a mano y no leída de `packageManager` a propósito: pnpm 12
-      # registra el campo `packageManagerDependencies` en el lockfile, así que
-      # añadirlo al package.json reescribiría el lockfile con los binarios
-      # `@pnpm/exe.*` de todas las plataformas. Aquí solo hace falta en CI.
-      - name: Instalar pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 12.6.0
 
       - name: Instalar Rust estable
         uses: dtolnay/rust-toolchain@stable

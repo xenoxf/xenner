@@ -6,6 +6,12 @@
    superficie #ffffff, barra lateral #f7f7f5, texto #2f2f2f, acento #2383e2.
    El sitio aplica la misma regla: los componentes solo consumen variables.
 
+   Esa maqueta conserva el acento AZUL a propósito, y no es un descuido: es una
+   captura de la app de verdad, con su skin real. Si se le pusiera el rojo del
+   sitio, la ventana dejaría de parecerse a la app y pasaría a ser un dibujo.
+   Es el mismo motivo por el que no se le aplica el grano del fondo: dentro de
+   la ventana manda la interfaz de Xenner, no la de la web.
+
    El interruptor claro/oscuro es CSS puro: un checkbox que cambia los tokens
    del bloque. No hay JavaScript en esta maqueta.
    ========================================================================== */
@@ -34,7 +40,7 @@
   border-radius: var(--sk-radius);
   color: var(--sk-text);
   background: var(--sk-bg);
-  box-shadow: var(--lift-3), 0 0 0 1px var(--sk-line);
+  box-shadow: var(--lift-4), 0 0 0 1px var(--sk-line);
   font-family: var(--sans);
   overflow: hidden;
 }

@@ -105,8 +105,8 @@ const structuredData = {
     <meta name="description" content={description} />
     <!-- La web es de papel claro siempre (ver :root en global.css). Anunciar
          soporte de oscuro hacía que la barra del navegador se pusiera oscura
-         sobre una página clara. -->
-    <meta name="theme-color" content="#fbfaf8" />
+         sobre una página clara. El valor es el --bg del sitio. -->
+    <meta name="theme-color" content="#f7efe6" />
     <meta name="color-scheme" content="light" />
     <meta name="application-name" content="Xenner" />
     <meta name="apple-mobile-web-app-title" content="Xenner" />
@@ -117,6 +117,16 @@ const structuredData = {
     )}
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Tres familias en una sola petición: Instrument Serif para los titulares,
+         IBM Plex Sans para leer e IBM Plex Mono para código y nombres de archivo.
+         Con preconnect a los dos dominios, la primera pintura no espera. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap"
+    />
     <link rel="manifest" href="/site.webmanifest" />
     {Astro.site && <link rel="sitemap" href="/sitemap-index.xml" />}
 

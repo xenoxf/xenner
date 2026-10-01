@@ -1,0 +1,592 @@
+---
+import { REPO } from '../config';
+
+/**
+ * Las tarjetas de descarga de la portada.
+ *
+ * Las tres plataformas siempre están en el HTML, porque la sección tiene que
+ * leerse aunque no haya release todavía, aunque JavaScript esté apagado y
+ * aunque GitHub no conteste. El script que viene debajo solo rellena el hueco
+ * del botón; nunca es quien pone la tarjeta en su sitio.
+ *
+ * La regla de qué archivo va en qué tarjeta vive en `src/scripts/releases.ts`,
+ * con sus tests. Aquí solo se pinta el resultado.
+ */
+
+/*
+ * Los iconos son de cada sistema, no una gota con una letra dentro: a 34px una
+ * "M" o una "W" no se lee. Cada tarjeta lleva su lista de trazados porque los
+ * tres no se dibujan igual: macOS y Windows son formas rellenas y Linux es una
+ * terminal con trazo.
+ */
+const CARDS = [
+  {
+    id: 'mac',
+    name: 'macOS',
+    detail: 'Apple Silicon e Intel',
+    hint: 'Archivo .dmg',
+    icon: [
+      { d: 'M4.5 5.4A1.9 1.9 0 0 1 6.4 3.5h11.2a1.9 1.9 0 0 1 1.9 1.9v8.1H4.5V5.4Z', solid: true },
+      { d: 'M1.9 15.9h20.2l-1.4 2.5a1.5 1.5 0 0 1-1.3.8H4.6a1.5 1.5 0 0 1-1.3-.8L1.9 15.9Z', solid: true },
+    ],
+  },
+  {
+    id: 'win',
+    name: 'Windows',
+    detail: 'Windows 10 y 11 · 64 bits',
+    hint: 'Instalador .exe',
+    icon: [
+      {
+        d: 'M3 5.3 10.6 4.2v7.5H3V5.3Zm8.9-1.3L21 2.5v9.2h-9.1V4ZM3 12.9h7.6v7.5L3 19.3v-6.4Zm8.9 0H21v9.2l-9.1-1.5v-7.7Z',
+        solid: true,
+      },
+    ],
+  },
+  {
+    id: 'linux',
+    name: 'Linux',
+    detail: 'AppImage, deb y rpm',
+    hint: 'Sin instalar nada',
+    icon: [
+      { d: 'M3.6 4.4h16.8A1.6 1.6 0 0 1 22 6v9.6a1.6 1.6 0 0 1-1.6 1.6H3.6A1.6 1.6 0 0 1 2 15.6V6a1.6 1.6 0 0 1 1.6-1.6Z', solid: false },
+      { d: 'M6.9 8.7 10.2 11l-3.3 2.3M12.7 13.3h4.4', solid: false },
+    ],
+  },
+] as const;
+---
+
+<section class="download" id="descargar" aria-labelledby="descargar-title">
+  <div class="shell">
+    <header class="section-head section-head--center">
+      <p class="label">Descargar</p>
+      <h2 class="section-title" id="descargar-title">
+        Llévate <span class="gradient-text">Xenner</span> a tu equipo
+      </h2>
+      <p class="section-desc">
+        Elige tu sistema y descárgalo en segundos. Gratis, sin cuentas y sin que te
+        pidamos ni un correo.
+      </p>
+    </header>
+
+    <p class="download__meta" data-download-meta aria-live="polite"></p>
+
+    <ul class="download__grid">
+      {
+        CARDS.map((card) => (
+          <li class="download-card glass-card" data-download-card={card.id}>
+            <span class="download-card__icon" aria-hidden="true">
+              <svg
+                width="34"
+                height="34"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                {card.icon.map((shape) => (
+                  <path
+                    d={shape.d}
+                    fill={shape.solid ? 'currentColor' : 'none'}
+                    stroke={shape.solid ? 'none' : 'currentColor'}
+                  />
+                ))}
+              </svg>
+            </span>
+
+            <h3 class="download-card__name">{card.name}</h3>
+            <p class="download-card__detail">{card.detail}</p>
+
+            {/* Este hueco lo rellena el script con el botón de la release. Sin
+                JavaScript se lee como «Próximamente», que es la verdad. */}
+            <div class="download-card__slot" data-download-slot={card.id} data-state="empty">
+              <p class="download-card__pending">{card.hint}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="download__foot">
+      ¿No ves tu sistema aquí? <a href="/instalar/">Compílalo tú mismo</a> siguiendo la
+      guía, o mira <a href={`${REPO}/releases`} target="_blank" rel="noreferrer">todas las
+      versiones</a> en GitHub.
+    </p>
+  </div>
+</section>
+
+<style>
+  .download {
+    padding: clamp(4rem, 9vw, 7rem) 0;
+    border-block: 1px solid var(--line);
+  }
+
+  /* La versión y el aviso de «estás en macOS». Se reserve la altura con
+     min-height para que el texto no empuje el resto de la página al aparecer. */
+  .download__meta {
+    min-height: 1.5rem;
+    margin-top: 1.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    color: var(--ink-3);
+    font-size: var(--t-sm);
+    text-align: center;
+  }
+
+  .download__meta:empty {
+    margin-top: 0;
+  }
+
+  /* Los tres textos de la línea de arriba del grid —versión, sistema detectado y
+     fecha— los crea el script, así que sus estilos van globales. */
+  :global(.download__version) {
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    color: var(--accent-ink);
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    font-weight: 500;
+  }
+
+  :global(.download__detected) {
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-2);
+    background: var(--surface);
+    font-size: var(--t-xs);
+  }
+
+  :global(.download__date) {
+    color: var(--ink-3);
+    font-size: var(--t-xs);
+  }
+
+  .download__grid {
+    margin-top: 2.5rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+
+  .download-card {
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease),
+      border-color var(--t-mid) var(--ease);
+  }
+
+  .download-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--lift-3);
+    border-color: var(--accent);
+  }
+
+  /* La tarjeta del sistema del visitante se distingue sin gritar: un borde de
+     acento y el nombre en la tinta principal. El script la marca. */
+  .download-card[data-yours='true'] {
+    border-color: var(--accent);
+    box-shadow: var(--lift-3);
+  }
+
+  .download-card__icon {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-bottom: 1rem;
+    border-radius: 14px;
+    color: var(--accent);
+    background: var(--accent-sub);
+  }
+
+  .download-card__name {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  .download-card__detail {
+    margin-top: 0.35rem;
+    color: var(--ink-3);
+    font-size: var(--t-sm);
+    line-height: 1.5;
+  }
+
+  /* min-height fijo: las tres tarjetas miden lo mismo aunque una tenga más
+     formatos alternativos que otra, y aunque ahora no haya release y solo se
+     vea el texto de espera. */
+  .download-card__slot {
+    width: 100%;
+    min-height: 7rem;
+    margin-top: 1.35rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.7rem;
+  }
+
+  /* El texto de espera, centrado en el hueco. Sin release es lo único que hay,
+     así que se queda a la altura del botón que aparecerá cuando llegue. */
+  .download-card__pending {
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    letter-spacing: 0.02em;
+    text-align: center;
+  }
+
+  /* ---------- el botón, ya con la release detrás ---------- */
+
+  :global(.download__btn) {
+    min-height: 2.85rem;
+    padding: 0 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    color: var(--on-accent);
+    background: var(--accent);
+    font-size: var(--t-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: var(--lift-2);
+    transition: background-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease),
+      box-shadow var(--t-fast) var(--ease);
+  }
+
+  :global(.download__btn:hover) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--lift-3);
+  }
+
+  :global(.download__btn svg) {
+    width: 0.95rem;
+    height: 0.95rem;
+    flex: none;
+  }
+
+  :global(.download__btn-meta) {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    opacity: 0.82;
+  }
+
+  /* Sin binario para la arquitectura del visitante: el botón sigue, pero el
+     aviso lo deja claro en vez de prometer algo que no va a funcionar. */
+  :global(.download__note) {
+    color: var(--ink-3);
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  :global(.download__alt) {
+    display: grid;
+    justify-items: center;
+    gap: 0.3rem;
+  }
+
+  :global(.download__alt-label) {
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  :global(.download__alt-list) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem;
+  }
+
+  :global(.download__alt-link) {
+    padding: 0.2rem 0.55rem;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-2);
+    background: var(--bg);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    transition: border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  }
+
+  :global(.download__alt-link:hover) {
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  :global(.download__alt-size) {
+    color: var(--ink-3);
+  }
+
+  .download__foot {
+    margin-top: 2rem;
+    color: var(--ink-2);
+    font-size: var(--t-sm);
+    text-align: center;
+  }
+
+  .download__foot a {
+    color: var(--accent-ink);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 0.16em;
+  }
+
+  .download__foot a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  @media (max-width: 900px) {
+    .download__grid {
+      grid-template-columns: 1fr;
+      max-width: 26rem;
+      margin-inline: auto;
+    }
+  }
+</style>
+
+<script>
+  import {
+    type Arch,
+    type Platform,
+    type ReleaseAsset,
+    detectArch,
+    detectPlatform,
+    formatLabel,
+    formatSize,
+    isUsableRelease,
+    normalizeVersion,
+    pickAlternates,
+    pickPrimary,
+  } from '../scripts/releases.ts';
+  import { REPO_SLUG } from '../config';
+
+  /* `userAgentData` solo existe en Chromium y no está en los tipos de TS de
+     lib.dom que usa este proyecto. Se lee sin|type-check porque es opcional. */
+  function uaArch(): string | undefined {
+    const data = (navigator as Navigator & { userAgentData?: { architecture?: string } }).userAgentData;
+    return data?.architecture;
+  }
+
+  /* El `data-download-slot` de la tarjeta dice 'win', pero el `Platform` de
+     releases.ts es 'windows'. Este mapa traduce el uno en el otro. */
+  const PLATFORM_BY_SLOT: Record<string, Platform> = {
+    mac: 'mac',
+    win: 'windows',
+    linux: 'linux',
+  };
+
+  const PLATFORM_NAMES: Record<Platform, string> = {
+    mac: 'macOS',
+    windows: 'Windows',
+    linux: 'Linux',
+  };
+
+  const ARCH_NAMES: Record<Arch, string> = { arm64: 'ARM', x64: 'x86_64', unknown: '' };
+
+  const meta = document.querySelector<HTMLElement>('[data-download-meta]');
+  const slots = Array.from(document.querySelectorAll<HTMLElement>('[data-download-slot]'));
+
+  function hints() {
+    return { userAgent: navigator.userAgent, platform: navigator.platform, uaDataArchitecture: uaArch() };
+  }
+
+  /* ---------- el botón principal ---------- */
+
+  function buildButton(asset: ReleaseAsset, exactArch: boolean, platform: string): DocumentFragment {
+    const frag = document.createDocumentFragment();
+
+    const link = document.createElement('a');
+    link.className = 'download__btn';
+    link.href = asset.browser_download_url;
+    link.rel = 'noreferrer';
+    link.dataset.platform = platform;
+    // El nombre exacto del archivo, para quien quiere ver qué se baja.
+    link.title = asset.name;
+
+    const label = document.createElement('span');
+    label.textContent = 'Descargar';
+
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 16 16');
+    icon.setAttribute('fill', 'none');
+    icon.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M8 2v8M4.5 7 8 10.5 11.5 7M3 13h10');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '1.7');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    icon.append(path);
+
+    const metaBits = [formatLabel(asset.name), formatSize(asset.size)].filter(Boolean).join(' · ');
+    if (metaBits) {
+      const size = document.createElement('span');
+      size.className = 'download__btn-meta';
+      size.textContent = metaBits;
+      link.append(label, size, icon);
+    } else {
+      link.append(label, icon);
+    }
+
+    frag.append(link);
+
+    // Un .dmg de Intel abre en Apple Silicon con Rosetta, así que esto no es un
+    // error sino un aviso. En Linux y Windows el aviso no aporta nada.
+    if (!exactArch && platform === 'mac') {
+      const note = document.createElement('p');
+      note.className = 'download__note';
+      note.textContent = 'No hay binario para tu arquitectura: este abre con Rosetta.';
+      frag.append(note);
+    }
+
+    return frag;
+  }
+
+  /* ---------- los formatos alternativos ---------- */
+
+  function buildAlternates(assets: readonly ReleaseAsset[]): HTMLElement | null {
+    if (assets.length === 0) return null;
+
+    const box = document.createElement('div');
+    box.className = 'download__alt';
+
+    const label = document.createElement('span');
+    label.className = 'download__alt-label';
+    label.textContent = 'También en';
+    box.append(label);
+
+    const list = document.createElement('div');
+    list.className = 'download__alt-list';
+
+    for (const asset of assets) {
+      const link = document.createElement('a');
+      link.className = 'download__alt-link';
+      link.href = asset.browser_download_url;
+      link.rel = 'noreferrer';
+      link.title = asset.name;
+      link.textContent = formatLabel(asset.name);
+
+      const size = formatSize(asset.size);
+      if (size) {
+        const span = document.createElement('span');
+        span.className = 'download__alt-size';
+        span.textContent = size;
+        link.append(span);
+      }
+      list.append(link);
+    }
+
+    box.append(list);
+    return box;
+  }
+
+  /* ---------- pintar ---------- */
+
+  let painted = false;
+
+  function paint(release: unknown): void {
+    if (!isUsableRelease(release)) return;
+
+    const { userAgent, platform, uaDataArchitecture } = hints();
+    const os = detectPlatform({ userAgent, platform });
+    const arch = detectArch({ userAgent, platform, uaDataArchitecture });
+
+    for (const slot of slots) {
+      const cardKey = slot.dataset.downloadSlot;
+      if (!cardKey) continue;
+      // 'win' → 'windows', que es como lo llama releases.ts.
+      const platform = PLATFORM_BY_SLOT[cardKey];
+      if (!platform) continue;
+
+      const choice = pickPrimary(release.assets, platform, arch);
+      // Sin instalador para este sistema no se toca la tarjeta. Una release
+      // recién publicada puede no tener todavía los binarios de las tres, y
+      // dejarlo como estaba es mejor que borrar lo que ya funcionaba.
+      if (!choice) continue;
+
+      const children: Node[] = [buildButton(choice.asset, choice.exactArch, cardKey)];
+      const alternates = buildAlternates(pickAlternates(release.assets, platform, arch, choice.asset));
+      if (alternates) children.push(alternates);
+
+      slot.replaceChildren(...children);
+      slot.dataset.state = 'ready';
+
+      const card = slot.closest<HTMLElement>('[data-download-card]');
+      if (card && platform === os) card.dataset.yours = 'true';
+    }
+
+    /* La versión, arriba, y el aviso del sistema. Solo una vez: si la llamada de
+       red sustituye a la del build, el texto no tiene que parpadear. */
+    if (!painted && meta) {
+      painted = true;
+      const version = normalizeVersion(release.tag_name);
+      if (version) {
+        const tag = document.createElement('span');
+        tag.className = 'download__version';
+        tag.textContent = `v${version}`;
+        meta.append(tag);
+      }
+      if (os) {
+        const archText = ARCH_NAMES[arch];
+        const badge = document.createElement('span');
+        badge.className = 'download__detected';
+        badge.textContent = archText
+          ? `Estás en ${PLATFORM_NAMES[os]} · ${archText}`
+          : `Estás en ${PLATFORM_NAMES[os]}`;
+        meta.append(badge);
+      }
+      if (release.published_at) {
+        const date = new Date(release.published_at);
+        if (!Number.isNaN(date.getTime())) {
+          const when = document.createElement('span');
+          when.className = 'download__date';
+          when.textContent = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
+          meta.append(when);
+        }
+      }
+    }
+  }
+
+  /* Lo que el servidor ya dejó escrito: funciona sin JS y sin red. */
+  const snapshot = document.getElementById('xenner-release-snapshot')?.textContent;
+  if (snapshot) {
+    try {
+      paint(JSON.parse(snapshot));
+    } catch {
+      // Un snapshot corrupto no puede romper la página: se ignora y ya.
+    }
+  }
+
+  /* Y después se pregunta a GitHub, para que publicar una release nova enseñe los
+     instaladores sin tener que volver a construir la web. La API pública limita
+     a 60 peticiones por hora y por IP; si se llega al límite o no hay red, la
+     respuesta es 403 o una excepción y aquí no se cae nada. */
+  fetch(`https://api.github.com/repos/${REPO_SLUG}/releases/latest`, {
+    headers: { Accept: 'application/vnd.github+json' },
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then(paint)
+    .catch(() => {
+      /* Sin conexión: ya está lo que el servidor escribió. */
+    });
+</script>

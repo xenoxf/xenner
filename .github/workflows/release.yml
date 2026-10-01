@@ -1,0 +1,143 @@
+# Compila Xenner para macOS, Windows y Linux y cuelga los instaladores en la
+# release de GitHub.
+#
+# El flujo es el que Glenker usa en su web: la release se publica primero
+# (vacía o con notas), esta workflow la rellena con los binarios y la portada
+# lee `releases/latest` por la API para pintar los botones de descarga. Así la
+# web no hay que volver a construirla cada vez que hay versión nueva.
+#
+# Para probarla sin publicar nada: Actions → Release → Run workflow. La
+# workflow sube los binarios a una release nueva con la etiqueta que se pase en
+# el formulario y la deja en borrador, así que no aparece en `releases/latest`
+# ni sale en la web hasta que la publiques.
+
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Etiqueta de la release de prueba, con la v delante. Se deja en borrador.'
+        required: false
+        type: string
+        default: v0.1.0
+
+# Dos ejecuciones sobre la misma release no pueden subir los mismos binarios a
+# la vez. Se serializan en vez de cancelarse: cancelar a mitad de compilar deja
+# la release con la mitad de los archivos.
+concurrency:
+  group: release-${{ github.event.release.id || inputs.version || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.platform }}
+
+    strategy:
+      # Si un objetivo falla, los demás siguen: es preferible publicar la app
+      # para dos de los tres sistemas que no tener ninguno.
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS · Apple Silicon
+            platform: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg
+          - label: macOS · Intel
+            platform: macos-latest
+            target: x86_64-apple-darwin
+            bundles: dmg
+          - label: Windows · x64
+            platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - label: Linux · x64
+            platform: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,rpm,appimage
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: xenner/pnpm-lock.yaml
+
+      # Versión fijada a mano y no leída de `packageManager` a propósito: pnpm 12
+      # registra el campo `packageManagerDependencies` en el lockfile, así que
+      # añadirlo al package.json reescribiría el lockfile con los binarios
+      # `@pnpm/exe.*` de todas las plataformas. Aquí solo hace falta en CI.
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.6.0
+
+      - name: Instalar Rust estable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Instalar librerías de sistema (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf
+
+      - name: Cache de compilaciones de Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: xenner/src-tauri
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+        working-directory: xenner
+
+      - name: Tests y typecheck
+        run: pnpm build
+        working-directory: xenner
+
+      # En una release publicada, `releaseId` apunta a la que ya existe y la
+      # action sube encima en vez de crear otra. En la ejecución manual no hay
+      # ninguna, y entonces `releaseId` va vacío para que la action cree una con
+      # `tagName`, en borrador.
+      #
+      # Ojo con la sintaxis `cond && a || b`: no es un ternario. Si `a` es la
+      # cadena vacía —que en las expresiones de GitHub es falsy— el `||` se
+      # dispara y sale `b` igual. Por eso `tagName` y `releaseName` llevan el
+      # valor en la rama `&&` y el vacío en la `||`, y por eso `releaseDraft` usa
+      # las cadenas 'false' y 'true': 'false' es una cadena no vacía, así que sí
+      # cuenta como verdadero y llega hasta el final de la expresión.
+      - name: Compilar y subir a la release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: xenner
+          releaseId: ${{ github.event_name == 'release' && github.event.release.id || '' }}
+          tagName: ${{ github.event_name != 'release' && inputs.version || '' }}
+          releaseName: ${{ github.event_name != 'release' && format('Xenner {0}', inputs.version) || '' }}
+          releaseBody: 'Los instaladores de macOS, Windows y Linux están en los archivos de abajo.'
+          releaseDraft: ${{ github.event_name == 'release' && 'false' || 'true' }}
+          prerelease: 'false'
+          # La app no usa el actualizador de Tauri, así que el latest.json que
+          # genera la action no lo leería nadie y solo confunde al visitante.
+          uploadUpdaterJson: 'false'
+          retryAttempts: 2
+          args: >-
+            --target ${{ matrix.target }}
+            --bundles ${{ matrix.bundles }}

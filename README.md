@@ -67,13 +67,31 @@ canonical, el sitemap y el `robots.txt` con el dominio final.
 ## Verificación
 
 ```bash
-cd xenner           && pnpm build   # 56 tests, typecheck y vite build
+cd xenner           && pnpm build   # 64 tests, typecheck y vite build
 cd xenner/src-tauri && cargo check
-cd web              && pnpm build   # astro check y build
+cd web              && pnpm build   # 79 tests, astro check y build
 ```
 
 Los detalles de cada pieza están en su propio README:
 [`xenner/README.md`](xenner/README.md) y [`web/README.md`](web/README.md).
+
+## Releases
+
+Las dos workflows de `.github/workflows/` se encargan:
+
+- **`ci.yml`**: en cada push a `main` y en cada pull request, corre los tests, el
+  typecheck, `astro check` y `cargo check` de la app y de la web.
+- **`release.yml`**: al publicar una release en GitHub, compila Xenner para
+  macOS (Apple Silicon e Intel), Windows y Linux (AppImage, deb y rpm), y cuelga
+  los instaladores en esa misma release.
+
+La web lee esa release por la API de GitHub, así que **publicar una versión
+muestra los botones de descarga sin volver a desplegar el sitio**.
+
+Para probar el empaquetado sin publicar nada: **Actions → Release → Run
+workflow**. Sube los binarios a una release nueva en borrador, así que no aparece
+hasta que la publiques. El primer binario de una versión tarda bastante —Rust en
+fresco, sin caché—; los siguientes, minutos.
 
 ## Documentación
 

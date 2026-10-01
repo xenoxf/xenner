@@ -1,0 +1,106 @@
+# Comprueba que el proyecto se construye antes de que nadie toque una release.
+#
+# Lo que corre aquí es lo mismo que [`release.yml`](release.yml) hace en cada
+# plataforma, pero en un solo sistema y sin empaquetar: tests, tipos y
+# compilación. Si esto está verde, la release tiene probabilidades de salir
+# verde también.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Una commit nueva vuelve a comprobar lo que esta commit haya tocado, en vez de
+# Expecting a que termine la anterior. La que está en curso no se corta.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: App de escritorio
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: xenner/pnpm-lock.yaml
+
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.6.0
+
+      - name: Instalar Rust estable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache de compilaciones de Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: xenner/src-tauri
+
+      # Tauri v2 en Linux enlaza contra webkit2gtk, así que `cargo check` lo
+      # necesita aunque no se llegue a compilar la app entera.
+      - name: Instalar librerías de sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+        working-directory: xenner
+
+      # `pnpm build` encadena los 56 tests, `tsc --noEmit` y el build de vite.
+      - name: Tests, tipos y build
+        run: pnpm build
+        working-directory: xenner
+
+      - name: Comprobar el crate
+        run: cargo check --all-targets
+        working-directory: xenner/src-tauri
+
+  web:
+    name: Sitio público
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.3.4
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+        working-directory: web
+
+      # `pnpm build` encadena los tests, `astro check` y el build. SITE_URL hace
+      # que se generen canonical, sitemap y robots.txt; sin ella el build avisa
+      # pero no falla.
+      - name: Tests, tipos y build
+        run: pnpm build
+        working-directory: web
+        env:
+          SITE_URL: https://xenner.app

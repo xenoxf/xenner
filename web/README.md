@@ -76,6 +76,39 @@ puede positionar una por término.
 3. Pedir la indexación de la portada con la **URL Inspection**.
 4. Tarda días. Google avisa por correo cuando la propiedad esté verificada.
 
+## Las descargas
+
+La portada tiene tres tarjetas —macOS, Windows y Linux— con los instaladores de
+la última release publicada en GitHub. Las dos piezas:
+
+- **`src/scripts/releases.ts`**: decide qué archivo va en qué tarjeta. Son
+  funciones puras sobre el JSON de la API, con 29 pruebas. La regla importante:
+  **la plataforma se decide por extensión, no por el nombre del archivo**. Tauri
+  no mete `macos`, `windows` ni `linux` en los nombres que genera
+  (`xenner_0.1.0_aarch64.dmg`, `xenner_0.1.0_x64-setup.exe`), así que buscarlos
+  ahí no encuentra nada; un `.dmg` solo se abre en macOS y un `.exe` solo en
+  Windows.
+- **`src/components/Download.astro`**: pinta las tarjetas. El HTML llega siempre
+  completo desde el build —sin JS, sin red y sin release se lee igual— y el
+  script solo rellena el hueco del botón.
+
+El dato llega por dos caminos, a propósito:
+
+1. **En el build**, `src/data/release.ts` lee `releases/latest` y lo deja escrito
+   en el HTML. Las tarjetas se ven al instante.
+2. **En el navegador**, el script vuelve a preguntar a GitHub al abrirse la
+   página. Esto es lo que hace que publicar una release nueva enseñe los
+   instaladores **sin volver a construir la web**.
+
+Si los dos fallan (sin red, API caída, límite de 60 peticiones por hora) la
+sección sigue leyéndose: solo faltan los botones, y queda el enlace a
+`/instalar/` y a las releases de GitHub.
+
+La lógica se apoya en los nombres que deja `tauri build` para los cuatro
+objetivos de `.github/workflows/release.yml`, replicados en
+`releases.dom.test.ts`. Si esa matriz cambia, esa comprobación salta antes de que
+lo haga una tarjeta vacía en producción.
+
 ## Arquitectura
 
 - `src/pages/index.astro`: portada.
@@ -105,7 +138,14 @@ puede positionar una por término.
   pruebas.
 - `src/scripts/docCode.ts`: botón de copiar, coloredor de comentarios y cadenas,
   y envoltorio de las tablas anchas. El coloredor es puro y tiene pruebas.
-- `src/config.ts`: nombre del sitio y URL del repositorio.
+- `src/scripts/releases.ts`: qué instalador va en qué tarjeta, y cómo se detecta
+  el sistema del visitante. Puro y con pruebas.
+- `src/data/release.ts`: la última release, leída en el build. Que falle no
+  rompe el build.
+- `src/components/Download.astro`: las tres tarjetas de descarga y el script que
+  las rellena.
+- `src/config.ts`: nombre del sitio, URL del repositorio y sus enlaces de
+  comunidad, que están vacíos hasta que existan.
 - `src/components/AppWindow.astro`: la maqueta de la ventana de la app.
 - `src/components/appwindow.css`: sus tokens y el interruptor claro/oscuro.
 - `src/layouts/BaseLayout.astro`: metadatos, canonical, Open Graph, JSON-LD y la
@@ -128,6 +168,18 @@ puede positionar una por término.
 - **La web es siempre clara.** Se declara `color-scheme: light` y un único
   `theme-color` claro; anunciar soporte de oscuro hacía que la barra del
   navegador se pusiera oscura sobre una página de papel.
+- **Papel cálido con acento rojo.** El fondo es un crema `#f7efe6` y el acento
+  un rojo de teja `#c2410c`, en vez del azul de la skin de la app. El rojo se
+  eligió sobre el naranja habitual en este tipo de sitios porque en ese crema los
+  dos se leen igual de bien, y el rojo pega más con el papel y con el nombre. Los
+  contrastes están calculados en el comentario de `global.css`.
+- **La maqueta de la app conserva su acento azul, a propósito.** Es una captura
+  de la app de verdad, con su skin real. Ponerle el rojo del sitio haría que la
+  ventana dejara de parecerse a la app y pasara a ser un dibujo.
+- **La sección de descarga no depende de la red.** Las tres tarjetas están en el
+  HTML del build; JavaScript solo mejora lo que ya se lee. Publicar una release
+  nueva se refleja en la web sin reconstruirla, que es lo que hace que
+  compilar en cada versión no obligue a desplegar la web cada vez.
 - **El contenido describe lo que la app hace hoy.** Si cambia una función,
   cambia la web en el mismo commit.
 - **La documentación son ocho páginas, no una.** Era una sola URL de once
@@ -161,3 +213,24 @@ puede positionar una por término.
   a `#contenido`, que solo existe en las páginas de la guía.
 - **Las tablas de tres columnas se salían del papel en un móvil.** Con tres
   columnas o menos, cada fila se convierte en una ficha con su etiqueta.
+
+### Lo que se midió
+
+- **Los botones de descarga salían con el icono gigante.** Los estilos de los
+  elementos que crea el script (`download__btn`, `download__alt*`) estaban en el
+  `<style>` del componente, que Astro compila con un atributo `data-astro-cid-*` en
+  los selectores. Los nodos que crea `document.createElement` en tiempo de
+  ejecución no llevan ese atributo, así que no los alcanzaba ninguna regla: sin
+  `min-height`, sin `padding` y con el SVG de la flecha estirado. Se resolvió
+  marcando esos selectores como `:global()`. Merece la pena porque el síntoma
+  —una flecha gigante— señalaba al DOM y no a los estilos: el elemento que
+  estaba mal era el nodo, no el CSS.
+
+**Los botones de descarga salían con el icono gigante.** Los estilos de los
+elementos que crea el script (`download__btn`, `download__alt*`) estaban en el
+`<style>` del componente, que Astro compila con un atributo `data-astro-cid-*` en
+los selectores. Los nodos que crea `document.createElement` en tiempo de ejecución
+no llevan ese atributo, así que no los alcanzaba ninguna regla: sin
+`min-height`, sin `padding` y con el SVG de la flecha estirado. Se resolvió
+marcando esos selectores como `:global()`. Merece la pena porque el síntoma
+—un icono de flecha enorme— no señalaba el estilo, sino el DOM.

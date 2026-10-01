@@ -1,9 +1,18 @@
 ---
 import AppWindow from '../components/AppWindow.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Download from '../components/Download.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import { REPO } from '../config';
+import { fetchLatestRelease } from '../data/release';
+
+/* La release se lee en el build y se deja escrita en el HTML. Así las tarjetas
+   de descarga se ven al instante y sin JavaScript; el script del cliente
+   vuelve a preguntar a GitHub al abrirse, de modo que publicar una versión
+   nueva enseña los instaladores sin reconstruir la web. */
+const release = await fetchLatestRelease();
+const snapshot = release ? JSON.stringify(release) : null;
 
 /* Preguntas que se hacen buscando "creador de notas". Respondidas en la propia
    página, sin marcado especial: es lo que la gente busca antes de decidir. */
@@ -14,7 +23,7 @@ const FAQ = [
   },
   {
     q: '¿Necesito internet?',
-    a: 'No. Xenner no hace peticiones de red.',
+    a: 'No. Xenner no hace peticiones de red. Se abre, se escribe y funciona con el wifi apagado.',
   },
   {
     q: '¿Dónde se guardan mis notas?',
@@ -22,39 +31,34 @@ const FAQ = [
   },
   {
     q: '¿Puedo abrirlas sin Xenner?',
-    a: 'Sí. Son archivos de texto: se abren con el Bloc de notas o con cualquier editor.',
+    a: 'Sí. Son archivos de texto: se abren con el Bloc de notas, con Obsidian o con cualquier editor.',
+  },
+  {
+    q: '¿En qué sistemas funciona?',
+    a: 'En macOS, Windows y Linux. Los tres se compilan y publican en cada versión, así que descargas la de tu equipo y listo.',
+  },
+  {
+    q: '¿Y si busco algo que no encuentro?',
+    a: 'Se escribe y se manda en GitHub. Está todo el código y las Issues están abiertas.',
   },
 ];
 
 const repo = REPO;
 
-const TIDY = [
-  {
-    title: 'Una nota es un archivo',
-    text: 'Sin base de datos ni formato oculto. El título es el nombre del archivo y el contenido es Markdown que puedes leer, copiar o versionar por tu cuenta.',
-  },
-  {
-    title: 'Una biblioteca es una carpeta',
-    text: 'Eliges la carpeta con el diálogo del sistema y xenner trabaja dentro. Mueve el disco a otro ordenador y tus notas siguen ahí.',
-  },
-  {
-    title: 'Guardado sin sobrescrituras',
-    text: 'Cada cambio se escribe de forma atómica. Si el archivo cambió por fuera, xenner lo detecta y te deja decidir.',
-  },
-];
-
-const EDITOR = [
+/* Detalle del editor, en dos columnas como la app. */const EDITOR = [
   { label: 'Encabezados, listas y citas', text: 'Formato mientras escribes, guardado como Markdown.' },
   { label: 'Tareas y tablas', text: 'Listas de tareas y tablas que siguen siendo texto plano.' },
-  { label: 'Código, enlaces y fórmulas', text: 'Bloques de código, referencias y LaTeX.' },
-  { label: 'Imágenes', text: 'Se guardan junto a la nota y se editan dentro.' },
+  { label: 'Código, enlaces y fórmulas', text: 'Bloques de código, referencias y LaTeX con KaTeX.' },
+  { label: 'Imágenes', text: 'Se guardan junto a la nota y se editan dentro del editor.' },
 ];
 
-/* Lo que la web no contaba y la app ya hace. */
-const PIZARRA = [
-  { label: 'Dibuja dentro de la nota', text: 'Doble clic y dibuja sobre el papel.' },
-  { label: 'Formas, flechas y texto', text: 'Para esquemas y para etiquetar.' },
-  { label: 'Deshacer', text: 'Cada trazo se puede volver atrás.' },
+/* Detalle del editor, en dos columnas como la app. */
+
+const ORGANIZE = [
+  'Arrastrar para mover',
+  'Clic derecho para cortar y pegar',
+  'Renombrar desde el propio título',
+  'Los adjuntos siguen a la nota',
 ];
 ---
 
@@ -65,24 +69,32 @@ const PIZARRA = [
     <!-- ================= PORTADA ================= -->
     <section class="hero">
       <div class="shell hero__inner">
-        <div class="hero__copy">
+        <p class="label">Creador de notas · Markdown · Tinta propia</p>
 
-          <h1 class="hero__title">
-            Un creador de notas<br />
-            <em>gratis y de código abierto.</em>
-          </h1>
+        <h1 class="hero__title">
+          Tus notas deberían<br />
+          ser <em>archivos de verdad.</em>
+        </h1>
 
-          <p class="hero__lead">
-            Xenner es un creador de notas para el ordenador. Escribes en algo bonito y lo que
-            queda guardado es un archivo Markdown en tu carpeta. También puedes cambiarle el
-            aspecto, porque la interfaz son archivos de texto.
-          </p>
+        <p class="hero__lead">
+          Xenner es un creador de notas para el ordenador. Escribes en algo bonito y
+          lo que queda guardado es un Markdown en tu carpeta. Y la interfaz son
+          archivos de texto tuyos, no un tema compilado.
+        </p>
 
-          <div class="hero__cta">
-            <a class="cta cta--fill" href="#editor">Ver cómo escribe</a>
-            <a class="cta cta--line" href={repo} target="_blank" rel="noreferrer">Código en GitHub</a>
-          </div>
+        <div class="hero__cta">
+          <a class="cta cta--fill cta--large" href="#descargar">
+            Descargar gratis
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 2v9M4.5 7.5 8 11l3.5-3.5M3 13.5h10"></path>
+            </svg>
+          </a>
+          <a class="cta cta--line cta--large" href={repo} target="_blank" rel="noreferrer">
+            Ver el código
+          </a>
         </div>
+
+        <p class="hero__note">Gratis · Código abierto (MIT) · macOS, Windows y Linux</p>
 
         <div class="hero__shot">
           <AppWindow class="hero__win" switch />
@@ -90,24 +102,61 @@ const PIZARRA = [
       </div>
     </section>
 
+    <!-- ================= DESCARGAR ================= -->
+    <Download />
+
+    <!-- Lo que el build ya sabía de la release, escrito para que el script del
+         navegador no dependa de una llamada a la API para arrancar. -->
+    {
+      snapshot && (
+        <script
+          id="xenner-release-snapshot"
+          type="application/json"
+          is:inline
+          set:html={snapshot.replace(/</g, '\\u003c')}
+        />
+      )
+    }
+
     <!-- ================= LA IDEA ================= -->
     <section class="idea" aria-labelledby="idea-title">
       <div class="shell">
-        <header class="head">
+        <header class="section-head section-head--center">
           <p class="label">La idea</p>
-          <h2 class="head__title" id="idea-title">
-            Nada se esconde<br />dentro del archivo.
+          <h2 class="section-title" id="idea-title">
+            Nada se esconde <span class="gradient-text">dentro del archivo</span>
           </h2>
+          <p class="section-desc">
+            La nota que escribes es un archivo de texto en tu disco. Sin base de datos,
+            sin formato que solo esta app entienda, sin nada que dependa de nosotros.
+          </p>
         </header>
 
-        <ul class="tidy">
-          {TIDY.map((item, i) => (
-            <li class="tidy__item reveal">
-              <span class="tidy__n">{String(i + 1).padStart(2, '0')}</span>
-              <h3 class="tidy__title">{item.title}</h3>
-              <p class="tidy__text">{item.text}</p>
-            </li>
-          ))}
+        <ul class="idea__grid">
+          <li class="idea__card glass-card reveal">
+            <span class="idea__n">01</span>
+            <h3 class="idea__title">Una nota es un archivo</h3>
+            <p class="idea__text">
+              El título es el nombre del archivo. Si lo cambias, se renombra. Y el
+              contenido es Markdown legible, con el que puedes hacer lo que quieras.
+            </p>
+          </li>
+          <li class="idea__card glass-card reveal">
+            <span class="idea__n">02</span>
+            <h3 class="idea__title">Una biblioteca es una carpeta</h3>
+            <p class="idea__text">
+              Eliges la carpeta con el diálogo del sistema y Xenner trabaja dentro.
+              Mueve el disco a otro ordenador y tus notas siguen ahí, sin exportar nada.
+            </p>
+          </li>
+          <li class="idea__card glass-card reveal">
+            <span class="idea__n">03</span>
+            <h3 class="idea__title">Guardado sin sobrescrituras</h3>
+            <p class="idea__text">
+              Cada cambio se escribe de forma atómica. Si el archivo cambió por fuera,
+              Xenner lo detecta y te deja decidir en vez de pisar lo tuyo.
+            </p>
+          </li>
         </ul>
       </div>
     </section>
@@ -115,14 +164,14 @@ const PIZARRA = [
     <!-- ================= EDITOR ================= -->
     <section class="editor" id="editor" aria-labelledby="editor-title">
       <div class="shell">
-        <header class="head">
+        <header class="section-head">
           <p class="label">Escribir</p>
-          <h2 class="head__title" id="editor-title">
+          <h2 class="section-title" id="editor-title">
             Bonito por fuera.<br />Markdown por dentro.
           </h2>
-          <p class="head__lead">
-            El editor visual no guarda un formato propietario: escribe Markdown. Lo que ves
-            formateado y lo que hay en el disco son lo mismo.
+          <p class="section-desc">
+            El editor visual no guarda un formato propietario: escribe Markdown. Lo que
+            ves formateado y lo que hay en el disco son exactamente lo mismo.
           </p>
         </header>
 
@@ -131,56 +180,50 @@ const PIZARRA = [
         </div>
 
         <ul class="features">
-          {EDITOR.map((item) => (
-            <li class="feature">
-              <h3 class="feature__title">{item.label}</h3>
-              <p class="feature__text">{item.text}</p>
-            </li>
-          ))}
+          {
+            EDITOR.map((item) => (
+              <li class="feature">
+                <h3 class="feature__title">{item.label}</h3>
+                <p class="feature__text">{item.text}</p>
+              </li>
+            ))
+          }
         </ul>
       </div>
     </section>
 
     <!-- ================= PIZARRA ================= -->
-    <section class="board" aria-labelledby="board-title">
+    <section class="pizarra" id="pizarra" aria-labelledby="pizarra-title">
       <div class="shell">
-        <header class="head">
+        <header class="section-head">
           <p class="label">Pizarra</p>
-          <h2 class="head__title" id="board-title">
-            Un dibujo<br />dentro de la nota.
+          <h2 class="section-title" id="pizarra-title">
+            Un dibujo <span class="gradient-text">dentro de la nota</span>
           </h2>
-          <p class="head__lead">
-            Los trazos se guardan como un SVG junto al archivo, así que la nota sigue siendo
-            un Markdown que cualquier visor entiende. Se edita con doble clic, en su sitio.
+          <p class="section-desc">
+            Doble clic y dibujas sobre el papel: trazos a mano alzada, figuras y texto.
+            Se guarda como un SVG junto al archivo, así que la nota sigue siendo un
+            Markdown que cualquier visor entiende.
           </p>
         </header>
 
-        <div class="board__shot">
+        <div class="pizarra__shot">
           <AppWindow variant="pizarra" />
         </div>
-
-        <ul class="features">
-          {PIZARRA.map((item) => (
-            <li class="feature feature--last">
-              <h3 class="feature__title">{item.label}</h3>
-              <p class="feature__text">{item.text}</p>
-            </li>
-          ))}
-        </ul>
       </div>
     </section>
 
     <!-- ================= ORGANIZAR ================= -->
     <section class="organize" id="organize" aria-labelledby="organize-title">
       <div class="shell">
-        <header class="head">
+        <header class="section-head">
           <p class="label">Organizar</p>
-          <h2 class="head__title" id="organize-title">
+          <h2 class="section-title" id="organize-title">
             Carpetas de verdad,<br />no etiquetas.
           </h2>
-          <p class="head__lead">
+          <p class="section-desc">
             El explorador refleja la estructura real de tu carpeta. Arrastra una nota a
-            otra carpeta y se mueve de verdad, con sus imágenes incluidas.
+            otra y se mueve de verdad, con sus imágenes incluidas.
           </p>
         </header>
 
@@ -189,52 +232,91 @@ const PIZARRA = [
         </div>
 
         <ul class="organize__list">
-          <li>Arrastrar para mover</li>
-          <li>Clic derecho para cortar y pegar</li>
-          <li>Renombrar desde el propio título</li>
-          <li>Los adjuntos siguen a la nota</li>
+          {ORGANIZE.map((item) => (
+            <li>{item}</li>
+          ))}
         </ul>
+
         <p class="organize__note">
-          El mismo clic derecho abre <b>Últimos cambios</b>: las versiones guardadas de esa
-          nota, con la hora y el tamaño, y un botón para volver a cualquiera de ellas.
+          El mismo clic derecho abre <b>Últimos cambios</b>: las versiones guardadas de
+          esa nota, con la hora y el tamaño, y un botón para volver a cualquiera.
         </p>
       </div>
     </section>
 
-    <!-- ================= APARIENCIA ================= -->
-    <section class="look" id="look" aria-labelledby="look-title">
+    <!-- ================= SKINS ================= -->
+    <section class="skins" id="skins" aria-labelledby="skins-title">
       <div class="shell">
-        <header class="head">
+        <header class="section-head section-head--center">
           <p class="label">Apariencia</p>
-          <h2 class="head__title" id="look-title">
-            Se parece a cómo escribes.
+          <h2 class="section-title" id="skins-title">
+            La interfaz <span class="gradient-text">son tus archivos</span>
           </h2>
-          <p class="head__lead">
-            Tipografía a elegir, tema claro u oscuro, y skins que son una carpeta
-            de archivos tuyos: colores, imágenes, iconos propios y un archivo de
-            CSS. Se cambian al instante y no hay que compilar nada.
+          <p class="section-desc">
+            Una skin es una carpeta de texto: un TXT por componente, más tus imágenes,
+            tus iconos y tu CSS. Se edita con el Bloc de notas y se recarga en vivo.
           </p>
         </header>
 
-        <ul class="looks">
-          <li class="look__item">
-            <span class="look__chip look__chip--theme" aria-hidden="true"><i></i></span>
-            <b>Claro y oscuro</b>
-            <span>Sigue al sistema o fíjalo tú.</span>
-          </li>
-          <li class="look__item">
-            <span class="look__chip look__chip--fonts" aria-hidden="true">Ag</span>
-            <b>Tipografías</b>
-            <span>De la del sistema a las serif de libro.</span>
-          </li>
-          <li class="look__item">
-            <span class="look__chip look__chip--hash" aria-hidden="true">#</span>
-            <b>Skins propias</b>
-            <span>Con tus imágenes, tus iconos y tu CSS.</span>
-          </li>
-        </ul>
+        <div class="skins__grid">
+          <article class="feature glass-card reveal">
+            <span class="feature__icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="10" cy="10" r="7" />
+                <path d="M10 3a7 7 0 0 0 0 14" fill="currentColor" stroke="none" />
+              </svg>
+            </span>
+            <h3 class="feature__title">Claro y oscuro</h3>
+            <p class="feature__text">
+              Sigue al sistema o fíjalo tú. La ventana es transparente y la skin decide
+              cuánto se ve el escritorio detrás.
+            </p>
+          </article>
 
-        <p class="look__more">
+          <article class="feature glass-card reveal">
+            <span class="feature__icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 16.5 16.5 3" />
+                <path d="M7 17 17 7" />
+              </svg>
+            </span>
+            <h3 class="feature__title">38 tipografías</h3>
+            <p class="feature__text">
+              De la del sistema a las serif de libro, con una barra flotante que aparece
+              al pasar el ratón por encima del texto.
+            </p>
+          </article>
+
+          <article class="feature glass-card reveal">
+            <span class="feature__icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 3H4.5A1.5 1.5 0 0 0 3 4.5v11A1.5 1.5 0 0 0 4.5 17h3" />
+                <path d="M14 3h1.5A1.5 1.5 0 0 1 17 4.5v11a1.5 1.5 0 0 1-1.5 1.5h-3" />
+                <path d="M10 2v16" />
+              </svg>
+            </span>
+            <h3 class="feature__title">Skins propias</h3>
+            <p class="feature__text">
+              Colores, imágenes, SVG, iconos propios y CSS libre, en dos paletas. Van dos
+              ejemplos de fábrica: <code>glass-default</code> y <code>webcore</code>.
+            </p>
+          </article>
+
+          <article class="feature glass-card reveal">
+            <span class="feature__icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 2.5 12 7l4.5.5-3.4 3 1 4.5L10 12.7 5.9 15l1-4.5-3.4-3L8 7l2-4.5Z" />
+              </svg>
+            </span>
+            <h3 class="feature__title">Si algo falla, no se rompe</h3>
+            <p class="feature__text">
+              Si la configuración falta o un valor está corrupto, la app cae a la skin
+              embebida. Nunca se queda en blanco ni se cuelga.
+            </p>
+          </article>
+        </div>
+
+        <p class="skins__more">
           <a class="arrow" href="/doc/">
             Cómo se hace una skin
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -245,28 +327,85 @@ const PIZARRA = [
       </div>
     </section>
 
+    <!-- ================= CÓDIGO ================= -->
+    <section class="code" aria-labelledby="code-title">
+      <div class="shell">
+        <div class="code__grid">
+          <div>
+            <header class="section-head">
+              <p class="label">Código abierto</p>
+              <h2 class="section-title" id="code-title">
+                Todo lo que ves,<br />en tu pantalla.
+              </h2>
+              <p class="section-desc">
+                Xenner es MIT: puedes leerlo, copiarlo, cambiarlo y compilarlo tú mismo.
+                No hay telemetría, ni cuentas, ni una puerta trasera.
+              </p>
+            </header>
+
+            <p class="code__note">
+              Si algo no cuadra o echas algo en falta, abre una Issue. Y si te
+              apetece, mándalo tú: el proyecto sale mejor con dos manos que con una.
+            </p>
+          </div>
+
+          <dl class="code__facts">
+            <div class="code__fact">
+              <dt>Licencia</dt>
+              <dd>MIT</dd>
+            </div>
+            <div class="code__fact">
+              <dt>Escritorio</dt>
+              <dd>Tauri v2 + Rust</dd>
+            </div>
+            <div class="code__fact">
+              <dt>Interfaz</dt>
+              <dd>SolidJS + TypeScript</dd>
+            </div>
+            <div class="code__fact">
+              <dt>Cuentas</dt>
+              <dd>Ninguna</dd>
+            </div>
+            <div class="code__fact">
+              <dt>Red</dt>
+              <dd>No hace peticiones</dd>
+            </div>
+            <div class="code__fact">
+              <dt>Precio</dt>
+              <dd>0 €</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
     <!-- ================= PREGUNTAS ================= -->
     <section class="faq" id="faq" aria-labelledby="faq-title">
       <div class="shell">
-        <header class="head">
+        <header class="section-head section-head--center">
           <p class="label">Preguntas</p>
-          <h2 class="head__title" id="faq-title">
-            Lo que se pregunta<br />antes de probarlo.
+          <h2 class="section-title" id="faq-title">
+            Lo que se pregunta <span class="gradient-text">antes de probarlo</span>
           </h2>
+          <p class="section-desc">
+            Y si te queda alguna, está todo el código para mirar lo que quieras.
+          </p>
         </header>
 
         <div class="faq__list">
-          {FAQ.map((item) => (
-            <details class="faq__item">
-              <summary class="faq__q">
-                {item.q}
-                <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
-                  <path d="M3 6l5 5 5-5" />
-                </svg>
-              </summary>
-              <p class="faq__a">{item.a}</p>
-            </details>
-          ))}
+          {
+            FAQ.map((item) => (
+              <details class="faq__item">
+                <summary class="faq__q">
+                  {item.q}
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                    <path d="M3 6l5 5 5-5" />
+                  </svg>
+                </summary>
+                <p class="faq__a">{item.a}</p>
+              </details>
+            ))
+          }
         </div>
       </div>
     </section>
@@ -274,17 +413,23 @@ const PIZARRA = [
     <!-- ================= CIERRE ================= -->
     <section class="close" aria-labelledby="close-title">
       <div class="shell close__inner">
-        <h2 class="close__title" id="close-title">Tus ideas no deberían vivir en una base de datos.</h2>
+        <h2 class="close__title" id="close-title">
+          Tus ideas no deberían vivir
+          <em> dentro de una base de datos.</em>
+        </h2>
         <p class="close__lead">
           Xenner es un creador de notas pequeño a propósito: gratis, sin cuentas y con el
           código abierto. Elige una carpeta y empieza a escribir.
         </p>
         <div class="close__cta">
-          <a class="cta cta--fill" href={repo} target="_blank" rel="noreferrer">
-            Ver en GitHub
-            <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 3h7v7M13 3 3 13"></path>
+          <a class="cta cta--fill cta--large" href="#descargar">
+            Descargar Xenner
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 2v9M4.5 7.5 8 11l3.5-3.5M3 13.5h10"></path>
             </svg>
+          </a>
+          <a class="cta cta--line cta--large" href={repo} target="_blank" rel="noreferrer">
+            Ver en GitHub
           </a>
         </div>
       </div>
@@ -298,46 +443,38 @@ const PIZARRA = [
   /* ================= PORTADA ================= */
 
   .hero {
-    padding: clamp(3rem, 7vw, 5rem) 0 var(--air);
+    padding: clamp(3.5rem, 9vw, 6.5rem) 0 var(--air);
   }
 
   /* Columna: el texto arriba, la app debajo a ancho completo. En una fila
      lateral la ventana quedaba encogida y no se apreciaba el producto. */
   .hero__inner {
     display: grid;
-    gap: clamp(2.5rem, 5vw, 4rem);
-  }
-
-  .hero__copy {
-    max-width: 52rem;
+    justify-items: center;
     text-align: center;
-    margin-inline: auto;
-  }
-
-  .hero__copy .label {
-    justify-content: center;
   }
 
   .hero__title {
-    margin-top: 1.4rem;
+    margin-top: 1.35rem;
+    font-family: var(--serif);
     font-size: var(--t-display);
-    line-height: 1.04;
-    /* El h1 lleva la palabra que se busca, así que es más largo que antes:
-       con nowrap se salía de la caja en pantallas anchas. */
+    font-weight: 400;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
     text-wrap: balance;
   }
 
   .hero__title em {
-    font-family: var(--serif);
     font-style: italic;
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    color: var(--accent-ink);
+    background: linear-gradient(100deg, var(--accent) 0%, #d94f14 55%, var(--accent-ink) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
   .hero__lead {
-    margin: 1.6rem auto 0;
-    max-width: 38rem;
+    margin-top: 1.6rem;
+    max-width: 40rem;
     color: var(--ink-2);
     font-size: var(--t-md);
     line-height: 1.65;
@@ -345,81 +482,70 @@ const PIZARRA = [
   }
 
   .hero__cta {
-    margin-top: 2rem;
+    margin-top: 2.1rem;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 0.7rem;
+    gap: 0.75rem;
   }
 
+  .hero__note {
+    margin-top: 1.1rem;
+    color: var(--ink-3);
+    font-size: var(--t-sm);
+  }
+
+  /* La ventana ocupa todo el ancho disponible: es la protagonista. */
   .hero__shot {
-    /* La ventana ocupa todo el ancho disponible: es la protagonista. */
     width: 100%;
-  }
-
-  .hero__win {
+    margin-top: clamp(3rem, 6vw, 4.5rem);
     animation: settle var(--t-slow) var(--ease) both;
   }
 
   @keyframes settle {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(22px);
     }
   }
 
-  /* ================= CABECERA DE SECCIÓN ================= */
-
-  .head {
-    max-width: 38rem;
-  }
-
-  .head__title {
-    margin-top: 1.1rem;
-    font-family: var(--serif);
-    font-size: clamp(1.875rem, 4vw, var(--t-2xl));
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.15;
-  }
-
-  .head__lead {
-    margin-top: 1.1rem;
-    color: var(--ink-2);
-    font-size: var(--t-md);
-    line-height: 1.65;
-  }
-
-  /* ================= IDEA ================= */
+  /* ================= LA IDEA ================= */
 
   .idea {
     padding: var(--air) 0;
     border-top: 1px solid var(--line);
   }
 
-  .tidy {
-    margin-top: clamp(2.5rem, 5vw, 4rem);
+  .idea__grid {
+    margin-top: clamp(2.5rem, 5vw, 3.5rem);
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: clamp(1.75rem, 4vw, 3rem);
+    gap: 1.25rem;
   }
 
-  .tidy__n {
+  .idea__card {
+    padding: 1.75rem 1.5rem;
+  }
+
+  .idea__n {
     font-family: var(--mono);
     font-size: var(--t-xs);
-    color: var(--accent-ink);
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.05em;
   }
 
-  .tidy__title {
-    margin-top: 0.8rem;
-    font-size: var(--t-lg);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.25;
+  .idea__title {
+    margin-top: 0.9rem;
+    font-family: var(--serif);
+    font-size: 1.375rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
   }
 
-  .tidy__text {
-    margin-top: 0.65rem;
+  .idea__text {
+    margin-top: 0.6rem;
     color: var(--ink-2);
     font-size: var(--t-sm);
     line-height: 1.7;
@@ -427,13 +553,15 @@ const PIZARRA = [
 
   /* ================= EDITOR ================= */
 
-  .editor {
+  .editor,
+  .organize,
+  .pizarra {
     padding: var(--air) 0;
-    background: var(--surface);
-    border-block: 1px solid var(--line);
   }
 
-  .editor__shot {
+  .editor__shot,
+  .pizarra__shot,
+  .organize__shot {
     margin-top: clamp(2.5rem, 5vw, 3.5rem);
   }
 
@@ -462,44 +590,7 @@ const PIZARRA = [
     line-height: 1.65;
   }
 
-  /* ================= PIZARRA ================= */
-
-  .board {
-    padding: var(--air) 0;
-  }
-
-  .board__shot {
-    margin-top: clamp(2.5rem, 5vw, 3.5rem);
-  }
-
-  /* Tres tarjetas y la última ocupa la fila entera. */
-  .feature--last {
-    grid-column: 1 / -1;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .organize__note {
-    margin-top: 1.4rem;
-    max-width: 42rem;
-    color: var(--ink-2);
-    font-size: var(--t-sm);
-    line-height: 1.7;
-  }
-
-  .organize__note b {
-    color: var(--ink);
-    font-weight: 600;
-  }
-
   /* ================= ORGANIZAR ================= */
-
-  .organize {
-    padding: var(--air) 0;
-  }
-
-  .organize__shot {
-    margin-top: clamp(2.5rem, 5vw, 3.5rem);
-  }
 
   .organize__list {
     margin-top: clamp(2rem, 4vw, 3rem);
@@ -520,101 +611,126 @@ const PIZARRA = [
     line-height: 1.5;
   }
 
-  /* ================= APARIENCIA ================= */
+  .organize__note {
+    margin-top: 1.4rem;
+    max-width: 42rem;
+    color: var(--ink-2);
+    font-size: var(--t-sm);
+    line-height: 1.7;
+  }
 
-  .look {
+  .organize__note b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ================= SKINS ================= */
+
+  .skins {
     padding: var(--air) 0;
-    background: var(--surface);
     border-block: 1px solid var(--line);
   }
 
-  .looks {
+  .skins__grid {
     margin-top: clamp(2.5rem, 5vw, 3.5rem);
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
   }
 
-  .look__more {
-    margin-top: 1.75rem;
+  .skins__grid .feature {
+    padding: 1.75rem 1.5rem;
+    border-top: 0;
   }
 
-  .look__item {
-    padding: 1.4rem;
-    display: grid;
-    gap: 0.3rem;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    background: var(--bg);
-  }
-
-  .look__item b {
-    margin-top: 0.5rem;
-    font-size: var(--t-base);
-    font-weight: 600;
-    letter-spacing: -0.015em;
-  }
-
-  .look__item > span:last-child {
-    color: var(--ink-2);
-    font-size: var(--t-sm);
-    line-height: 1.6;
-  }
-
-  .look__chip {
+  .feature__icon {
     width: 2.4rem;
     height: 2.4rem;
     display: grid;
     place-items: center;
-    border-radius: 9px;
-    border: 1px solid var(--line-strong);
-    background: var(--sunken);
-  }
-
-  /* Interruptor claro/oscuro: se lee de un vistazo. */
-  .look__chip--theme {
-    width: 2.6rem;
-    height: 1.5rem;
-    border-radius: 999px;
-    background: #2a2a28;
-    border: 0;
-    justify-content: start;
-    padding-inline: 3px;
-  }
-
-  .look__chip--theme i {
-    width: 1.125rem;
-    height: 1.125rem;
-    border-radius: 50%;
-    background: #fbfaf8;
-  }
-
-  .look__chip--fonts {
-    font-family: var(--serif);
-    font-size: 1rem;
-    color: var(--ink-2);
-    background: var(--sunken);
-  }
-
-  .look__chip--hash {
-    font-family: var(--mono);
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--accent-ink);
+    border-radius: 10px;
+    color: var(--accent);
     background: var(--accent-sub);
+  }
+
+  .skins__grid code {
+    padding: 0.1em 0.35em;
+    border-radius: 5px;
+    background: var(--sunken);
+    font-family: var(--mono);
+    font-size: 0.88em;
+  }
+
+  .skins__more {
+    margin-top: clamp(2rem, 4vw, 2.75rem);
+    display: flex;
+    justify-content: center;
+  }
+
+  /* ================= CÓDIGO ================= */
+
+  .code {
+    padding: var(--air) 0;
+  }
+
+  .code__grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: clamp(2.5rem, 6vw, 5rem);
+    align-items: start;
+  }
+
+  .code__note {
+    margin-top: 1.5rem;
+    max-width: 34rem;
+    color: var(--ink-2);
+    font-size: var(--t-sm);
+    line-height: 1.7;
+  }
+
+  .code__facts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--line);
+    overflow: hidden;
+  }
+
+  .code__fact {
+    padding: 1.15rem 1.25rem;
+    background: var(--surface);
+  }
+
+  .code__fact dt {
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .code__fact dd {
+    margin: 0.4rem 0 0;
+    color: var(--ink);
+    font-size: var(--t-md);
+    font-weight: 600;
+    letter-spacing: -0.015em;
   }
 
   /* ================= PREGUNTAS ================= */
 
   .faq {
     padding: var(--air) 0;
-    background: var(--surface);
     border-block: 1px solid var(--line);
   }
 
   .faq__list {
     margin-top: clamp(2rem, 4vw, 3rem);
     max-width: 46rem;
+    margin-inline: auto;
     display: grid;
   }
 
@@ -676,12 +792,17 @@ const PIZARRA = [
   }
 
   .close__title {
-    max-width: 22ch;
+    max-width: 24ch;
     font-family: var(--serif);
-    font-size: clamp(1.875rem, 4.4vw, 2.75rem);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
+    font-size: clamp(1.875rem, 4.4vw, 2.875rem);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    line-height: 1.18;
+  }
+
+  .close__title em {
+    font-style: italic;
+    color: var(--ink-2);
   }
 
   .close__lead {
@@ -693,15 +814,31 @@ const PIZARRA = [
 
   .close__cta {
     margin-top: 0.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
   }
 
   /* ================= RESPONSIVE ================= */
 
-  @media (max-width: 900px) {
-    .tidy,
-    .looks {
+  @media (max-width: 1000px) {
+    .code__grid {
       grid-template-columns: 1fr;
-      gap: 1.75rem;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .idea__grid,
+    .skins__grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .features {
+      grid-template-columns: 1fr;
     }
 
     .organize__list {
@@ -709,28 +846,16 @@ const PIZARRA = [
     }
   }
 
-  @media (max-width: 720px) {
-    .hero__title {
-      text-wrap: balance;
-    }
-
-    .features {
-      grid-template-columns: 1fr;
-    }
-
-    .feature--last {
-      grid-column: auto;
-      border-bottom: 0;
-    }
-  }
-
   @media (max-width: 460px) {
-    .organize__list {
+    .organize__list,
+    .code__facts {
       grid-template-columns: 1fr;
     }
 
-    .hero__cta {
+    .hero__cta,
+    .close__cta {
       flex-direction: column;
+      align-self: stretch;
     }
   }
 </style>

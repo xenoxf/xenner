@@ -9,11 +9,11 @@ const { class: className } = Astro.props;
 <a class:list={['brand', className]} href="/" aria-label="xenner, inicio">
   <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true">
     <g fill="currentColor">
-      <rect x="3" y="3" width="10" height="10" rx="2.6" opacity="0.9"></rect>
-      <rect x="19" y="3" width="10" height="10" rx="2.6" opacity="0.45"></rect>
-      <rect x="11" y="11" width="10" height="10" rx="2.6" opacity="0.68"></rect>
-      <rect x="3" y="19" width="10" height="10" rx="2.6" opacity="0.45"></rect>
-      <rect x="19" y="19" width="10" height="10" rx="2.6" opacity="0.9"></rect>
+      <rect x="3" y="3" width="10" height="10" rx="2.6" opacity="0.95"></rect>
+      <rect x="19" y="3" width="10" height="10" rx="2.6" opacity="0.4"></rect>
+      <rect x="11" y="11" width="10" height="10" rx="2.6" opacity="0.7"></rect>
+      <rect x="3" y="19" width="10" height="10" rx="2.6" opacity="0.4"></rect>
+      <rect x="19" y="19" width="10" height="10" rx="2.6" opacity="0.95"></rect>
     </g>
   </svg>
   <span class="brand__name">xenner</span>
@@ -29,16 +29,17 @@ const { class: className } = Astro.props;
   }
 
   .brand__mark {
-    width: 1.55rem;
-    height: 1.55rem;
+    width: 1.5rem;
+    height: 1.5rem;
     flex: none;
-    color: var(--accent-ink);
+    color: var(--accent);
   }
 
   .brand__name {
-    font-size: 1.0625rem;
-    font-weight: 600;
-    letter-spacing: -0.03em;
+    font-family: var(--serif);
+    font-size: 1.3rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
     transition: color var(--t-fast) var(--ease);
   }
 

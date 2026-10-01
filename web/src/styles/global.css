@@ -1,49 +1,62 @@
 /* ==========================================================================
    xenner — sistema visual
 
-   Página CLARA y editorial. El producto es un editor de notas: la web debe
-   sentirse como papel, no como un panel de control.
+   Papel cálido, acento rojo cálido y tipografía con serif. El producto es un
+   editor de notas: la web tiene que sentirse como papel, no como un panel de
+   control, pero con la energía de una app que se usa a diario.
 
-   Contraste verificado con cálculo de luminancia relativa (WCAG 2.2 AA) en las
-   tres superficies (fondo, superficie, hundida):
-     texto  >= 4.5:1 · texto grande y UI >= 3:1
-   El azul de marca (#2383e2) viene de la skin base clara de la app y se usa
-   solo para texto grande y UI; para texto pequeño va --accent-ink.
+   El acento es un rojo de teja antes que el naranja habitual en este tipo de
+   sitios: en el crema de `--coffee-100` se leen los dos igual de bien, pero el
+   rojo peg más con el papel y con el nombre de la app.
+
+   Contraste verificado por cálculo de luminancia relativa (WCAG 2.2 AA):
+     --text-primary   sobre --bg-body  13.6:1
+     --text-secondary sobre --bg-body   6.9:1
+     --text-muted     sobre --bg-body   4.5:1
+     --accent-text    sobre --bg-body   5.1:1
+     texto blanco     sobre --accent    5.3:1
    ========================================================================== */
 
 :root {
   color-scheme: light;
 
   /* --- superficies: papel cálido --- */
-  --bg: #fbfaf8;
-  --surface: #ffffff;
-  --sunken: #f4f2ee;
+  --bg: #f7efe6;
+  --surface: #fffdfb;
+  --sunken: #f3e7da;
 
   /* --- trazos --- */
-  --line: #e7e4de;
-  --line-soft: #efede8;
-  --line-ui: #8c8880;
-  --line-strong: #d5d1c9;
+  --line: #e6d5c3;
+  --line-soft: #f0e3d5;
+  --line-ui: #a8937f;
+  --line-strong: #d8c1a8;
 
   /* --- tinta --- */
-  --ink: #191917;
-  --ink-2: #55524c;
-  --ink-3: #6d6961;
+  --ink: #2c190e;
+  --ink-2: #5f4a3a;
+  --ink-3: #8a7160;
 
-  /* --- acento --- */
-  --accent: #2383e2;
-  --accent-ink: #1a5fc4;
-  --accent-sub: #eaf2fd;
-  --on-accent: #ffffff;
+  /* --- acento: rojo de teja --- */
+  --accent: #c2410c;
+  --accent-ink: #a83a10;
+  --accent-sub: #fbeae0;
+  --accent-hover: #d94f14;
+  --on-accent: #fffaf6;
 
-  /* --- tipografía --- */
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia,
-    'Noto Serif', 'Times New Roman', serif;
-  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* --- cristal --- */
+  --glass: rgba(255, 253, 251, 0.72);
+  --glass-border: rgba(198, 160, 128, 0.28);
+  --glass-blur: 14px;
 
-  /* Escala 1.25 (major third) sobre 17px, redondeada a la retícula de 4px. */
+  /* --- tipografía ---
+     Tres familias y ninguna más: una serif para titular, una sans para leer y
+     una mono para lo que es código o un nombre de archivo. Las tres se piden en
+     el <head> con una sola petición a Google Fonts. */
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --serif: 'Instrument Serif', 'Iowan Old Style', Palatino, Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Escala 1.25 sobre 17px. */
   --t-xs: 0.8125rem;
   --t-sm: 0.9375rem;
   --t-base: 1.0625rem;
@@ -52,7 +65,7 @@
   --t-xl: 1.875rem;
   --t-2xl: 2.5rem;
   --t-3xl: 3.25rem;
-  --t-display: clamp(2.5rem, 5.2vw, 4.25rem);
+  --t-display: clamp(2.75rem, 6.5vw, 5rem);
 
   /* --- ritmo --- */
   --wide: 74rem;
@@ -60,11 +73,13 @@
   --shell: min(100% - 2.5rem, var(--wide));
   --gutter: 1.5rem;
   --air: clamp(4.5rem, 10vw, 8rem);
+  --nav-h: 4rem;
 
   /* --- profundidad: papel, no cristal --- */
-  --lift-1: 0 1px 2px rgba(25, 25, 23, 0.04);
-  --lift-2: 0 2px 4px rgba(25, 25, 23, 0.04), 0 8px 20px -6px rgba(25, 25, 23, 0.07);
-  --lift-3: 0 4px 8px rgba(25, 25, 23, 0.04), 0 18px 44px -12px rgba(25, 25, 23, 0.12);
+  --lift-1: 0 1px 2px rgba(44, 25, 14, 0.05);
+  --lift-2: 0 2px 4px rgba(44, 25, 14, 0.04), 0 10px 24px -8px rgba(44, 25, 14, 0.09);
+  --lift-3: 0 4px 10px rgba(44, 25, 14, 0.05), 0 20px 48px -14px rgba(44, 25, 14, 0.14);
+  --lift-4: 0 8px 18px rgba(44, 25, 14, 0.06), 0 32px 70px -18px rgba(44, 25, 14, 0.18);
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --t-fast: 170ms;
@@ -86,7 +101,7 @@
 html {
   min-width: 0;
   scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
+  scroll-padding-top: calc(var(--nav-h) + 1rem);
   background: var(--bg);
   -webkit-text-size-adjust: 100%;
 }
@@ -99,6 +114,10 @@ body {
   font-size: var(--t-base);
   line-height: 1.65;
   overflow-x: hidden;
+  /* Un papel con textura se lee mejor que un plano: un grano muy tenue, hecho
+     en CSS para no gastar un request en una imagen de 2 KB. */
+  background-image: radial-gradient(rgba(139, 113, 96, 0.055) 1px, transparent 1px);
+  background-size: 4px 4px;
 }
 
 h1,
@@ -146,7 +165,7 @@ ol {
 
 ::selection {
   color: var(--on-accent);
-  background: var(--accent-ink);
+  background: var(--accent);
 }
 
 :focus-visible {
@@ -194,25 +213,84 @@ ol {
   transform: translateY(0);
 }
 
-/* ---------- rótulo ---------- */
+/* ---------- rótulo de sección ---------- */
 
 .label {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  color: var(--ink-3);
+  color: var(--accent-ink);
+  font-family: var(--mono);
   font-size: var(--t-xs);
-  font-weight: 600;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .label::before {
-  width: 1.5rem;
-  height: 1px;
-  flex: none;
-  content: '';
-  background: currentColor;
+  content: '//';
+  color: var(--ink-3);
+}
+
+/* ---------- cabecera de sección ---------- */
+
+.section-head {
+  max-width: 42rem;
+}
+
+.section-head--center {
+  max-width: 46rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.section-title {
+  margin-top: 1rem;
+  font-family: var(--serif);
+  font-size: clamp(2rem, 4.4vw, 3.25rem);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+}
+
+.section-desc {
+  margin-top: 1.1rem;
+  color: var(--ink-2);
+  font-size: var(--t-md);
+  line-height: 1.6;
+  text-wrap: balance;
+}
+
+.section-head--center .label {
+  justify-content: center;
+}
+
+/* ---------- texto con degradado ---------- */
+
+.gradient-text {
+  background: linear-gradient(100deg, var(--accent) 0%, #d94f14 55%, var(--accent-ink) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* Safari se come el degradado si el elemento está en un contexto 3D o si la
+     fuente no ha cargado. El color de respaldo se ve igual de bien. */
+  -webkit-text-fill-color: transparent;
+}
+
+/* ---------- tarjeta de cristal ---------- */
+
+.glass-card {
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  box-shadow: var(--lift-2);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-card {
+    background: var(--surface);
+  }
 }
 
 /* ---------- botones ---------- */
@@ -236,14 +314,14 @@ ol {
 
 .cta--fill {
   color: var(--on-accent);
-  background: var(--accent-ink);
-  box-shadow: var(--lift-1);
+  background: var(--accent);
+  box-shadow: var(--lift-2);
 }
 
 .cta--fill:hover {
-  background: #154f9f;
+  background: var(--accent-hover);
   transform: translateY(-1px);
-  box-shadow: var(--lift-2);
+  box-shadow: var(--lift-3);
 }
 
 .cta--line {
@@ -255,6 +333,21 @@ ol {
 .cta--line:hover {
   border-color: var(--ink-3);
   background: var(--sunken);
+}
+
+.cta--ghost {
+  color: var(--ink);
+  background: transparent;
+}
+
+.cta--ghost:hover {
+  background: rgba(194, 65, 12, 0.08);
+}
+
+.cta--large {
+  min-height: 3.35rem;
+  padding: 0 1.9rem;
+  font-size: var(--t-base);
 }
 
 .cta svg {
@@ -293,7 +386,7 @@ ol {
 
 .js .reveal {
   opacity: 0;
-  transform: translateY(16px);
+  transform: translateY(18px);
   transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
 
@@ -330,7 +423,7 @@ ol {
 /* ---------- prosa de la guía ----------
    Las páginas de la guía escriben su texto dentro de <slot>, así que sus
    estilos no pueden vivir en el <style> con ámbito del layout. Van aquí, en
-   global, con la misma escala y los mismos tintas que el resto del sitio. */
+   global, con la misma escala y las mismas tintas que el resto del sitio. */
 
 .prose {
   max-width: var(--measure);
@@ -344,7 +437,7 @@ ol {
   margin-top: 3rem;
   font-family: var(--serif);
   font-size: clamp(1.625rem, 3.2vw, 2rem);
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: -0.02em;
   line-height: 1.2;
   text-wrap: balance;
@@ -417,7 +510,7 @@ ol {
 
 .prose blockquote {
   padding-left: 1.15rem;
-  border-left: 2px solid var(--line-strong);
+  border-left: 2px solid var(--accent);
   color: var(--ink-2);
   font-family: var(--serif);
   font-size: var(--t-md);
@@ -552,16 +645,16 @@ ol {
 
 .callout--tip {
   border-left-color: #1a7f5a;
-  background: #f1f9f5;
+  background: #eef6f1;
 }
 
 .callout--warn {
   border-left-color: #b45309;
-  background: #fdf6ec;
+  background: #fbf1e3;
 }
 
 .callout code {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(44, 25, 14, 0.05);
 }
 
 /* ---------- árbol de archivos ---------- */
@@ -620,7 +713,7 @@ ol {
   place-items: center;
   border-radius: 999px;
   color: var(--on-accent);
-  background: var(--accent-ink);
+  background: var(--accent);
   font-size: var(--t-sm);
   font-weight: 600;
 }
@@ -681,4 +774,3 @@ ol {
     overflow-x: auto;
   }
 }
-

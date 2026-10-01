@@ -1,7 +1,7 @@
 ---
 import Brand from './Brand.astro';
 import { GUIDE } from '../data/guide';
-import { REPO } from '../config';
+import { COMMUNITY, REPO } from '../config';
 
 const year = new Date().getFullYear();
 /* La página actual no se enlaza a sí misma en el pie. */
@@ -13,25 +13,40 @@ const elsewhere = GUIDE.filter((page) => page.path !== Astro.url.pathname);
     <div class="foot__top">
       <div class="foot__brand">
         <Brand />
-        <p>Un editor de notas que trabaja sobre una carpeta de Markdown en tu ordenador.</p>
+        <p>
+          Un creador de notas para el ordenador. Tus notas son archivos Markdown
+          en tu carpeta, tuyos de verdad.
+        </p>
+        <a class="cta cta--fill foot__cta" href="/#descargar">Descargar Xenner</a>
       </div>
 
       <nav class="foot__col" aria-label="Producto">
         <h2>Producto</h2>
+        <a href="/#descargar">Descargar</a>
         <a href="/#editor">El editor</a>
-        <a href="/#organize">Carpetas</a>
-        <a href="/#look">Apariencia</a>
+        <a href="/#skins">Skins</a>
+        <a href="/#pizarra">La pizarra</a>
       </nav>
 
       <nav class="foot__col" aria-label="Documentación">
         <h2>Documentación</h2>
-        {elsewhere.map((page) => <a href={page.path}>{page.label}</a>)}
+        {elsewhere.slice(0, 4).map((page) => (
+          <a href={page.path}>{page.label}</a>
+        ))}
       </nav>
 
       <nav class="foot__col" aria-label="Proyecto">
         <h2>Proyecto</h2>
-        <a href={REPO} target="_blank" rel="noreferrer">GitHub ↗</a>
+        <a href={REPO} target="_blank" rel="noreferrer">Código en GitHub ↗</a>
+        <a href={`${REPO}/releases`} target="_blank" rel="noreferrer">Versiones ↗</a>
         <a href="/instalar/">Cómo se ejecuta ↗</a>
+        {
+          COMMUNITY.discord && (
+            <a href={COMMUNITY.discord} target="_blank" rel="noreferrer">
+              Discord ↗
+            </a>
+          )
+        }
       </nav>
     </div>
 
@@ -40,27 +55,37 @@ const elsewhere = GUIDE.filter((page) => page.path !== Astro.url.pathname);
       <p>Tauri · SolidJS · Rust</p>
     </div>
   </div>
+
+  <p class="foot__watermark" aria-hidden="true">xenner</p>
 </footer>
 
 <style>
   .foot {
-    padding: clamp(3rem, 6vw, 4.5rem) 0 2.25rem;
+    position: relative;
+    padding: clamp(3rem, 6vw, 4.5rem) 0 0;
     border-top: 1px solid var(--line);
     background: var(--surface);
+    overflow: hidden;
   }
 
   .foot__top {
     display: grid;
-    grid-template-columns: 1.8fr 1fr 1fr 1fr;
+    grid-template-columns: 1.6fr 1fr 1fr 1fr;
     gap: clamp(1.75rem, 5vw, 3.5rem);
   }
 
   .foot__brand p {
-    margin-top: 0.85rem;
-    max-width: 19rem;
+    margin-top: 0.9rem;
+    max-width: 20rem;
     color: var(--ink-2);
     font-size: var(--t-sm);
     line-height: 1.65;
+  }
+
+  .foot__cta {
+    margin-top: 1.4rem;
+    min-height: 2.6rem;
+    font-size: var(--t-sm);
   }
 
   .foot__col {
@@ -72,14 +97,15 @@ const elsewhere = GUIDE.filter((page) => page.path !== Astro.url.pathname);
   .foot__col h2 {
     margin-bottom: 0.6rem;
     color: var(--ink-3);
+    font-family: var(--mono);
     font-size: var(--t-xs);
-    font-weight: 600;
-    letter-spacing: 0.11em;
+    font-weight: 500;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
 
   .foot__col a {
-    padding: 0.32rem 0;
+    padding: 0.3rem 0;
     color: var(--ink-2);
     font-size: var(--t-sm);
     transition: color var(--t-fast) var(--ease);
@@ -91,15 +117,32 @@ const elsewhere = GUIDE.filter((page) => page.path !== Astro.url.pathname);
 
   .foot__base {
     margin-top: clamp(2.25rem, 5vw, 3rem);
-    padding-top: 1.35rem;
+    padding: 1.35rem 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 0.6rem;
-    border-top: 1px solid var(--line);
+    border-top: 1px solid var(--line-soft);
     color: var(--ink-3);
     font-size: var(--t-xs);
+  }
+
+  /* La marca gigante del fondo. Se recorta con overflow:hidden en .foot, y el
+     margen inferior negativo deja el aire justo sin que el texto se corte a
+     la mitad: `line-height: 1` ya lo sube entero. */
+  .foot__watermark {
+    font-family: var(--serif);
+    font-size: clamp(6rem, 22vw, 18rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    text-align: center;
+    color: var(--ink);
+    opacity: 0.055;
+    user-select: none;
+    pointer-events: none;
+    /* Sin esto el bloque entero es seleccionable y ocupa su sitio al ordenar. */
+    margin: 0;
   }
 
   @media (max-width: 980px) {

@@ -229,3 +229,25 @@ test('una release sin assets es válida pero no ofrece nada que descargar', () =
   assert.equal(isUsableRelease(vacia), true);
   assert.equal(pickPrimary(vacia.assets, 'mac', 'arm64'), null);
 });
+
+test('la fecha de la release se lee en UTC, no en la zona del visitante', () => {
+  // Publicada a la 01:26 UTC del día 1. Con la zona del visitante, en cualquier
+  // huso al oeste de Greenwich se leía como "septiembre" y al este como
+  // "octubre": la fecha de un lanzamiento no puede depender de dónde estés.
+  const published = '2026-10-01T01:26:00Z';
+  const inUtc = new Date(published).toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
+  assert.equal(inUtc, 'octubre de 2026');
+
+  // El caso que falla si se olvida el timeZone: Honolulu está en UTC-10, así que
+  // esa misma fecha todavía es del 30 de septiembre allí.
+  const enHonolulu = new Date(published).toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    timeZone: 'Pacific/Honolulu',
+  });
+  assert.notEqual(inUtc, enHonolulu);
+});

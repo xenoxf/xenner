@@ -232,6 +232,12 @@ descarga no lleva el número que dice la página.
 
 ### Lo que se midió
 
+- **La fecha de la release se leía en la zona del visitante.** Se pintaba con
+  `toLocaleDateString` sin `timeZone`, así que la 1.1.0, publicada a la 01:26 UTC
+  del día 1, se leía como «septiembre de 2026» desde cualquier huso al oeste de
+  Greenwich y como «octubre» al este. La fecha de un lanzamiento no puede
+  depender de dónde estés: ahora se formatea en UTC, con la razón en el código y
+  una prueba que compara contra Honolulu.
 - **Los botones de descarga salían con el icono gigante.** Los estilos de los
   elementos que crea el script (`download__btn`, `download__alt*`) estaban en el
   `<style>` del componente, que Astro compila con un atributo `data-astro-cid-*` en

@@ -560,7 +560,15 @@ const CARDS = [
         if (!Number.isNaN(date.getTime())) {
           const when = document.createElement('span');
           when.className = 'download__date';
-          when.textContent = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
+          // En UTC a propósito. Con la zona del visitante, una release publicada
+          // la madrugada del día 1 se leía como "septiembre" a quien estuviera
+          // al oeste de Greenwich y como "octubre" a quien estuviera al este: la
+          // fecha de un lanzamiento no puede depender de dónde estés.
+          when.textContent = date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            timeZone: 'UTC',
+          });
           meta.append(when);
         }
       }

@@ -13,7 +13,14 @@ Xenner trabaja con una biblioteca local de archivos Markdown:
 - guardado Markdown atómico con detección de cambios externos;
 - biblioteca local elegible mediante el diálogo nativo de Tauri;
 - drawings visuales guardados como SVG relativo;
-- skins TXT editables y skin base neutra clara/oscura integrada.
+- temas en archivos de texto editables, con `assets/` para imágenes y fuentes y
+  un `custom.css` para lo que no cabe en una línea de ajuste;
+- creador de temas dentro de la app: deslizadores para lo rápido, una fila por
+  clave y por parte de la ventana con el valor escrito a mano, editor de CSS, y
+  elección de imágenes de tu propio disco;
+- carpeta de configuración propia —`~/.config/xenner`, `%APPDATA%\xenner`,
+  `~/Library/Application Support/xenner`— que la app crea al arrancar, con un
+  `LEEME.txt` dentro y un botón en Ajustes que la abre.
 
 ## Desarrollo
 

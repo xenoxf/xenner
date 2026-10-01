@@ -27,45 +27,108 @@ Una skin escrita para la v1 sigue funcionando sin cambios.
 
 ## 1. Dónde viven las skins
 
+Hay dos sitios, y se buscan en este orden:
+
+**El de la persona usuaria** —donde se crean y se editan. Es la carpeta de
+configuración del sistema, con un nombre corto y legible, y la crea la propia
+aplicación al arrancar:
+
+| Sistema | Ruta |
+| --- | --- |
+| Windows | `%APPDATA%\xenner\` |
+| macOS | `~/Library/Application Support/xenner/` |
+| Linux | `~/.config/xenner/` (o `$XDG_CONFIG_HOME/xenner/`) |
+
 ```
-xenner/skins/
-  config.txt            # selector de skin activa
-  <nombre-skin>/
-    skin.txt            # manifiesto (obligatorio para que el scan la liste)
-    custom.css          # CSS libre (opcional) — hoja de estilo de la skin
-    background.txt      # fondo del desktop / ventana
-    button.txt          # botones
-    note.txt            # tarjetas de nota
-    sidebar.txt         # barra lateral (lista de notas)
-    input.txt           # inputs y textarea
-    toolbar.txt         # barra superior
-    assets/             # imágenes, SVG y fuentes de la skin (opcional)
+xenner/
+  LEEME.txt             # qué es esto, en castellano, para quien la abra
+  skin-config.txt       # qué skin está activa
+  skins/
+    <nombre-skin>/
+      skin.txt          # manifiesto (obligatorio para que el scan la liste)
+      custom.css        # CSS libre (opcional) — hoja de estilo de la skin
+      background.txt    # fondo del desktop / ventana
+      button.txt        # botones
+      note.txt          # tarjetas de nota
+      sidebar.txt       # barra lateral (lista de notas)
+      input.txt         # inputs y textarea
+      toolbar.txt       # barra superior
+      assets/           # imágenes, SVG y fuentes de la skin (opcional)
 ```
 
-El programa hace **scan** de `xenner/skins/` al arrancar (backend Rust
-`scan_skins`): cada subcarpeta con `skin.txt` válido aparece en el selector.
-Las skins creadas por la persona usuaria viven en
-`AppLocalData/com.juniorxf.xenner/skins/` y se escanean en el mismo catálogo,
-marcadas como `origin="user"`. Si la carpeta no existe, no hay permiso o está
-corrupta, el scan devuelve `[]` y la app usa la default embebida. Nunca lanza
-excepción al usuario.
+**El del bundle** —las cuatro que vienen con la app, de solo lectura. Están en
+`xenner/skins/` dentro del paquete instalado y solo se leen; no se pueden
+escribir ahí, y por eso las que se tocan van en la carpeta de arriba.
 
-## 2. Selección de skin activa — `config.txt`
+El **scan** (backend Rust `scan_skins`) recorre las dos: cada subcarpeta con
+`skin.txt` válido aparece en el selector, y las de la carpeta de la persona
+usuaria salen marcadas como `origin="user"`. Si una de las dos no existe, no hay
+permiso o está corrupta, el scan la salta y sigue con la otra. Si ninguna está,
+la app usa la paleta embebida. Nunca lanza excepción al usuario.
+
+**Por qué la carpeta de configuración y no el directorio interno de la app.**
+`app_local_data_dir()` es el sitio correcto para una caché que la aplicación
+reescribe sola. No lo es para archivos que alguien edita a mano: ahí no se llega
+sin saber la ruta exacta, y la ruta cambia según el sistema. Nadie encuentra
+`~/.local/share/com.juniorxf.xenner` por casualidad, y una documentación que
+promete «edita tus archivos» sin decir cuáles es una promesa que no se puede
+cumplir.
+
+**Migración.** Quien usaba la versión anterior tiene sus skins en
+`AppLocalData/skins/`. Al arrancar por primera vez se copian a la carpeta nueva,
+y solo si allí no hay nada equivalente: nadie pierde un tema y volver a la
+versión anterior sigue funcionando. Se copia, no se mueve, y se marca con un
+archivo `.migrado-a-la-carpeta-de-xenner` para no repetirlo.
+
+## 2. Selección de skin activa — `skin-config.txt`
 
 ```txt
-# xenner skins config
+# skin-config.txt, en la carpeta de Xenner
 # skinPath = carpeta dentro de skins/. Vacío o inexistente = default embebida.
 skinPath="webcore"
 ```
 
-- `skinPath=""` o archivo ausente → default embebida.
-- Carpeta nombrada que no existe → default embebida (+ aviso en consola, sin crash).
+- `skinPath=""` o archivo ausente → la paleta embebida.
+- Carpeta nombrada que no existe → la paleta embebida, con un aviso en consola y
+  sin crash.
 
 **Gana el archivo modificado más tarde.** El selector de Ajustes escribe en
-`AppLocalData/skin-config.txt`; `skins/config.txt` se lee cuando no existe o
-cuando su fecha de modificación es posterior. Así que editar `config.txt` a
+`skin-config.txt`; el `config.txt` del bundle se lee cuando el primero no existe
+o cuando su fecha de modificación es posterior. Así que editar `config.txt` a
 mano después de haber usado el selector sí funciona, que era lo que la
 documentación prometía y el código no cumplía.
+
+## 2 bis. Escribir un tema, y editarlo
+
+`create_skin` acepta dos vías de escritura y las dos producen los mismos
+archivos:
+
+- `components`: un mapa `componente → clave → valor`. Es lo que rellena el panel
+  con deslizadores.
+- `files`: el texto literal de cada `.txt`, tal cual se va a guardar. Si hay una
+  clave aquí para un componente, **manda sobre `components`**.
+
+Junto con ellas vienen `custom_css`, `assets` y `overwrite`:
+
+- **`custom_css`** es `custom.css` entero. No se limpia ni se reordena: es CSS, y
+  un CSS con un error de sintaxis solo pierde esa hoja.
+- **`assets`** es una lista de `{ path, dataBase64 }` donde `path` es
+  `assets/<nombre>.<ext>`. El nombre se valida pieza a pieza y no se limpia: si
+  algo no cuadra, lo que tiene que pasar es un error con el motivo, no un
+  archivo escrito donde no toca. Los valores de los `.txt` ya apuntan a
+  `assets/<nombre>`, y la correspondencia es literal — sin traducción de ida y
+  vuelta que se pueda desalinear.
+- **`overwrite`** separa «crear» de «editar». Sin él, escribir sobre un tema
+  propio que ya existe falla. Con él, se escribe en una carpeta aparte y se
+  cambia al final, para que un fallo a mitad no deje el tema a medias.
+
+Un `.txt` literal se guarda **sin tocar ni una letra**: comentarios, espacios,
+orden y claves repetidas son de quien lo escribió. Y no se valida más que lo que
+validaría el cargador: el creador es un editor de texto con deslizadores, no un
+filtro. Lo que Xenner vaya a ignorar en un archivo escrito a mano se le dice en
+la interfaz con el número de línea (`ignoredSkinLines` en `skin/parse.ts`), sin
+bloquear el guardado. Bloquear obligaría a borrar lo que uno ha escrito para
+poder guardarlo.
 
 ## 3. Formato de los TXT (todos los componentes)
 
@@ -154,7 +217,16 @@ La lista vive en un solo sitio por idioma: `src/skin/keys.ts` la usa el parser d
 frontend y `allowed_component_keys` de `src-tauri/src/skin.rs` la replica para
 validar lo que se le pide escribir con `create_skin`. **Cualquier clave nueva hay
 que añadirla a las dos**, o la skin creada desde la aplicación se rechazará al
-volver a cargarla.
+volver a cargarla. Duplicada, las dos se desincronizaban una vez: por eso
+`keys.ts` lleva escrito en su comentario por qué existen las dos.
+
+Ese par de listas, junto con los valores por defecto que el panel enseña en cada
+fila, son tres copias del mismo dato en tres sitios. Las tres se vigilan con
+tests en vez de con disciplina: `parse.test.ts` comprueba que el aviso de
+«línea ignorada» no señala ninguna clave que sí valga, y `editor.test.ts`
+compara los valores por defecto contra `styles/global.css` clave por clave. Las
+dos listas ya se habían desincronizado una vez, y el test de los valores ya ha
+encontrado una falta.
 
 ### 4.2 Assets (`assets/`)
 
@@ -291,7 +363,8 @@ descarta solo esa declaración, y el resto de la skin sigue aplicándose.
 
 ## 6. Cómo se aplican (SkinEngine, frontend)
 
-1. Lee la skin activa: `AppLocalData/skin-config.txt` o `skins/config.txt`, el
+1. Lee la skin activa: `skin-config.txt` de la carpeta de Xenner o el
+   `skins/config.txt` del bundle, el
    que se haya modificado más tarde (§2).
 2. Para cada componente, intenta cargar la skin sistémica o de usuario
    seleccionada. Un archivo ausente simplemente no aporta claves.
@@ -377,11 +450,16 @@ Dos, y las dos están para copiar:
   (`filter`, `foreignObject`) pueden no renderizar igual en todos los motores;
   pre-renderiza a PNG si te Importa que se vea idéntico en todas partes.
 - No hay modo «video»: un `assets/` con un `.mp4` no carga. El límite es de
-  extensión, no de intention.
+  extensión, no de intención.
 - La skin activa se puede cambiar desde el modal; la selección temporal de una
   skin sistémica no reescribe el bundle de recursos.
-- Las skins creadas por la persona usuaria viven en AppLocalData, se escanean
-  junto a las sistémicas y mantienen el mismo fallback.
+- Las skins creadas por la persona usuaria viven en la carpeta de Xenner (§1), se
+  escanean junto a las del bundle y mantienen el mismo fallback.
+- Editar un tema propio no puede romperlo a medias: se escribe en una carpeta
+  aparte y se cambia al final. Si algo falla, el tema estaba entero antes.
+- Lo que un `.txt` escrito a mano diga de más se guarda igual. El creador avisa
+  con el número de línea, pero no bloquea: quien escribe un archivo de texto
+  tiene que poder guardarlo entero.
 - El historial de versiones de las notas es otra sesión local aparte
   (`xenner:note-history:v1`, máximo 25 versiones por nota). No es un backup: los
   `.md` siguen siendo la fuente de verdad.

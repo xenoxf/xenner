@@ -28,15 +28,35 @@ Xenner trabaja sobre una biblioteca local de archivos Markdown:
 
 ## Skins
 
-Cada skin es una carpeta en `xenner/skins/<nombre>/` con `skin.txt` y un TXT
-por componente. El formato es una variable por línea, `clave="valor"`, y `#`
-para comentarios. La skin activa se elige en `xenner/skins/config.txt` con
-`skinPath="webcore"`.
+Cada skin es una carpeta con `skin.txt` y un TXT por componente, más un
+`custom.css` opcional y una carpeta `assets/`. El formato es una variable por
+línea, `clave="valor"`, y `#` para comentarios. Un `.txt` puede llevar
+`url(assets/imagen.svg)` en cualquier valor, así que un SVG propio puede ser el
+fondo de un botón.
+
+**Dónde están.** Las skins de la persona usuaria viven en la carpeta de
+configuración del sistema, que la app crea al arrancar y que tiene un
+`LEEME.txt` dentro:
+
+| Sistema | Ruta |
+| --- | --- |
+| Windows | `%APPDATA%\xenner\` |
+| macOS | `~/Library/Application Support/xenner/` |
+| Linux | `~/.config/xenner/` |
+
+La skin activa se elige en `skin-config.txt` con `skinPath="webcore"`. En
+Ajustes sale la ruta exacta y hay un botón que la abre. Los temas que vienen con
+la app viven en `xenner/skins/` dentro del paquete, y son de solo lectura.
 
 Si el config falta, la ruta no existe o algún valor está corrupto, se usa la
-skin embebida en el código: la app nunca se queda en blanco ni se cuelga. La
-app incluye además un creador de skins y dos ejemplos, `glass-default` y
-`webcore`.
+paleta embebida en el código: la app nunca se queda en blanco ni se cuelga. Los
+cuatro temas de ejemplo son `glass-default`, `webcore`, `pixel` y `aurora`.
+
+El creador de skins vive dentro de la aplicación (*Ajustes → Crear un tema*):
+tiene deslizadores para lo rápido, una fila por clave y por parte de la ventana
+para lo que necesita texto, un editor de CSS y un botón para elegir una imagen o
+una tipografía de tu disco. Las cuatro formas de escribir un tema producen los
+mismos archivos.
 
 ## Desarrollo
 

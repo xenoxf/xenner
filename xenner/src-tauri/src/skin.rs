@@ -965,10 +965,18 @@ fn create_skin_blocking(app: &AppHandle, request: CreateSkinRequest) -> Result<S
     }
 
     if is_plain_directory(&final_dir) {
-        // Sustituir una carpeta por otra no es atómico y aquí no compensa: se
-        // vacía la vieja y se mueve la nueva dentro. Lo que hubiera en el tema
-        // anterior y no se haya vuelto a escribir se queda, que es lo que espera
-        // quien edita: un `custom.css` de más no es un error, es una decisión.
+        // `assets/` se copia a la carpeta nueva antes de vaciar la vieja, y solo
+        // si el archivo no está. Sin esto, editar un tema que tenía un SVG
+        // detrás de un botón lo borraba: el frontend manda las imágenes que se
+        // han vuelto a elegir en esta sesión, no las que ya estaban en el disco,
+        // así que las viejas no volverían nunca y los `url()` se quedarían
+        // apuntando a nada. Copiar es lo que espera quien edita —el resto de
+        // archivos sí se reemplazan, que para eso se están guardando—.
+        config::copy_tree_if_absent(&final_dir.join("assets"), &temporary_dir.join("assets"));
+
+        // Sustituir una carpeta por otra no es atómico, y vaciar la vieja sí
+        // que lo es: por eso se escribe aparte y se cambia al final, para que
+        // un fallo a mitad no deje el tema sin archivos de texto.
         if let Ok(existentes) = fs::read_dir(&final_dir) {
             for entrada in existentes.flatten() {
                 let ruta = entrada.path();
@@ -1305,6 +1313,58 @@ mod tests {
         }];
         assert!(write_skin_assets(dir.path(), &uploads).is_err());
         assert!(!dir.path().parent().expect("padre").join("fuera.png").exists());
+    }
+
+    #[test]
+    fn al_editar_un_tema_no_se_borran_las_imagenes_que_ya_tenia() {
+        // El frontend manda las imágenes que se han vuelto a elegir en esta
+        // sesión, no las que ya estaban en el disco. Si al guardar se vaciara la
+        // carpeta, cualquier `url(assets/…)` de un tema que alguien edita —sin
+        // volver a elegir su imagen— se quedaría apuntando a un archivo que ya
+        // no está. Y no da ningún error: el `url()` simplemente no carga.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let skin_dir = dir.path().join("mi-tema");
+        fs::create_dir_all(skin_dir.join("assets")).expect("assets");
+        fs::write(skin_dir.join("assets/fondo.svg"), "<svgviejo/>").expect("vieja");
+        fs::write(skin_dir.join("note.txt"), "text=\"#fff\"").expect("txt");
+
+        // Se copia a la carpeta nueva antes de vaciar la vieja.
+        let temporal = dir.path().join("nuevo");
+        fs::create_dir(&temporal).expect("temporal");
+        config::copy_tree_if_absent(&skin_dir.join("assets"), &temporal.join("assets"));
+        for entrada in fs::read_dir(&skin_dir).expect("leer").flatten() {
+            let ruta = entrada.path();
+            let _ = fs::remove_dir_all(&ruta);
+            let _ = fs::remove_file(&ruta);
+        }
+
+        assert_eq!(
+            fs::read_to_string(temporal.join("assets/fondo.svg")).expect("debe estar"),
+            "<svgviejo/>",
+            "la imagen que ya tenía el tema tiene que seguir ahí"
+        );
+        assert!(!temporal.join("note.txt").exists(), "el texto sí se reemplaza");
+    }
+
+    #[test]
+    fn al_editar_una_imagen_con_el_mismo_nombre_manda_la_nueva() {
+        // Al revés también: si se vuelve a elegir un archivo con el mismo
+        // nombre, el nuevo tiene que ganar. Por eso la copia es «si no existe».
+        let dir = tempfile::tempdir().expect("tempdir");
+        let nueva = dir.path().join("nueva");
+        fs::create_dir_all(&nueva).expect("nueva");
+        fs::write(nueva.join("fondo.svg"), "<svgnuevo/>").expect("nuevo");
+
+        let viejo = dir.path().join("viejo");
+        fs::create_dir_all(&viejo).expect("viejo");
+        fs::write(viejo.join("fondo.svg"), "<svgviejo/>").expect("viejo");
+
+        config::copy_tree_if_absent(&viejo, &nueva);
+        assert_eq!(
+            fs::read_to_string(nueva.join("fondo.svg")).expect("leer"),
+            "<svgnuevo/>",
+            "el archivo recién elegido no se pisa con el de antes"
+        );
     }
 
     #[test]

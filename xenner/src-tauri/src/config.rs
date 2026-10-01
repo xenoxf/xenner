@@ -176,7 +176,7 @@ fn write_marker(root: &Path) {
 /// Copia un archivo o, si es una carpeta, su contenido. No sobreescribe nada que
 /// ya exista: si el destino está ocupado, se deja como está. Un tema que se
 /// copió a medias es peor que un tema que no se copió.
-fn copy_if_absent(from: &Path, to: &Path) {
+pub(crate) fn copy_tree_if_absent(from: &Path, to: &Path) {
     let Ok(metadata) = fs::symlink_metadata(from) else {
         return;
     };
@@ -188,7 +188,7 @@ fn copy_if_absent(from: &Path, to: &Path) {
             return;
         };
         for entry in entries.flatten() {
-            copy_if_absent(&entry.path(), &to.join(entry.file_name()));
+            copy_tree_if_absent(&entry.path(), &to.join(entry.file_name()));
         }
     } else if metadata.is_file() && !metadata.file_type().is_symlink() && !is_plain_file(to) {
         let _ = fs::copy(from, to);
@@ -218,8 +218,8 @@ fn migrate_once(app: &AppHandle, root: &Path) -> Option<PathBuf> {
     }
 
     if !is_plain_file(&root.join(MIGRATION_MARKER)) {
-        copy_if_absent(&legacy.join(SKINS_DIR), &root.join(SKINS_DIR));
-        copy_if_absent(
+        copy_tree_if_absent(&legacy.join(SKINS_DIR), &root.join(SKINS_DIR));
+        copy_tree_if_absent(
             &legacy.join(SKIN_PREFERENCE_FILE),
             &root.join(SKIN_PREFERENCE_FILE),
         );
@@ -434,8 +434,8 @@ mod tests {
         fs::create_dir_all(destino.join("skins/mi-tema")).expect("tema propio");
         fs::write(destino.join("skins/mi-tema/otro.txt"), "text=\"#000\"").expect("propio");
 
-        copy_if_absent(&origen.join("skins"), &destino.join("skins"));
-        copy_if_absent(
+        copy_tree_if_absent(&origen.join("skins"), &destino.join("skins"));
+        copy_tree_if_absent(
             &origen.join("skin-config.txt"),
             &destino.join("skin-config.txt"),
         );
@@ -461,7 +461,7 @@ mod tests {
         #[cfg(unix)]
         std::os::unix::fs::symlink(&secreto, origen.join("skins/vinculo.txt")).expect("symlink");
 
-        copy_if_absent(&origen.join("skins"), &destino.join("skins"));
+        copy_tree_if_absent(&origen.join("skins"), &destino.join("skins"));
         assert!(!destino.join("skins/secreto.txt").exists());
         #[cfg(unix)]
         assert!(!destino.join("skins/vinculo.txt").exists());

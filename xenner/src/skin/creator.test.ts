@@ -11,6 +11,7 @@ import {
   slugifySkinId,
 } from "./creator.ts";
 import { emptyEditor, setValue, valuesOf } from "./editor.ts";
+import type { SkinAsset } from "../types/skin.ts";
 
 test("convierte el nombre de una skin en un identificador portable", () => {
   assert.equal(slugifySkinId("Mi skin bonita"), "mi-skin-bonita");
@@ -182,4 +183,56 @@ test("el nombre del tema es lo único que se guarda fuera de los archivos", () =
   for (const component of ["background", "button", "note", "sidebar", "input", "toolbar"] as const) {
     assert.equal(editor.files[component].includes("name="), false, component);
   }
+});
+
+test("mover un deslizador no borra la imagen ni el CSS que ya había", () => {
+  // El panel rápido y el editor son dos vistas de lo mismo, así que el panel
+  // tiene que respetar lo que el editor no puede expresar. Si no, mover un color
+  // borraría el SVG que alguien acababa de elegir, y el CSS entero, y todo sin
+  // avisar: era lo que pasaba antes de pasarle `base`.
+  const asset: SkinAsset = {
+    path: "assets/fondo.svg",
+    name: "fondo.svg",
+    dataUrl: "data:image/svg+xml;base64,PHN2Zy8+",
+    dataBase64: "PHN2Zy8+",
+    bytes: 6,
+  };
+  const css = ':root[data-skin-id="a"] { letter-spacing: 0.02em; }';
+
+  let editor = draftToEditor({ ...DEFAULT_SKIN_DRAFT, name: "Con imagen" }, {
+    ...emptyEditor("Con imagen"),
+    assets: [asset],
+    customCss: css,
+  });
+  editor = setValue(editor, "button", "background", 'url("assets/fondo.svg")');
+
+  // Ahora se mueve un deslizador, como haría la persona con el ratón.
+  const trasElDeslizador = draftToEditor(
+    { ...editorToDraft(editor), name: editor.name, accent: "#ff00ff", radius: 22 },
+    editor,
+  );
+
+  assert.deepEqual(trasElDeslizador.assets, [asset], "la imagen se ha perdido");
+  assert.equal(trasElDeslizador.customCss, css, "el CSS se ha perdido");
+  assert.equal(trasElDeslizador.name, "Con imagen", "el nombre se ha perdido");
+  // Y lo que sí tiene que cambiar, cambia.
+  assert.equal(valuesOf(trasElDeslizador, "note").accent, "#ff00ff");
+  assert.equal(valuesOf(trasElDeslizador, "note").radius, "22px");
+  // Y el `url()` sigue ahí, que es lo importante: los deslizadores son de
+  // colores, así que solo pisan colores. Un `url()` o un degradado que alguien
+  // puso a mano no se tocan aunque el color de al lado cambie, porque perder un
+  // SVG en silencio es lo que hace que nadie use el panel.
+  assert.equal(
+    valuesOf(trasElDeslizador, "button").background,
+    'url("assets/fondo.svg")',
+    "mover un deslizador no puede borrar la imagen de un botón",
+  );
+  // Y un degradado tampoco.
+  const conDegradado = setValue(trasElDeslizador, "note", "background", "linear-gradient(red, blue)");
+  const trasOtro = draftToEditor(
+    { ...editorToDraft(conDegradado), name: conDegradado.name, text: "#123456" },
+    conDegradado,
+  );
+  assert.equal(valuesOf(trasOtro, "note").background, "linear-gradient(red, blue)");
+  assert.equal(valuesOf(trasOtro, "note").text, "#123456", "el color sí se mueve");
 });

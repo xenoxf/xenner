@@ -282,7 +282,9 @@ export function SkinCreator(props: SkinCreatorProps) {
       >
         <QuickPalette
           value={editor()}
-          onChange={(draft) => actualizar(() => draftToEditor(draft))}
+          onChange={(draft) =>
+            actualizar((previo) => draftToEditor({ ...draft, name: previo.name }, previo))
+          }
         />
       </div>
 

@@ -189,23 +189,73 @@ export function buildSkinComponents(draft: SkinDraft): Record<string, Record<str
   };
 }
 
-/** El mismo volcado, pero a un editor. De aquí sale el tema que se guarda. */
-export function draftToEditor(draft: SkinDraft): SkinEditor {
-  const editor = emptyEditor(draft.name);
-  const componentes = buildSkinComponents(draft);
-  let salida = editor;
+/**
+ * Vuelca un `SkinDraft` en los seis archivos, **sin tirar lo que ya había**.
+ *
+ * `base` son los archivos del tema tal como están. Sin él, esta función rehace
+ * los seis desde cero; con él, cada clave se cambia solo si su valor actual es
+ * algo que el panel sabe hacer —un color, una medida, un borde— y se respeta
+ * cualquier otra cosa que ya estuviera puesta.
+ *
+ * Ese matiz es el que separa «mover un deslizador» de «perder tu trabajo». Un
+ * `url()` con tu SVG, un degradado o un `calc()` se quedan donde estaban, aunque
+ * el color de al lado sí cambie. Sin esta regla, mover un deslizador borraba en
+ * silencio la imagen que alguien acababa de elegir, y eso es exactamente el tipo
+ * de sorpresa que hace que nadie use el panel. Lo de `elPanelLoPone` es lo que
+ * decide, y lo cuentan los tests.
+ *
+ * Lo que sí cambia siempre es el nombre y el modo, que son del panel.
+ */
+export function draftToEditor(draft: SkinDraft, base?: SkinEditor): SkinEditor {
+  const generados = buildSkinComponents(draft);
+  const anterior = base ?? emptyEditor(draft.name);
+
+  const files: Record<string, string> = {};
   for (const component of COMPONENTES) {
-    const values = componentes[component];
-    if (!values) continue;
-    salida = fileWith(
-      salida,
-      component,
-      Object.entries(values)
-        .map(([key, value]) => `${key}="${value}"`)
-        .join("\n"),
-    );
+    const delPanel = generados[component] ?? {};
+    if (!base) {
+      files[component] = serializar(delPanel);
+      continue;
+    }
+
+    const previos = parseSkinComponent(component, anterior.files[component] ?? "");
+    const salida: Record<string, string> = { ...previos };
+    for (const [key, value] of Object.entries(delPanel)) {
+      const previo = previos[key];
+      if (previo === undefined || elPanelLoPone(previo)) salida[key] = value;
+    }
+    files[component] = serializar(salida);
   }
-  return { ...salida, mode: draft.mode };
+
+  return {
+    name: draft.name,
+    files,
+    customCss: anterior.customCss,
+    assets: anterior.assets,
+    mode: draft.mode,
+  };
+}
+
+function serializar(values: Record<string, string>): string {
+  return Object.entries(values)
+    .map(([key, value]) => `${key}="${value}"`)
+    .join("\n");
+}
+
+/**
+ * ¿El panel con deslizadores puede poner su valor encima de este?
+ *
+ * Los deslizadores hacen colores y medidas, y esos sí se pisan: para eso están.
+ * Lo que nunca se pisa es un valor que lleva una función dentro —un `url()` con
+ * una imagen elegida, un degradado pensado, un `calc()`, un `var()`— porque ahí
+ * hay una decisión de alguien que un color plano no puede representar.
+ *
+ * La regla se formula así, y no como «solo toco colores», porque los deslizadores
+ * también tocan el redondeo y el difuminado, y esos son medidas: si se
+ * limitaran a los colores, mover el redondeo no haría nada.
+ */
+function elPanelLoPone(previo: string): boolean {
+  return !/url\(|gradient\(|calc\(|var\(|image-set\(|conic\(|repeating-/i.test(previo);
 }
 
 /**

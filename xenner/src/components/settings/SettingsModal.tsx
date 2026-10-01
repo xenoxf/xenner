@@ -321,7 +321,7 @@ export function SettingsModal(props: SettingsModalProps) {
                     </li>
                     <For each={props.skins}>
                       {(skin) => (
-                        <li>
+                        <li class={styles.skinItem}>
                           <button
                             type="button"
                             class={`${styles.skinCard} ${props.activeSkin === skin.id ? styles.skinCardActive : ""}`}
@@ -337,21 +337,6 @@ export function SettingsModal(props: SettingsModalProps) {
                                     ? `Incluido · ${skin.author}`
                                     : "Incluido"}
                               </small>
-                              <Show when={skin.origin === "user"}>
-                                <button
-                                  type="button"
-                                  class={styles.skinEdit}
-                                  onClick={(event) => {
-                                    // El botón de la tarjeta es el que elige el
-                                    // tema; este es otro botón dentro. Sin
-                                    // `stopPropagation` los dos responderían.
-                                    event.stopPropagation();
-                                    props.onSkinEdit(skin);
-                                  }}
-                                >
-                                  Editar
-                                </button>
-                              </Show>
                             </span>
                             <Show when={props.activeSkin === skin.id}>
                               <span class={styles.check}>
@@ -359,6 +344,24 @@ export function SettingsModal(props: SettingsModalProps) {
                               </span>
                             </Show>
                           </button>
+                          {/*
+                            «Editar» es hermano de la tarjeta, no un hijo suyo:
+                            un botón dentro de otro botón es HTML que no vale, y
+                            los navegadores lo sacan fuera por su cuenta, con lo
+                            que la tarjeta deja de funcionar al pulsarla.
+                          */}
+                          <Show when={skin.origin === "user"}>
+                            <button
+                              type="button"
+                              class={styles.skinEdit}
+                              onClick={() => {
+                                props.onSkinEdit(skin);
+                                setSection("create");
+                              }}
+                            >
+                              Editar
+                            </button>
+                          </Show>
                         </li>
                       )}
                     </For>

@@ -377,7 +377,14 @@
   list-style: none;
 }
 
+/*
+ * La tarjeta y el botón de editar son hermanos, y por eso el `<li>` lleva la
+ * posición: el botón va en la esquina, encima de la tarjeta, sin ser parte de
+ * ella. Un botón dentro de un botón no es HTML válido y los navegadores lo
+ * desmontan solos.
+ */
 .skinList > li {
+  position: relative;
   display: flex;
   min-width: 0;
 }
@@ -434,8 +441,6 @@
 /* Botón de texto plano, para acciones que no son el elemento pulsable principal. */
 .linkish,
 .skinEdit {
-  align-self: flex-start;
-  margin-top: 3px;
   padding: 0;
   color: var(--skin-note-accent);
   background: transparent;
@@ -445,6 +450,29 @@
   text-decoration: underline;
   text-underline-offset: 0.18em;
   cursor: pointer;
+}
+
+.linkish {
+  align-self: flex-start;
+  margin-top: 3px;
+}
+
+/* Encima de la tarjeta, en la esquina de abajo. */
+.skinEdit {
+  position: absolute;
+  right: 12px;
+  bottom: 9px;
+  padding: 3px 6px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  border: 1px solid var(--skin-input-border);
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+.skinEdit:hover {
+  color: var(--skin-note-accent);
+  border-color: var(--skin-note-accent);
 }
 
 .linkish:hover,

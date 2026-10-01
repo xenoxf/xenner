@@ -1,0 +1,116 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { pagina } from '../../data/doc';
+import { esc } from '../../data/texto';
+import { PALABRAS, palabrasDe } from '../../data/palabras';
+
+const doc = pagina('/doc/palabras/');
+
+/**
+ * `/doc/palabras/` — el diccionario.
+ *
+ * Existe porque el resto de la documentación usa palabras que no son del español
+ * de cada día, y atascarse en la palabra es tan inútil como atascarse en lo que
+ * se quiere hacer. Se entra desde cada página; no hace falta acordarse de que
+ * existe.
+ *
+ * Los dos `<h2>` están escritos a mano y los `<h3>` salen de `data/palabras.ts`,
+ * igual que la barra lateral. `doc.test.ts` comprueba que el grupo de cada
+ * entrada es el que dice el índice: como el id y el grupo vienen de la misma
+ * fila, un `<h3>` no puede quedarse fuera de la barra por descuido.
+ */
+const sinCss = palabrasDe('sin-css');
+const conCss = palabrasDe('con-css');
+
+const tarjeta = (palabra: (typeof PALABRAS)[number]) =>
+  [
+    '<article class="glosario__entrada">',
+    `<h3 id="${esc(palabra.id)}">${esc(palabra.term)}</h3>`,
+    `<p class="glosario__que">${esc(palabra.what)}</p>`,
+    `<p class="glosario__para">${esc(palabra.why)}</p>`,
+    palabra.example ? `<pre class="code"><code>${esc(palabra.example)}</code></pre>` : '',
+    '</article>',
+  ].join('');
+---
+
+<DocsLayout doc={doc}>
+  <p>
+    Aquí está cada palabra que aparece en el resto de la documentación, explicada
+    como se explica una palabra: qué es, para qué está, y cómo se escribe. No
+    hace falta leerla entera ni en orden; entra en el capítulo que estés leyendo
+    y vuelve aquí cuando te atasque algo.
+  </p>
+
+  <div class="callout callout--tip">
+    <span class="callout__label">Si no quieres leer nada de esto</span>
+    <p>
+      No hace falta. Xenner tiene un creador de temas dentro de la propia
+      aplicación, en <em>Ajustes → Crear un tema</em>: eliges colores con el ratón
+      y ya está. Hasta se le puede poner una imagen de fondo a un botón sin
+      escribir nada. Todo lo de aquí es para cuando quieras algo que el creador no
+      puede dar, y para quien prefiera abrir los archivos y escribir.
+    </p>
+  </div>
+
+  <h2 id="sin-css">Para cambiar colores y formas</h2>
+
+  <p>
+    Con esto se resuelve casi todo lo que la gente busca. Y como ya se ha dicho,
+    sin escribir una línea de código: una línea por ajuste, y el color se copia
+    de donde haya un selector de color.
+  </p>
+
+  <div class="glosario" set:html={sinCss.map(tarjeta).join('')} />
+
+  <h2 id="con-css">Para cambiarlo todo</h2>
+
+  <p>
+    Solo hace falta si quieres algo que los archivos de color no pueden dar: la
+    posición de las cosas, el movimiento, o un aspecto distinto de día y de
+    noche.
+  </p>
+
+  <div class="glosario" set:html={conCss.map(tarjeta).join('')} />
+</DocsLayout>
+
+<style>
+  .glosario {
+    display: grid;
+    gap: 1px;
+    margin: 0 0 2rem;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .glosario :global(article) {
+    padding: 1.1rem 1.25rem;
+    background: var(--surface);
+  }
+
+  .glosario :global(h3) {
+    margin: 0 0 0.4rem;
+    color: var(--accent-ink);
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .glosario :global(.glosario__que) {
+    margin: 0 0 0.45rem;
+    font-size: var(--t-md);
+    line-height: 1.6;
+  }
+
+  .glosario :global(.glosario__para) {
+    margin: 0;
+    color: var(--ink-2);
+    font-size: var(--t-sm);
+    line-height: 1.65;
+  }
+
+  .glosario :global(.code) {
+    margin-top: 0.75rem;
+  }
+</style>

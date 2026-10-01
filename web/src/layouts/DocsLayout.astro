@@ -7,7 +7,7 @@ import BaseLayout from './BaseLayout.astro';
 import '../styles/doc.css';
 
 /**
- * La documentación: ocho páginas, con el tema a la vista.
+ * La documentación: nueve páginas, con el tema a la vista.
  *
  * Cuatro decisiones, y las cuatro importan:
  *
@@ -18,10 +18,10 @@ import '../styles/doc.css';
  * su `description` —que es como el resto del sitio— y el «anterior»/«siguiente»
  * ata el recorrido entero.
  *
- * **Izquierda: las ocho páginas. Derecha: los apartados de esta.** Es el reparto
+ * **Izquierda: las nueve páginas. Derecha: los apartados de esta.** Es el reparto
  * de Astro Starlight y de VitePress, y evita la duplicación que tenía la versión
  * anterior (las dos barras decían «En esta página» y listaban lo mismo). Con la
- * izquierda plana, de ocho entradas, sobra sitio para el buscador y para un
+ * izquierda plana, de nueve entradas, sobra sitio para el buscador y para un
  * enlace al resto del sitio.
  *
  * **La barra de lectura va fija bajo la cabecera, no al final del artículo.**
@@ -50,7 +50,7 @@ const otras = DOC_PAGES.filter((p) => p.path !== page.path);
 const esIndice = page.path === '/doc/';
 const apartadosAqui = page.sections.reduce((total, s) => total + (s.subs?.length ?? 0), 0);
 
-/** Los ocho capítulos y sus cuarenta y un apartados, para el buscador. */
+/** Los capítulos y sus apartados, para el buscador. Sale de `DOC_PAGES`. */
 const BUSCABLE = [
   ...DOC_PAGES.map((p) => ({
     label: p.label,
@@ -103,7 +103,7 @@ const BUSCABLE = [
       </p>
     </div>
 
-    <!-- ============ barra izquierda: las ocho páginas ============ -->
+    <!-- ============ barra izquierda: todos los capítulos ============ -->
     <aside class="doc__rail" data-doc-rail>
       <div class="rail__sticky">
         <div class="finder" data-finder>
@@ -230,11 +230,13 @@ const BUSCABLE = [
         )
       }
 
-      <!-- ============ índice: las otras siete páginas ============ -->
+      <!-- ============ índice: el resto de los capítulos ============ -->
       {
         esIndice && (
           <nav class="otras" aria-labelledby="otras-title">
-            <h2 class="otras__title" id="otras-title">Los siete capítulos</h2>
+            <h2 class="otras__title" id="otras-title">
+              Los {DOC_PAGES.length - 1} capítulos siguientes
+            </h2>
             <ul class="otras__list">
               {otras.map((p, n) => (
                 <li class="otras__item">

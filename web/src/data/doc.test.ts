@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import { DOC_PAGES, totalApartados, vecinos } from './doc.ts';
+import { PALABRAS } from './palabras.ts';
 import { SKIN_COMPONENT_DOCS } from './skins.ts';
 
 /**
@@ -24,14 +25,42 @@ import { SKIN_COMPONENT_DOCS } from './skins.ts';
 const PAGINAS = fileURLToPath(new URL('../pages/doc/', import.meta.url));
 const LAYOUT = fileURLToPath(new URL('../layouts/DocsLayout.astro', import.meta.url));
 
+/**
+ * Las páginas cuyos apartados los genera una lista de datos en vez de escribir un
+ * encabezado literal.
+ *
+ * El diccionario es el caso: sus `<h3>` salen de `data/palabras.ts` y el índice
+ * sale de la misma lista, así que no se pueden separar — pero aun así se
+ * comprueba que el `grupo` de cada entrada sea el que dice el índice. Si alguien
+ * escribiera la entrada en el grupo equivocado, saldría en la barra del otro
+ * lado sin que nada se entere.
+ *
+ * El `<h2>` de estas páginas sí está escrito a mano, porque es la estructura de
+ * la página, y se comprueba como en las demás.
+ */
+const APARTADOS_GENERADOS: Record<string, (grupo: string) => readonly string[]> = {
+  '/doc/palabras/': (grupo) =>
+    PALABRAS.filter((palabra) => palabra.grupo === grupo).map((palabra) => palabra.id),
+};
+
 /** El archivo de una página, deducido de su ruta. */
 const archivoDe = (path: string): string =>
   path === '/doc/'
     ? `${PAGINAS}index.astro`
     : `${PAGINAS}${path.replace('/doc/', '').replace(/\/$/, '')}.astro`;
 
-/** Los `<h2>` y `<h3>` con identificador de un archivo, en orden. */
-function encabezadosDe(fuente: string): { nivel: 2 | 3; id: string; texto: string }[] {
+/**
+ * Los `<h2>` y `<h3>` con identificador de un archivo, en orden.
+ *
+ * Los que están escritos a mano se leen del archivo. Los que genera una lista de
+ * datos se añaden desde esa lista, para que el test siga siendo la comprobación
+ * de que el índice y la página cuentan lo mismo.
+ */
+function encabezadosDe(
+  fuente: string,
+  path: string,
+  secciones: readonly { id: string; subs?: readonly { id: string; label: string }[] }[],
+): { nivel: 2 | 3; id: string; texto: string }[] {
   const ids: { nivel: 2 | 3; id: string; texto: string }[] = [];
   for (const c of fuente.matchAll(/<h([23]) id="([^"]+)"[^>]*>([\s\S]*?)<\/h\1>/g)) {
     const texto = c[3]
@@ -42,7 +71,22 @@ function encabezadosDe(fuente: string): { nivel: 2 | 3; id: string; texto: strin
       .trim();
     ids.push({ nivel: Number(c[1]) as 2 | 3, id: c[2], texto });
   }
-  return ids;
+
+  const generador = APARTADOS_GENERADOS[path];
+  if (!generador) return ids;
+
+  const conGenerados: typeof ids = [];
+  for (const encabezado of ids) {
+    conGenerados.push(encabezado);
+    if (encabezado.nivel !== 2) continue;
+    const seccion = secciones.find((candidate) => candidate.id === encabezado.id);
+    if (!seccion) continue;
+    const etiquetas = new Map((seccion.subs ?? []).map((sub) => [sub.id, sub.label]));
+    for (const id of generador(encabezado.id)) {
+      conGenerados.push({ nivel: 3, id, texto: etiquetas.get(id) ?? '' });
+    }
+  }
+  return conGenerados;
 }
 
 test('cada página del índice tiene su archivo, y cada archivo su entrada', () => {
@@ -52,15 +96,25 @@ test('cada página del índice tiene su archivo, y cada archivo su entrada', () 
   // Y al revés: un archivo suelto en pages/doc/ que no esté en el índice es una
   // página sin barra de navegación, sin anterior y sin siguiente.
   const enElIndice = new Set(DOC_PAGES.map((p) => archivoDe(p.path)));
-  for (const nombre of ['index', 'formato', 'claves', 'imagenes', 'css', 'ejemplo', 'problemas', 'limites']) {
+  for (const nombre of [
+    'index',
+    'palabras',
+    'formato',
+    'claves',
+    'imagenes',
+    'css',
+    'ejemplo',
+    'problemas',
+    'limites',
+  ]) {
     assert.ok(enElIndice.has(`${PAGINAS}${nombre}.astro`), `${nombre}.astro no está en DOC_PAGES`);
   }
-  assert.equal(DOC_PAGES.length, 8, 'la documentación debería seguir siendo de ocho páginas');
+  assert.equal(DOC_PAGES.length, 9, 'la documentación debería seguir siendo de nueve páginas');
 });
 
 test('el índice tiene lo mismo que los encabezados de cada página', () => {
   for (const page of DOC_PAGES) {
-    const ids = encabezadosDe(readFileSync(archivoDe(page.path), 'utf-8'));
+    const ids = encabezadosDe(readFileSync(archivoDe(page.path), 'utf-8'), page.path, page.sections);
     assert.ok(ids.length > 0, `no se ha encontrado ningún encabezado en ${page.path}`);
 
     // 1. Los <h2> de la página son las secciones del índice, y en el mismo orden.
@@ -111,6 +165,7 @@ test('el índice tiene lo mismo que los encabezados de cada página', () => {
 test('el texto de la barra es el texto del encabezado', () => {
   for (const page of DOC_PAGES) {
     const fuente = readFileSync(archivoDe(page.path), 'utf-8');
+    const generados = encabezadosDe(fuente, page.path, page.sections);
     for (const s of page.sections) {
       const patron = new RegExp(`<h2 id="${s.id}"[^>]*>([\\s\\S]*?)</h2>`);
       const encontrado = patron.exec(fuente);
@@ -122,9 +177,11 @@ test('el texto de la barra es el texto del encabezado', () => {
         if (sub.id.startsWith('componente-')) continue;
         const p = new RegExp(`<h3 id="${sub.id}"[^>]*>([\\s\\S]*?)</h3>`);
         const h3 = p.exec(fuente);
-        assert.ok(h3, `no se encuentra el <h3> de «${sub.id}» en ${page.path}`);
-        const t3 = h3[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-        assert.equal(t3, sub.label, `la barra dice «${sub.label}» y el encabezado dice «${t3}»`);
+        const deLaPagina = h3
+          ? h3[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+          : generados.find((h) => h.id === sub.id && h.nivel === 3)?.texto;
+        assert.ok(deLaPagina, `no se encuentra el <h3> de «${sub.id}» en ${page.path}`);
+        assert.equal(deLaPagina, sub.label, `la barra dice «${sub.label}» y el encabezado dice «${deLaPagina}»`);
       }
     }
   }
@@ -173,7 +230,7 @@ test('el ejemplo viene después de los capítulos que necesita', () => {
   }
 });
 
-test('el anterior y el siguiente encadenan las ocho páginas sin huecos', () => {
+test('el anterior y el siguiente encadenan las páginas sin huecos', () => {
   for (let i = 0; i < DOC_PAGES.length; i++) {
     const { anterior, siguiente } = vecinos(DOC_PAGES[i].path);
     assert.equal(anterior?.path ?? null, DOC_PAGES[i - 1]?.path ?? null, `anterior de ${DOC_PAGES[i].path}`);

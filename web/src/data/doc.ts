@@ -9,6 +9,10 @@
  * nuevo sin su entrada aquí rompe la compilación, y una entrada sin página
  * rompe también.
  *
+ * La excepción es el diccionario, cuyos apartados se generan de
+ * `data/palabras.ts` con `apartadosDe()`: la lista y la página salen de la misma
+ * fuente justamente para que no puedan separarse.
+ *
  * **Por qué ocho páginas y no una.** La versión anterior era una sola URL de
  * 36.000 píxeles. Es impracticable: el navegador tiene que construirla entera,
  * no se puede compartir un apartado suelto, todas las búsquedas aterrizan en la
@@ -31,6 +35,15 @@ export interface DocSub {
   /** El texto del encabezado. */
   label: string;
 }
+
+import { PALABRAS, type PalabraGrupo } from './palabras.ts';
+
+/** Los `<h3>` de un grupo del diccionario, tomados de la misma lista que la página. */
+const apartadosDe = (grupo: PalabraGrupo) =>
+  PALABRAS.filter((palabra) => palabra.grupo === grupo).map((palabra) => ({
+    id: palabra.id,
+    label: palabra.term,
+  }));
 
 export interface DocSection extends DocSub {
   /** Los `<h3>` de dentro, en orden. */
@@ -69,6 +82,7 @@ export const DOC_PAGES: readonly DocPage[] = [
     lead: 'Una skin es una carpeta con unos archivos tuyos dentro: colores, imágenes, iconos, tipografías y un archivo de CSS. No hay que compilar nada, no hay que instalar nada y no hace falta saber programar. Cambias un color, guardas, y la ventana cambia mientras la estás mirando.',
     sections: [
       { id: 'que-es', label: 'Qué es una skin' },
+      { id: 'sin-saber-nada', label: 'Si no sabes nada de esto' },
       {
         id: 'cinco-minutos',
         label: 'La primera, en cinco minutos',
@@ -80,6 +94,27 @@ export const DOC_PAGES: readonly DocPage[] = [
         ],
       },
       { id: 'archivos', label: 'De qué archivos está hecha' },
+    ],
+  },
+  {
+    path: '/doc/palabras/',
+    label: 'Las palabras',
+    title: 'Qué significa cada palabra de esta documentación de Xenner',
+    heading: 'Las palabras que se usan aquí',
+    description:
+      'Diccionario de las palabras de la documentación de skins de Xenner: clave, valor, color hexadecimal, degradado, variable y selector, explicadas sin jerga.',
+    lead: 'Cambiar el aspecto de un programa tiene su vocabulario, y la mitad de la dificultad está en no conocerlo. Aquí está cada palabra de esta documentación, explicada como se explica una palabra.',
+    sections: [
+      {
+        id: 'sin-css',
+        label: 'Para cambiar colores y formas',
+        subs: apartadosDe('sin-css'),
+      },
+      {
+        id: 'con-css',
+        label: 'Para cambiarlo todo',
+        subs: apartadosDe('con-css'),
+      },
     ],
   },
   {

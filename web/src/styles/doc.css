@@ -318,3 +318,20 @@
     break-inside: avoid;
   }
 }
+
+/* ==========================================================================
+   El enlace al diccionario
+   ========================================================================== */
+
+/*
+  Va al final de cada página, pequeño y con una línea encima: no compite con lo
+  que se está leyendo, pero está ahí justo cuando una palabra atasca, que es el
+  momento en que buscarlo cuesta más que encontrarlo.
+*/
+.doc__main .prose .nota-glosario {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: var(--t-sm);
+}

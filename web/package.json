@@ -12,7 +12,7 @@
     "start": "astro dev",
     "build": "pnpm test && astro check && astro build",
     "check": "astro check",
-    "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test src/data/skins.test.ts src/data/doc.test.ts src/data/texto.test.ts src/scripts/docSections.test.ts src/scripts/docSearch.test.ts src/scripts/docCode.test.ts src/scripts/releases.test.ts src/scripts/releases.dom.test.ts",
+    "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test src/data/skins.test.ts src/data/doc.test.ts src/data/texto.test.ts src/data/texto-plano.test.ts src/scripts/docSections.test.ts src/scripts/docSearch.test.ts src/scripts/docCode.test.ts src/scripts/releases.test.ts src/scripts/releases.dom.test.ts",
     "preview": "astro preview",
     "assets:og": "node scripts/generate-og.mjs",
     "astro": "astro"

@@ -42,14 +42,80 @@ const doc = pagina('/doc/');
     desaparecer el botón.
   </p>
 
+  <h2 id="sin-saber-nada">Si no sabes nada de esto</h2>
+
+  <p>
+    No hace falta que sepas de CSS, ni de programación, ni de nada. Hay tres
+    caminos, y se elige por cuál te apetece, no por cuál se puede:
+  </p>
+
+  <ul>
+    <li>
+      <strong>Mover unos deslizadores.</strong> <em>Ajustes → Crear un tema</em>.
+      Eliges una base, mueves el ratón y guardas con un nombre. Ahí se puede
+      poner hasta una imagen de fondo en un botón sin escribir nada. Si solo
+      quieres que Xenner se vea de otra manera, esto es todo lo que necesitas.
+    </li>
+    <li>
+      <strong>Cambiar un color y ya.</strong> Lo que explica el capítulo siguiente,
+      en cinco minutos y sin escribir una línea de código. Es un archivo de texto
+      con una línea por ajuste.
+    </li>
+    <li>
+      <strong>Escribir los archivos a mano.</strong> Todo lo de aquí, para cuando
+      quieras algo que no sale de un deslizador. Empieza por
+      <a href="/doc/palabras/">las palabras</a>: son quince y están explicadas
+      una a una, porque quedarse atascado en una palabra es tan inútil como
+      quedarse atascado en lo que quieres hacer.
+    </li>
+  </ul>
+
+  <p>
+    Los tres caminos escriben lo mismo en el disco. El que uses, el resultado es
+    el mismo y se puede seguir editando con cualquiera de los otros dos.
+  </p>
+
   <h2 id="cinco-minutos">La primera, en cinco minutos</h2>
 
   <ol class="steps">
     <li>
       <h3 id="abre-la-carpeta-de-skins">Abre la carpeta de skins</h3>
       <p>
-        Dentro de la carpeta de Xenner está <code>skins/</code>. Ahí hay cuatro
-        carpetas de ejemplo: <code>glass-default/</code>, <code>webcore/</code>,
+        Xenner guarda sus archivos en una carpeta llamada <code>xenner</code>, en
+        el sitio donde tu sistema guarda la configuración de los programas. La
+        tienes aquí:
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Si usas</th>
+            <th>La carpeta está en</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Windows</td>
+            <td><code>C:\Users\TUUSUARIO\AppData\Roaming\xenner\</code></td>
+          </tr>
+          <tr>
+            <td>macOS</td>
+            <td><code>~/Library/Application Support/xenner/</code></td>
+          </tr>
+          <tr>
+            <td>Linux</td>
+            <td><code>~/.config/xenner/</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        No hace falta buscarla: dentro hay un archivo llamado <code>LEEME.txt</code>
+        que lo explica, y en <em>Ajustes → Temas</em> sale la ruta exacta con un
+        botón que la abre. La escribes porque el sistema puede llamarla de otra
+        manera; la de arriba es la de un usuario normal.
+      </p>
+      <p>
+        Dentro de la carpeta está <code>skins/</code>, y ahí hay cuatro temas de
+        ejemplo: <code>glass-default/</code>, <code>webcore/</code>,
         <code>pixel/</code> y <code>aurora/</code>.
       </p>
     </li>
@@ -65,17 +131,23 @@ const doc = pagina('/doc/');
     <li>
       <h3 id="cambia-un-color">Cambia un color</h3>
       <p>
-        Abre <code>note.txt</code> con cualquier editor de texto, busca la línea
-        que empieza por <code>text=</code> y cambia lo que hay entre las
-        comillas. Guarda.
+        Abre <code>note.txt</code> con el Bloc de notas, busca la línea que
+        empieza por <code>text=</code> y cambia lo que hay entre las comillas.
+        Por ejemplo, <code>text="#ff00ff"</code> pone el texto magenta. Guarda.
+      </p>
+      <p>
+        Los colores se escriben con una almohadilla y seis caracteres, del 0 al 9
+        y de la a a la f. No tienes que saber nada de CSS para cambiar uno: se
+        copia de cualquier sitio donde haya un selector de color, o se deja el
+        ejemplo que ya viene escrito en el archivo.
       </p>
     </li>
     <li>
       <h3 id="eligela">Elígela</h3>
       <p>
-        Abre <em>Ajustes → Apariencia</em> y búscala en la lista. O, si prefieres
-        no tocar la aplicación, abre <code>skins/config.txt</code> y pon el
-        nombre de tu carpeta:
+        Abre <em>Ajustes → Temas</em> y búscala en la lista. O, si prefieres no
+        tocar la aplicación, abre <code>skin-config.txt</code> —está en la misma
+        carpeta de Xenner— y pon el nombre de tu carpeta:
       </p>
       <pre is:raw><code>skinPath="mi-tema"</code></pre>
       <p>

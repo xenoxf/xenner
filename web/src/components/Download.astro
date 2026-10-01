@@ -143,9 +143,6 @@ const CARDS = [
   /* Los tres textos de la línea de arriba del grid —versión, sistema detectado y
      fecha— los crea el script, así que sus estilos van globales. */
   :global(.download__version) {
-    padding: 0.15rem 0.6rem;
-    border: 1px solid var(--accent);
-    border-radius: 999px;
     color: var(--accent-ink);
     font-family: var(--mono);
     font-size: var(--t-xs);
@@ -153,12 +150,17 @@ const CARDS = [
   }
 
   :global(.download__detected) {
-    padding: 0.15rem 0.6rem;
-    border: 1px solid var(--line);
-    border-radius: 999px;
     color: var(--ink-2);
-    background: var(--surface);
     font-size: var(--t-xs);
+  }
+
+  /* Separador entre los tres textos, para que la línea se lea como una frase
+     y no como tres datos pegados. */
+  :global(.download__version)::after,
+  :global(.download__detected)::after {
+    content: '·';
+    margin-inline-start: 0.6rem;
+    color: var(--ink-3);
   }
 
   :global(.download__date) {

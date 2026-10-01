@@ -1,2 +1,5 @@
 node_modules
 dist
+agents
+dist
+.env

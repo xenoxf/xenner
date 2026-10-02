@@ -109,11 +109,16 @@ export function MobileNoteList(props: MobileNoteListProps) {
             {(note) => {
               const title = () => noteTitleFromPath(note.path);
               const selected = () => props.selectedPath === note.path;
-              // Con algo en la tijera, la lista ofrece pegarlo junto a la nota.
-              // Sin esto «Cortar para mover» es un callejón sin salida: el menú de
-              // una nota no trae «Pegar» —el de `ExplorerContextMenu` solo lo
-              // ofrece en carpetas— y en un WebView no hay `Ctrl+V`.
-              const canPasteHere = () => props.canPaste && parentPath(note.path) !== undefined;
+              // Con algo en la tijera, la lista ofrece pegarlo en la carpeta donde
+              // está la nota. Sin esto «Cortar para mover» es un callejón sin
+              // salida: el menú de una nota no trae «Pegar» —el de
+              // `ExplorerContextMenu` solo lo ofrece en carpetas— y en un WebView
+              // no hay `Ctrl+V`.
+              //
+              // La carpeta es la de la nota: `parentPath` devuelve `""` para una
+              // nota de la raíz, que es una carpeta válida, la raíz. Por eso se
+              // usa como está y no se compara contra nada.
+              const canPasteHere = () => props.canPaste;
               return (
                 <li
                   class={`${styles.row} ${selected() ? styles.rowActive : ""}`}

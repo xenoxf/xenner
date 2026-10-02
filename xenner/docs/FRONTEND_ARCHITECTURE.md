@@ -351,36 +351,39 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
     (negrita, cursiva, tachado, código, fórmula, enlace) y Xenner **añade** un
     grupo, `appearance`, con los dos colores. La barra es para **formato**: nada
     de tipos de texto.
-- **El tipo de texto se cambia con el `+` del lateral, no con la barra flotante.**
-    Son dos gestos distintos y van en sitios distintos a propósito. La barra se
-    abre **encima** del texto seleccionado, para darle formato. El tipo de bloque
-    es para cambiar **qué es esta línea**, y su botón va **junto** a la línea. Con
-    los siete botones de tipo dentro de la barra, la barra dejaba de caber sobre
-    la columna de lectura y tapaba justo lo que se acababa de seleccionar.
-  - Qué tipo tiene cada bloque lo dice `editor/block-type.ts` (`blockTypeAt`,
-    `blockTypesInSelection`), que mira los ancestros y no solo el padre inmediato:
-    el padre de un texto citado es un `paragraph`, y el de un elemento de lista
-    un `list_item`. Con más de un tipo en la selección no se marca ninguno, porque
-    no hay un único tipo que poner.
-- **El `+` no inserta nada: abre el menú de tipos.** Su gesto es «cambiar el tipo
-    de esta línea». El documento no se toca hasta que alguien elige un tipo, y
-    entonces el cambio se aplica al bloque del cursor. Antes insertaba por debajo
-    del bloque, que a media frase partía el texto y además metía una línea de más
-    delante de lo que se iba a escribir.
-  - El `+` del asa de Crepe no es configurable —su `onAdd` inserta en
-    `$pos.pos + nodeSize`—, así que se oculta por CSS y se pone el nuestro al
-    lado. El tirador de arrastrar que va justo al lado sí funcionaba y no se toca.
-  - El menú se construye en el componente y no se reutiliza el slash de Crepe,
-    porque el slash se abre escribiendo `/`, que **insertaría ese carácter** en
-    la línea. Aquí no se escribe nada hasta elegir.
-  - El `+` y el tirador comparten `shouldShow`, así que aparecen y desaparecen
-    juntos; un `+` suelto parece un botón a medias. Y el `+` se esconde mientras
-    el menú está abierto, para no quedar un segundo botón diciendo lo mismo al
-    lado del propio menú.
-  - La barra flotante queda excepta del cierre por clic: Crepe dispara sus
-    botones en `pointerdown`, así que si el menú se cerrara con el clic en la
-    barra, el `+` se cerraría ahí y su propio clic lo volvería a abrir en el
-    mismo gesto, y el botón no cerraría nunca.
+- **El `+` del lateral es el sitio de todo lo que se puede poner en la nota.** No
+    solo de los tipos de texto: también de imagen, pizarra y archivo adjunto. Son
+    tres grupos —Texto, Listas y texto, Insertar— en el mismo menú, que es lo que
+    hace Crepe con su menú slash pero con las tres cosas de la app añadidas.
+  - La lista está en `editor/crepe-config.ts` → `INSERT_MENU`, no en el
+    componente: es contenido y se prueba en Node.
+  - El menú **no inserta nada**. El documento no se toca hasta que alguien elige
+    una entrada, y entonces se aplica al bloque del cursor. Antes el `+` insertaba
+    por debajo del bloque, que a media frase partía el texto y además metía una
+    línea de más delante de lo que se iba a escribir.
+- **El `+` es el botón de Crepe, con su misma UI; lo único que cambia es el
+    gesto.** No se sustituye: se le come el `pointerup` en fase de captura sobre
+    el asa, para que su `onAdd` no lo vea. Es lo que arregla el botón «que no
+    entiende el cambio de posición»: un botón propio tenía que medir el cursor
+    con `coordsAtPos` y colocarse a mano, y ahí es donde se descolocaba. El de
+    Crepe lo coloca `floating-ui`, que ya lo hace bien —por eso **no se oculta por
+    CSS** ni se le toca una regla— y el tirador de arrastrar de al lado sigue
+    siendo el suyo.
+  - El menú sale **pegado al asa**, leyendo su rectángulo real, con un `rAF`
+    porque `floating-ui` aplica la posición en un `then`. Es la única forma de no
+    calcular mal.
+  - En `pointerup` y no en `pointerdown`, porque Crepe usa `pointerdown` para el
+    efecto de «pulsado»: si nos lo comiéramos ahí, el botón no se vería al
+    mantener pulsado.
+  - Las filas hacen `preventDefault` en `pointerdown` para no robarle el foco al
+    `contenteditable`, y el asa queda excepta del cierre por clic: el gesto del
+    `+` pasa por ahí, así que si el menú se cerrara con el clic en el asa, se
+    cerraría antes de abrirse y nunca se vería.
+- **Imagen, pizarra y adjunto no se resuelven en el editor.** El dock tiene los
+    importadores, los diálogos del sistema y los avisos de error montados; el
+    editor no tiene ni idea de qué archivos hay. El menú devuelve el gesto con
+    `requestImage` y `requestAttachment`, y quien lo pidió lo hace.
+
 - **El camino del tipo de texto no guarda ni recupera la selección.** Los botones
     del menú se disparan con `pointerdown` y `preventDefault`, así que nunca le
     quitan el foco al `contenteditable`: la selección viva *es* la que hay que

@@ -316,95 +316,76 @@
 }
 
 /*
- * El `+` del asa de Crepe se oculta, y no por estilo: su `onAdd` inserta
- * **siempre por debajo** del bloque, así que pulsar el `+` a media frase partía
- * el texto y encima metía una línea de más. Ese comportamiento no es
- * configurable, se corrige sustituyéndolo por `.blockInsert`, que solo abre el
- * menú de tipos. El tirador de arrastrar que va justo al lado sí funciona y se
- * deja como estaba.
- */
-.editor :global(.milkdown-block-handle .operation-item:first-child) {
-  display: none;
-}
-
-/*
- * El `+` del lateral abre el menú de tipos, y solo eso: no inserta nada.
+ * El menú del `+`: todo lo que se puede poner en la nota, no solo tipos de
+ * texto.
  *
- * Sustituye al de Crepe, que inserta siempre por debajo del bloque y encima
- * le abre su propio menú. Su `onAdd` no es configurable —`$pos.pos + nodeSize`—,
- * así que se oculta por CSS y se pone este. El tirador de arrastrar que va justo
- * al lado sí funcionaba y no se toca.
+ * Sale pegado al asa, que es justo lo que se ha pulsado, y se ancla a la posición
+ * **real** del asa en vez de medir el cursor: `floating-ui` ya la ha colocado, y
+ * volver a calcularla era justo lo que salía mal.
+ *
+ * Es pequeño a propósito —220 px y filas de 26— porque son trece entradas y no
+ * tiene que tapar el texto que se está escribiendo. Los grupos llevan título
+ * porque sin él las tres «Insertar» se pierden entre las listas.
  */
-.blockInsert {
+.insertMenu {
   position: absolute;
-  z-index: 24;
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  padding: 2px;
-  color: var(--skin-toolbar-accent);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: calc(var(--skin-button-radius) * 0.7);
-  cursor: pointer;
-  transition:
-    color var(--motion-fast) ease,
-    background-color var(--motion-fast) ease,
-    border-color var(--motion-fast) ease;
-}
-
-.blockInsert:hover {
-  color: var(--skin-toolbar-text);
-  background-color: var(--skin-toolbar-backgroundHover, var(--skin-button-backgroundHover));
-  border-color: var(--skin-toolbar-border);
-}
-
-.blockInsert:focus-visible {
-  outline: 2px solid var(--skin-input-focus);
-  outline-offset: 2px;
-}
-
-.blockInsert svg {
-  width: 17px;
-  height: 17px;
-  stroke: currentColor;
-}
-
-/*
- * El menú de tipos. Sale donde estaba el `+`, que es justo lo que se está
- * mirando, y es deliberadamente pequeño: siete opciones de una palabra no
- * necesitan encabezado ni separadores.
- */
-.blockMenu {
-  position: absolute;
-  z-index: 30;
+  z-index: 32;
   display: flex;
-  width: 164px;
+  width: 220px;
   max-width: calc(100% - 16px);
+  max-height: min(420px, calc(100vh - 120px));
   flex-direction: column;
   padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   color: var(--skin-toolbar-text);
   font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
-  border-radius: 9px;
+  border-radius: 10px;
   box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
   backdrop-filter: blur(var(--skin-toolbar-blur));
+  scrollbar-width: thin;
+  scrollbar-color: var(--skin-toolbar-textDim) transparent;
 }
 
-.blockMenuList {
+.insertMenu::-webkit-scrollbar {
+  width: 5px;
+}
+
+.insertMenu::-webkit-scrollbar-thumb {
+  background-color: var(--skin-toolbar-textDim);
+  border-radius: 999px;
+}
+
+.insertGroup + .insertGroup {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid var(--skin-toolbar-border);
+}
+
+.insertGroupTitle {
+  margin: 0;
+  padding: 3px 6px 2px;
+  color: var(--skin-toolbar-textDim);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.insertGroupItems {
   display: flex;
   flex-direction: column;
 }
 
-.blockMenuItem {
+.insertItem {
   display: flex;
   width: 100%;
-  height: 25px;
+  height: 26px;
   align-items: center;
-  gap: 7px;
-  padding: 0 6px;
+  gap: 8px;
+  padding: 0 7px;
   color: var(--skin-toolbar-text);
   font-size: 11.5px;
   text-align: left;
@@ -417,20 +398,25 @@
     background-color var(--motion-fast) ease;
 }
 
-.blockMenuItem:hover,
-.blockMenuItem:focus-visible {
+.insertItem:hover,
+.insertItem:focus-visible {
   color: var(--skin-toolbar-accent);
   background-color: var(--skin-toolbar-backgroundHover, var(--skin-button-backgroundHover));
 }
 
-/* El tipo que ya tiene la línea. Solo uno: con más de un tipo en la selección
-   no hay un único tipo que poner. */
-.blockMenuItemActive {
+.insertItem:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -2px;
+}
+
+/* El tipo que ya tiene la línea. Solo uno: con más de un tipo en la selección no
+   hay un único tipo que poner. */
+.insertItemActive {
   color: var(--skin-toolbar-accent);
   font-weight: 600;
 }
 
-.blockMenuIcon {
+.insertItemIcon {
   display: grid;
   width: 15px;
   flex: 0 0 auto;
@@ -438,13 +424,13 @@
   color: var(--skin-toolbar-textDim);
 }
 
-.blockMenuItem:hover .blockMenuIcon,
-.blockMenuItem:focus-visible .blockMenuIcon,
-.blockMenuItemActive .blockMenuIcon {
+.insertItem:hover .insertItemIcon,
+.insertItem:focus-visible .insertItemIcon,
+.insertItemActive .insertItemIcon {
   color: var(--skin-toolbar-accent);
 }
 
-.blockMenuIcon svg {
+.insertItemIcon svg {
   width: 14px;
   height: 14px;
 }

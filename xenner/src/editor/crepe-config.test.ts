@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  ATTACHMENT_ICON,
+  BLOCK_TYPE_ICONS,
   CREPE_BUTTON_LABELS,
   CREPE_FEATURE_KEYS,
   CREPE_FEATURES,
   CREPE_TEXT_LABELS,
+  IMAGE_ICON,
+  INSERT_MENU,
   SLASH_GROUPS,
   TEXT_BACKGROUND_ICON,
   TEXT_COLOR_ICON,
@@ -115,5 +119,50 @@ test("los iconos son SVG con la forma que espera Crepe", () => {
     assert.ok(icon.startsWith("<svg"), "el icono no es markup");
     assert.ok(icon.includes('viewBox="0 0 24 24"'), "el icono no tiene viewBox");
     assert.ok(icon.includes("</svg>"), "el SVG no está cerrado");
+  }
+});
+
+test("el menú del `+` tiene todo, no solo tipos de texto", () => {
+  // El menú del `+` es el sitio de todo lo que se puede poner en la nota: el
+  // Markdown entero y las tres cosas de la app. Si esto pierde una entrada, esa
+  // cosa solo se puede llegar por el dock o por el menú slash.
+  const items = INSERT_MENU.flatMap((group) => group.items);
+  const bloques = items.filter((item) => item.kind === "block");
+  const otros = items.filter((item) => item.kind !== "block");
+
+  // Los siete tipos de texto.
+  assert.deepEqual(
+    bloques.map((item) => item.id).sort(),
+    ["bullet", "heading1", "heading2", "heading3", "ordered", "paragraph", "quote"],
+  );
+  // Y las tres cosas de la app.
+  assert.deepEqual(otros.map((item) => item.kind).sort(), ["attachment", "image", "whiteboard"]);
+});
+
+test("cada entrada del menú del `+` tiene icono y nombre", () => {
+  // Un botón sin icono se ve como un hueco, y uno sin nombre no se puede elegir.
+  for (const group of INSERT_MENU) {
+    assert.ok(group.group.trim().length > 0, "un grupo sin nombre no se entiende");
+    for (const item of group.items) {
+      assert.ok(item.icon.includes("<svg"), `${item.label} se queda sin icono`);
+      assert.ok(item.label.trim().length > 0, "una entrada sin nombre no se puede elegir");
+    }
+  }
+});
+
+test("las entradas de bloque del menú salen del catálogo, sin duplicar el icono", () => {
+  // El icono de cada tipo vive en `EDITOR_BLOCKS`. Si el menú lo copiara, un
+  // cambio de dibujo se vería en un sitio y no en el otro.
+  const delMenu = INSERT_MENU.flatMap((group) => group.items)
+    .filter((item) => item.kind === "block")
+    .map((item) => item.icon);
+  assert.deepEqual(delMenu, BLOCK_TYPE_ICONS.map((item) => item.icon));
+});
+
+test("los iconos de imagen y adjunto tienen la misma forma que el resto", () => {
+  // El menú los pinta con `innerHTML`: sin `viewBox` salen con el tamaño por
+  // defecto y se ven enormes al lado de los demás.
+  for (const icon of [IMAGE_ICON, ATTACHMENT_ICON]) {
+    assert.ok(icon.includes('viewBox="0 0 24 24"'), "el icono no tiene viewBox");
   }
 });

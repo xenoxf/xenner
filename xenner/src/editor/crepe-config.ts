@@ -132,9 +132,74 @@ export const CREPE_TEXT_LABELS = {
   },
 } as const;
 
-/** Los iconos de los tipos de bloque, en el orden en que salen en la barra. */
+/** Los iconos de los tipos de bloque, en el orden en que salen en el menú. */
 export const BLOCK_TYPE_ICONS = EDITOR_BLOCKS.map((item) => ({
   id: item.id,
   label: item.label,
   icon: item.icon,
 }));
+
+export const IMAGE_ICON = svg(
+  `<rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m4 17 4.5-4 3 2.5 2.5-2 6 5.5" />`,
+);
+
+export const ATTACHMENT_ICON = svg(
+  `<path d="M17.5 10.5 11 17a3.5 3.5 0 0 1-5-5l7-7a2.5 2.5 0 0 1 3.5 3.5l-6.5 6.5a1.5 1.5 0 0 1-2-2.2l5.5-5.5" />`,
+);
+
+/** Lo que hace una entrada del menú del `+`. */
+export type InsertAction =
+  /** Cambia el tipo del bloque del cursor. */
+  | { kind: "block"; id: string; label: string; icon: string }
+  /** Abre el explorador de archivos del sistema. */
+  | { kind: "image"; label: string; icon: string }
+  | { kind: "attachment"; label: string; icon: string }
+  /** Inserta una pizarra en blanco. */
+  | { kind: "whiteboard"; label: string; icon: string };
+
+export interface InsertGroup {
+  group: string;
+  items: InsertAction[];
+}
+
+/** Una entrada de bloque, tomada del catálogo de tipos. */
+const blockAction = (id: string): InsertAction => {
+  const found = BLOCK_TYPE_ICONS.find((item) => item.id === id);
+  if (!found) throw new Error(`El menú pide un tipo que no existe: ${id}`);
+  return { kind: "block", id: found.id, label: found.label, icon: found.icon };
+};
+
+/**
+ * Todo lo que se puede poner en la nota, en el orden en que se lee.
+ *
+ * El menú del `+` no es solo de tipos de texto: es **todo**. Markdown entero —
+  títulos, listas, citas— y las tres cosas que son de la app y no de Markdown:
+  imagen, pizarra y archivo adjunto.
+ *
+ * La lista está aquí, y no en el componente, porque es contenido y porque así se
+ * puede probar en Node. El componente solo la pinta y decide a qué función llama
+ * cada cosa.
+ */
+export const INSERT_MENU: readonly InsertGroup[] = [
+  {
+    group: "Texto",
+    items: [
+      blockAction("paragraph"),
+      blockAction("heading1"),
+      blockAction("heading2"),
+      blockAction("heading3"),
+    ],
+  },
+  {
+    group: "Listas y texto",
+    items: [blockAction("bullet"), blockAction("ordered"), blockAction("quote")],
+  },
+  {
+    group: "Insertar",
+    items: [
+      { kind: "image", label: "Imagen", icon: IMAGE_ICON },
+      { kind: "whiteboard", label: "Pizarra", icon: WHITEBOARD_ICON },
+      { kind: "attachment", label: "Adjuntar archivo", icon: ATTACHMENT_ICON },
+    ],
+  },
+];

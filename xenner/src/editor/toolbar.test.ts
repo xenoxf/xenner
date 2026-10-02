@@ -118,60 +118,84 @@ test("el editor no guarda ni recupera la selección para cambiar el tipo", () =>
     "blockMenuPanel",
     "BLOCK_MENU_WIDTH",
     "prepareInsertionPoint",
+    "setInsertAnchor",
+    "updateInsertAnchor",
   ]) {
-    if (gone === "blockMenuPanel") continue; // sí existe: es el ref del menú
     assert.ok(!COMPONENT.includes(gone), `vuelve \`${gone}\`: el camino ya no lo necesita`);
   }
   // Y el punto de inserción tampoco se prepara: el `+` no inserta.
   assert.ok(!COMMANDS.includes("prepareInsertionPoint"));
-  // Menos código muerto por el mismo motivo: sin inserción no hace falta el
-  // rastro de once piezas que quedaba del camino antiguo.
-  for (const gone of ["selectionOnBlur", "toggleBlockMenu2", "inlineInsert"]) {
-    assert.ok(!COMPONENT.includes(gone), `queda \`${gone}\` del camino antiguo`);
-  }
+  // Menos código muerto por el mismo motivo: sin botón propio no hace falta
+  // ninguna de las piezas que existían solo para colocarlo.
+  assert.ok(!COMPONENT.includes("inlineInsert"), "queda rastro del botón propio");
+  assert.ok(!COMPONENT.includes("canShowBlockHandle"), "queda el cálculo del asa propio");
 });
 
-test("el `+` solo abre el menú, no crea ninguna línea", () => {
-  // El gesto es «cambiar el tipo de esta línea». Si el `+` además partiera el
-  // bloque, cada pulsación metería un párrafo en blanco que nadie pidió, y con
-  // texto en medio de una frase partiría la frase.
-  assert.match(COMPONENT, /function toggleBlockMenu/);
+test("el `+` es el de Crepe, con su UI, y solo se le cambia el gesto", () => {
+  // No se sustituye el botón: se le cambia lo que pasa al pulsarlo. Rehacerlo
+  // obligaba a medir y colocar el botón a mano, y eso es lo que salía mal —el
+  // `+` se quedaba donde estaba al moverse el cursor. El de Crepe lo coloca
+  // `floating-ui`, que ya lo hace bien.
+  assert.match(COMPONENT, /function interceptHandleAdd/);
+  assert.match(COMPONENT, /\.milkdown-block-handle \.operation-item:first-child/);
+  // Se come el evento en captura para que el `onAdd` de Crepe no lo vea.
+  assert.match(COMPONENT, /addEventListener\("pointerup", onPointerUp, true\)/);
+  assert.match(COMPONENT, /event\.stopPropagation\(\)/);
+  // Y el botón de Crepe NO se esconde: si se escondiera, esto sería otro botón
+  // propio con otro posicionamiento, que es justo el problema.
+  assert.ok(
+    !CSS.includes("operation-item:first-child"),
+    "el `+` de Crepe vuelve a esconderse: eso rehace el botón y su posición",
+  );
+  assert.ok(!COMPONENT.includes("blockInsert"), "vuelve el botón propio del editor");
+});
+
+test("el menú se ancla al asa, no a una posición calculada", () => {
+  // El bug era que el `+` no entendía el cambio de posición. La causa: se medía
+  // el cursor y se colocaba a mano. El menú sale de la posición **real** del asa,
+  // que `floating-ui` ya tiene, y espera un `rAF` porque esa posición se aplica
+  // en un `then`.
+  assert.match(COMPONENT, /handle\.getBoundingClientRect\(\)/);
+  assert.match(COMPONENT, /requestAnimationFrame/);
+  // Y no queda ningún cálculo de posición del cursor.
+  assert.ok(
+    !COMPONENT.includes("coordsAtPos"),
+    "el menú vuelve a medirse con el cursor, que es lo que se descolocaba",
+  );
+});
+
+test("el `+` no inserta nada: solo abre el menú", () => {
+  // El gesto es poner algo en la nota, no abrir una línea nueva. Si el `+` tocara
+  // el documento, cada pulsación metería un párrafo que nadie pidió.
   const abrir = COMPONENT.slice(
-    COMPONENT.indexOf("function toggleBlockMenu"),
-    COMPONENT.indexOf("function closeBlockMenu"),
+    COMPONENT.indexOf("function toggleInsertMenu"),
+    COMPONENT.indexOf("function closeInsertMenu"),
   );
   assert.ok(
-    !/splitBlock|createParagraphNear|delete\(/.test(abrir),
+    !/splitBlock|createParagraphNear|insertText|delete\(/.test(abrir),
     "el + vuelve a tocar el documento: mete una línea que nadie pidió",
   );
-  assert.ok(!/insertText/.test(abrir), "el + vuelve a insertar texto en la línea");
-
-  // Elegir un tipo solo aplica el comando; tampoco parte nada.
-  const elegir = COMPONENT.slice(
-    COMPONENT.indexOf("function chooseBlockType"),
-    COMPONENT.indexOf("function watchBlockMenuDismissal"),
-  );
-  assert.ok(!/splitBlock|createParagraphNear|insertText/.test(elegir));
-  assert.match(elegir, /runBlockCommand/);
-
-  // Y el `+` de Crepe, que sí inserta por debajo, sigue escondido.
-  assert.match(CSS, /\.milkdown-block-handle \.operation-item:first-child\)\s*\{[^}]*display:\s*none/);
 });
 
-test("el menú del `+` tiene los siete tipos y uno marcado", () => {
-  assert.match(COMPONENT, /<For each=\{BLOCK_TYPE_ICONS\}>/);
-  assert.match(COMPONENT, /class=\{styles\.blockMenu\}/);
-  assert.match(COMPONENT, /role="menuitemradio"/);
-  // El tipo que ya tiene la línea se marca; con más de uno en la selección no
-  // se marca ninguno, porque no hay un único tipo que poner.
-  assert.match(COMPONENT, /types\.size === 1 \? \[\.\.\.types\]\[0\] : null/);
+test("el menú del `+` pinta los tres grupos, no solo los de texto", () => {
+  // Markdown entero y las tres cosas de la app, en el mismo menú.
+  assert.match(COMPONENT, /<For each=\{INSERT_MENU\}>/);
+  assert.match(COMPONENT, /class=\{styles\.insertGroup\}/);
+  assert.match(COMPONENT, /class=\{styles\.insertGroupTitle\}/);
+  // Cada entrada va a lo que le toca según su `kind`.
+  assert.match(COMPONENT, /if \(item\.kind === "block"\)/);
+  assert.match(COMPONENT, /item\.kind === "image"/);
+  assert.match(COMPONENT, /item\.kind === "whiteboard"/);
+  assert.match(COMPONENT, /props\.requestAttachment\?\.\(\)/);
 });
 
-test("el `+` y el asa aparecen y desaparezcan juntos", () => {
-  // Si tuvieran condiciones distintas, un `+` suelto sin tirador al lado parece
-  // un botón que se ha quedado a medias.
-  assert.match(COMPONENT, /shouldShow: \(\) => \{[\s\S]*?canShowBlockHandle\(view\)/);
-  assert.match(COMPONENT, /Show when=\{insertAnchor\(\)\}/);
+test("el menú no se roba el foco ni se come el clic del asa", () => {
+  // El `pointerdown` con `preventDefault` en cada fila: sin él el botón recibe el
+  // foco y el editor pierde la selección justo antes de aplicar el tipo.
+  assert.match(COMPONENT, /onPointerDown=\{\(event\) => event\.preventDefault\(\)\}/);
+  // Y el asa queda excepta del cierre: el gesto del `+` pasa por ahí, así que si
+  // el menú se cerrara con el clic en el asa, se cerraría antes de abrirse.
+  assert.match(COMPONENT, /closest\("\.milkdown-block-handle"\)/);
 });
 
 test("la barra flotante es compacta con lo que lleva", () => {

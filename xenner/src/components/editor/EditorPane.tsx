@@ -377,6 +377,11 @@ export function EditorPane(props: EditorPaneProps) {
                       initialValue={props.document?.body ?? ""}
                       reloadToken={props.reloadToken}
                       onChange={props.onChange}
+                      // El menú del `+` devuelve el gesto para imagen y adjunto:
+                      // los importadores y los diálogos del sistema ya están
+                      // aquí montados, y el editor no sabe qué archivos hay.
+                      requestImage={() => void chooseImage()}
+                      requestAttachment={() => void chooseAttachment()}
                       onReady={(handle) => {
                         editorHandle = handle;
                         setEditorReady(true);

@@ -147,9 +147,23 @@ convierten en clases globales de aplicación.
   sin una pizarra vacía alrededor. Mientras se edita, el lienzo queda aislado
   del editor para que sus gestos no muevan la nota.
 - La barra flotante de formato de Crepe (`.milkdown-toolbar`) sale a los 20 ms
-  de seleccionar y tapa el texto. Se deja montada pero transparente y solo se
-  revela con `:hover` o `:focus-within`, de modo que sigue siendo alcanzable
-  con el puntero y con el teclado sin saltar a los ojos.
+  de seleccionar, encima de lo seleccionado, y **no se esconde**. Se llegó a
+  taparla con `opacity: 0` salvo que el puntero estuviera sobre el texto
+  seleccionado, y era un desastre: al seleccionar con el teclado el puntero no
+  se mueve, la barra no salía nunca y no había forma de poner negrita, cursiva o
+  un título; con el ratón era una lotería, y la barra invisible seguía encima
+  del texto cogiendo clics. Una interfaz oculta no es una interfaz. Lo que la
+  hace desaparecer es Crepe, con `data-show="false"` (`display: none`), cuando
+  la selección está vacía o el editor pierde el foco, que es lo correcto.
+  `src/editor/toolbar.test.ts` vigila que nadie vuelva a esconderla.
+- Los botones de esa barra los pone Crepe en su `buildToolbar` (Negrita,
+  cursiva, títulos, listas, cita, código…) y Xenner **añade** dos al final,
+  `text-color` y `text-background`. El orden importa: Crepe llama a
+  `buildToolbar` después de montar sus propios grupos, así que añadir no quita
+  nada. Los dos de Xenner no pueden usar el comando de Crepe porque abren el
+  diálogo de color del sistema, que roba el foco y con él la selección: por eso
+  `captureTextSelection()` la guarda antes y `applyTextStyleValue()` la vuelve a
+  poner.
 - KaTeX es `white-space: nowrap`, así que una fórmula larga ensanchaba la
   columna de lectura. `span[data-type="math_inline"]` y `.katex-display` quedan
   acotados a `max-width: 100%` con desplazamiento horizontal interno, más una

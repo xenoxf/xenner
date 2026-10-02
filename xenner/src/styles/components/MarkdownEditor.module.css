@@ -216,21 +216,17 @@
 }
 
 /*
- * La barra flotante de formato de Crepe sale a los 20 ms de seleccionar y tapa
- * el texto que se está escribiendo. `data-toolbar` lo pone el editor cuando el
- * puntero pasa por encima del texto seleccionado o de la propia barra, así que
- * solo se revela cuando el hover está activo de verdad. Se queda montada para
- * que siga siendo alcanzable con el puntero y con el Tab.
+ * La barra flotante de formato de Crepe se ve cuando Crepe dice que se ve, que
+ * es cuando hay texto seleccionado y el editor tiene el foco. No hay ninguna
+ * regla que la esconda.
+ *
+ * Antes la había: se tapaba con `opacity: 0` salvo que el puntero estuviera
+ * sobre el texto seleccionado, y eso la volvía inusable. Al seleccionar con el
+ * teclado el puntero no se mueve, la barra no salía nunca, y no había forma de
+ * poner negrita, cursiva o un título a lo seleccionado. Peor: la barra
+ * invisible seguía encima del texto, cogiendo los clics. Era una interfaz
+ * oculta, y una interfaz oculta no es una interfaz.
  */
-.editor :global(.milkdown-toolbar[data-show="true"]) {
-  opacity: 0;
-  transition: opacity var(--motion-standard) ease;
-}
-
-.editor[data-toolbar="on"] :global(.milkdown-toolbar[data-show="true"]),
-.editor :global(.milkdown-toolbar[data-show="true"]:focus-within) {
-  opacity: 1;
-}
 
 .editor :global(.toolbar-item:hover),
 .editor :global(.top-bar-item:hover),

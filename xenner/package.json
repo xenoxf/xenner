@@ -8,10 +8,15 @@
     "dev": "vite",
     "build": "pnpm check && vite build",
     "check": "pnpm test && pnpm typecheck",
-    "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test src/notes/model.test.ts src/skin/parse.test.ts src/skin/assets.test.ts src/workspace/tree.test.ts src/workspace/note.test.ts src/workspace/history.test.ts src/editor/assets.test.ts src/editor/text-color.test.ts src/editor/drawing.test.ts src/editor/whiteboard.test.ts src/services/appearance.test.ts src/skin/creator.test.ts src/skin/palette.test.ts src/skin/editor.test.ts",
+    "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test src/notes/model.test.ts src/skin/parse.test.ts src/skin/assets.test.ts src/workspace/tree.test.ts src/workspace/note.test.ts src/workspace/history.test.ts src/editor/assets.test.ts src/editor/text-color.test.ts src/editor/toolbar.test.ts src/editor/drawing.test.ts src/editor/whiteboard.test.ts src/services/appearance.test.ts src/skin/creator.test.ts src/skin/palette.test.ts src/skin/editor.test.ts",
     "typecheck": "tsc --noEmit",
     "serve": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "android:init": "tauri android init",
+    "android:dev": "tauri android dev",
+    "android:build": "tauri android build --debug",
+    "android:apk": "tauri android build --apk",
+    "android:release": "tauri android build --aab"
   },
   "license": "MIT",
   "dependencies": {

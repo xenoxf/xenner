@@ -75,10 +75,8 @@ interface MarkdownEditorProps {
 export function MarkdownEditor(props: MarkdownEditorProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
-  const [toolbarHover, setToolbarHover] = createSignal(false);
   let root: HTMLDivElement | undefined;
   let crepe: CrepeInstance | null = null;
-  let toolbarHideTimer: ReturnType<typeof setTimeout> | null = null;
   let textColorInput: HTMLInputElement | undefined;
   let textBackgroundInput: HTMLInputElement | undefined;
   let pendingTextSelection: { from: number; to: number } | null = null;
@@ -142,83 +140,22 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           update: (view) => {
             if (disposed) return;
             rememberTextCursor(view);
-            // Sin selección no hay barra que revelar: se suba de golpe en vez de
-            // esperar al temporizador, o aparecería sola al volver a seleccionar.
-            if (view.state.selection.empty && toolbarHover()) {
-              if (toolbarHideTimer) clearTimeout(toolbarHideTimer);
-              toolbarHideTimer = null;
-              setToolbarHover(false);
-            }
           },
         }),
       }),
   );
 
   // --- Barra flotante de formato -------------------------------------------
-  // Crepe la monta a 20 ms de seleccionar y la deja fija. Se oculta hasta que
-  // el puntero pasa por encima del TEXTO SELECCIONADO, que es donde la gente
-  // mira al terminar de seleccionar, y no sobre la propia barra, que es
-  // invisible y nadie sabe que hay ahí.
-  const TOOLBAR_LINGER_MS = 700;
-
-  function selectionRect(): DOMRect | null {
-    if (!crepe) return null;
-    const view = crepe.editor.ctx.get(editorViewCtx);
-    const { from, to } = view.state.selection;
-    if (from === to) return null;
-    try {
-      // Caja envolvente de los dos extremos: una selección de varias líneas no
-      // cabe en un solo rectángulo, pero su bounding box sí.
-      const start = view.coordsAtPos(from);
-      const end = view.coordsAtPos(to);
-      const left = Math.min(start.left, end.left);
-      const right = Math.max(start.right, end.right);
-      const top = Math.min(start.top, end.top);
-      const bottom = Math.max(start.bottom, end.bottom);
-      return new DOMRect(left, top - 6, Math.max(right - left, 8), bottom - top + 12);
-    } catch {
-      return null;
-    }
-  }
-
-  function isPointerOverToolbar(target: EventTarget | null): boolean {
-    return target instanceof Element && Boolean(target.closest(".milkdown-toolbar"));
-  }
-
-  function hideToolbarSoon(): void {
-    if (toolbarHideTimer) clearTimeout(toolbarHideTimer);
-    // Al salir hay un hueco entre el texto y la barra; sin este margen la barra
-    // desaparecería justo en mitad del trayecto y no se podría clicar en ella.
-    toolbarHideTimer = setTimeout(() => {
-      toolbarHideTimer = null;
-      setToolbarHover(false);
-    }, TOOLBAR_LINGER_MS);
-  }
-
-  function onEditorPointerMove(event: PointerEvent): void {
-    if (isPointerOverToolbar(event.target)) {
-      if (toolbarHideTimer) clearTimeout(toolbarHideTimer);
-      setToolbarHover(true);
-      return;
-    }
-    const rect = selectionRect();
-    const inside =
-      rect !== null &&
-      event.clientX >= rect.left &&
-      event.clientX <= rect.right &&
-      event.clientY >= rect.top &&
-      event.clientY <= rect.bottom;
-    if (inside) {
-      if (toolbarHideTimer) clearTimeout(toolbarHideTimer);
-      setToolbarHover(true);
-      return;
-    }
-    hideToolbarSoon();
-  }
-
-  function onEditorPointerLeave(): void {
-    hideToolbarSoon();
-  }
+  // Aquí ya no hay nada: la barra se ve cuando Crepe dice que se ve.
+  //
+  // Antes se tapaba con `opacity: 0` salvo que el puntero estuviera sobre el
+  // texto seleccionado, y eso la volvía inusable: al seleccionar con el
+  // teclado —Mayús flechas, doble clic, Ctrl+A— el puntero no se mueve, así
+  // que la barra no salía nunca y no había forma de poner negrita, cursiva o un
+  // título. Con el ratón era una lotería, y además la barra invisible seguía
+  // encima del texto cogiendo clics. Que se vea es lo que espera cualquiera
+  // que acaba de seleccionar texto; Crepe ya la coloca encima de la selección,
+  // que es justo donde no estorba.
 
   function captureTextSelection(): void {
     if (!crepe) return;
@@ -541,7 +478,6 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
 
   onCleanup(() => {
     disposed = true;
-    if (toolbarHideTimer) clearTimeout(toolbarHideTimer);
     props.onDispose?.();
     if (crepe) void crepe.destroy();
   });
@@ -552,9 +488,6 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         ref={(element) => (root = element)}
         class={styles.editor}
         data-x="editor-surface"
-        data-toolbar={toolbarHover() ? "on" : "off"}
-        onPointerMove={onEditorPointerMove}
-        onPointerLeave={onEditorPointerLeave}
       />
       <input
         ref={(element) => (textColorInput = element)}

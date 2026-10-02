@@ -96,10 +96,16 @@
 }
 
 .label {
+  /*
+   * Igual que en el explorer del escritorio: el nombre se parte en la línea que
+   * toque en vez de recortarse con puntos. En un teléfono, con el nombre de la
+   * carpeta arriba y el de la nota en la fila, recortarlo era la mitad de la
+   * información.
+   */
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .empty {

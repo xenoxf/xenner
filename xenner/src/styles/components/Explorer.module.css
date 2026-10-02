@@ -103,10 +103,20 @@
 }
 
 .name {
+  /*
+   * El nombre se parte en la línea que toque en vez de recortarse con puntos.
+   * Una lista de notas con los nombres cortados es una lista que no se puede
+   * leer, y con el panel estrecho ocurría con casi todos los nombres largos: para
+   * distinguirlos había que pasar el ratón y adivinar por el `title`.
+   *
+   * `anywhere` parte también las palabras que no tienen espacios —un archivo
+   * con el nombre pegado no es un caso raro— y `flex: 1` hace que ocupe el hueco
+   * que le queda en lugar de empujar a los botones de la fila.
+   */
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .actions {

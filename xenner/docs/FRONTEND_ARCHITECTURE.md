@@ -234,6 +234,12 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
 - El explorer usa drag-and-drop para mover entradas y un menú contextual para
   copiar Markdown, cortar/pegar, renombrar, crear, eliminar y abrir
   **Últimos cambios** de una nota.
+- Los nombres de la lista **se parten en varias líneas, no se recortan con
+  puntos**. Con el panel estrecho —que ahora se puede estrechar a pulso— la
+  mayoría de los nombres largos no cabían y la lista quedaba inútil: había que
+  pasar el ratón y adivinar por el `title`. Igual en la lista del móvil, que es
+  la misma lista. Lo que sí se recorta es la ruta de arriba del editor, que es
+  larga por naturaleza.
 - `workspace/history.ts` es el dominio puro del historial (coalescencia de
   guardados, límites y etiquetas relativas) y `services/noteHistory.ts` su
   persistencia en `localStorage`. `store.ts` registra una versión por guardado

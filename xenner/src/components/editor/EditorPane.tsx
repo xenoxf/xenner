@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 
 import {
   chooseAttachmentForEditor,
@@ -16,7 +16,7 @@ import {
 } from "../../services/editorSession";
 import styles from "../../styles/components/EditorPane.module.css";
 import type { DrawingTool } from "../../types/drawing";
-import type { EditorBlockType, MarkdownEditorHandle } from "../../types/editor";
+import type { MarkdownEditorHandle } from "../../types/editor";
 import type {
   NoteDocument,
   SaveStatus,
@@ -123,11 +123,16 @@ export function EditorPane(props: EditorPaneProps) {
     return task;
   }
 
-  function applyBlockType(type: EditorBlockType): void {
-    if (!editorHandle || !editorReady() || props.loading) return;
-    editorHandle.setBlockType(type);
-    editorHandle.focus();
-  }
+  // El borrador del título se guarda solo en `blur` y con Enter. En escritorio el
+  // componente nunca se desmonta, así que basta. En móvil no: al abrir otra nota
+  // se cambia el `Show` que envuelve a `EditorPane`, se desmonta el input, y
+  // quitar del DOM un elemento con el foco **no** dispara `blur`. El título
+  // escrito se perdía sin más, y en móvil el título es el nombre del fichero.
+  onCleanup(() => {
+    if (!titleFocused()) return;
+    setTitleFocused(false);
+    void commitTitle();
+  });
 
   async function chooseImage(): Promise<void> {
     const document = props.document;
@@ -227,18 +232,16 @@ export function EditorPane(props: EditorPaneProps) {
     }
   }
 
-  function imageFileFromDataTransfer(data: DataTransfer | null): File | null {
-    const file = [...(data?.files ?? [])].find((candidate) => candidate.type.startsWith("image/"));
-    return file ?? null;
-  }
-
   /**
-   * Arrastrar o pegar un archivo cualquiera lo adjunta; si es una imagen, se
+ * Arrastrar o pegar un archivo cualquiera lo adjunta; si es una imagen, se
    * inserta como imagen, que es lo que se espera al soltar una foto en una nota.
+   *
+   * Se prefiere la imagen cuando viene acompañado de otra cosa: soltar un
+   * `.png` y un `.zip` a la vez debe poner la foto en la nota, no un ZIP.
    */
   function droppedFile(data: DataTransfer | null): File | null {
     const files = [...(data?.files ?? [])];
-    return files.find((candidate) => candidate.type.startsWith("image/")) ?? files[0] ?? null;
+    return files.find(isImageFile) ?? files[0] ?? null;
   }
 
   function isImageFile(file: File): boolean {
@@ -250,11 +253,14 @@ export function EditorPane(props: EditorPaneProps) {
     else void insertAttachment(file);
   }
 
-  function handleImageDrop(event: DragEvent): void {
+  function handleFileDrop(event: DragEvent): void {
     const file = droppedFile(event.dataTransfer);
     if (!file) return;
-    event.preventDefault();
+    // Antes del `preventDefault` hay que comprobar el modo: con la pizarra
+    // abierta el lienzo captura el gesto y este contenedor no debe llevarse el
+    // archivo por delante.
     if (getEditorMode() === "whiteboard") return;
+    event.preventDefault();
     sendFile(file);
   }
 
@@ -301,9 +307,13 @@ export function EditorPane(props: EditorPaneProps) {
                 class={styles.workspace}
                 data-x="note-workspace"
                 onDragOver={(event) => {
-                  if (imageFileFromDataTransfer(event.dataTransfer)) event.preventDefault();
+                  // Cualquier archivo, no solo las imágenes. Antes el
+                  // `preventDefault` era solo para imágenes mientras el `drop`
+                  // aceptaba todas: arrastrar un PDF no cancelaba el gesto, así
+                  // que el WebView lo abría por su cuenta en vez de adjuntarlo.
+                  if (droppedFile(event.dataTransfer)) event.preventDefault();
                 }}
-                onDrop={handleImageDrop}
+                onDrop={handleFileDrop}
                 onPaste={handlePaste}
               >
                 <div
@@ -416,7 +426,6 @@ export function EditorPane(props: EditorPaneProps) {
                     whiteboardBusy={whiteboardBusy()}
                     attachmentBusy={attachmentBusy()}
                     status={statusLabel(props.status)}
-                    onApplyBlock={applyBlockType}
                     onChooseImage={() => void chooseImage()}
                     onChooseAttachment={() => void chooseAttachment()}
                     onInsertWhiteboard={(tool) => void insertWhiteboard(tool)}

@@ -163,6 +163,38 @@ mod tests {
     }
 
     #[test]
+    fn el_por_defecto_del_tema_no_viaja_en_el_binario() {
+        // `skins/config.txt` es el `skinPath` por defecto, no una skin. Si se
+        // copiara, su mtime sería el del momento de instalar, y
+        // `read_config_blocking` da el archivo modificado más tarde entre ese y
+        // `skin-config.txt`: la elección de la persona perdería en silencio.
+        assert!(
+            !EMBEDDED.iter().any(|(ruta, _)| *ruta == "config.txt"),
+            "config.txt no debe embeberse: es la preferencia, no un tema"
+        );
+    }
+
+    #[test]
+    fn instalar_no_toca_el_por_defecto_del_tema() {
+        // El caso completo, sin levantar la app: una preferencia escrita antes
+        // tiene que seguir mandando después de instalar las skins.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let destino = dir.path().join(DIRECTORY);
+        install_into(&destino).expect("instalar");
+
+        assert!(
+            !destino.join("config.txt").exists(),
+            "la copia no puede traer config.txt"
+        );
+        assert!(
+            EMBEDDED
+                .iter()
+                .all(|(ruta, _)| !ruta.starts_with("config.txt")),
+            "ni con una subcarpeta por delante"
+        );
+    }
+
+    #[test]
     fn las_skins_del_repo_llegan_dentro_del_binario() {
         // Si `build.rs` no encuentra la carpeta, la lista sale vacía y la app
         // se queda sin temas sin decir nada. Esto es lo primero que lo delata.

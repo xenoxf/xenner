@@ -2,6 +2,9 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// La preferencia de tema por defecto. No se embebe: ver `recorrer`.
+const CONFIG_FILE: &str = "config.txt";
+
 fn main() {
     // Primero las skins del repo, para que el crate tenga su `include!` listo
     // cuando empiece a compilar. Lo de Tauri va detrás, igual que estaba.
@@ -21,6 +24,14 @@ fn main() {
             "read_note",
             "import_asset",
             "choose_image_asset",
+            // Adjuntar necesita su propio permiso. Sin él, registrar el comando
+            // en `lib.rs` no basta: Tauri deniega el `invoke` de todo lo que no
+            // esté en la capability, y `allow-import-attachment` no existiría ni
+            // siquiera como permiso generado. El síntoma era silencioso —un
+            // "not allowed" que solo salía al adjuntar— porque los tests de Rust
+            // llaman a las funciones blocking y se saltan esta capa entera.
+            "import_attachment",
+            "choose_attachment",
             "read_asset",
             "update_asset",
             "delete_asset",
@@ -116,6 +127,15 @@ fn recorrer(
         }
 
         match ruta_relativa(raiz, &ruta) {
+            // `skins/config.txt` no es una skin: es el valor por defecto de
+            // `skinPath`, y la elección de la persona vive en `skin-config.txt`.
+            //
+            // Si se copiara, su mtime sería el de ahora, y `read_config_blocking`
+            // gana el archivo **modificado más tarde** entre los dos: el valor
+            // por defecto le ganaría a la preferencia y el tema elegido se
+            // perdería en silencio en cuanto cambiara el contenido de
+            // `config.txt`. No es una skin, así que no entra en el binario.
+            Some(relativa) if relativa == CONFIG_FILE => continue,
             Some(relativa) => {
                 salida.insert(relativa, ruta);
             }

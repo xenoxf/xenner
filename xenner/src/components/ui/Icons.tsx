@@ -343,3 +343,20 @@ export function FilesIcon(props: IconProps) {
     </svg>
   );
 }
+
+/**
+ * Un portapapeles con algo dentro: el icono de «pegar aquí».
+ *
+ * Distinto de `CopyIcon` a propósito. Copiar y pegar no son el mismo gesto, y en
+ * la lista del móvil el pegado va en una fila que ya es una nota: si compartiera
+ * dibujo con «copiar Markdown» no se sabría cuál de los dos es cuál.
+ */
+export function ClipboardIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M9 4h6v3H9z" />
+      <path d="M15 5.5h2.5a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1H9" />
+      <path d="M9 12h6M9 16h4" />
+    </svg>
+  );
+}

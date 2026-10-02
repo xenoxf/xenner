@@ -123,6 +123,12 @@ export function MobileShell(props: MobileShellProps) {
   /** Guardando las carpetas de antes de empezar a crear una, para ver la nueva. */
   let foldersBefore: ReadonlySet<string> = new Set<string>();
   const [awaitingFolder, setAwaitingFolder] = createSignal(false);
+  /**
+   * Se ha pedido una nota nueva y aún no existe su documento. El editor no se
+   * abre hasta que llegue: si se abriera antes, se vería la nota anterior con el
+   * foco en su título, y escribir un nombre renombraría el fichero viejo.
+   */
+  const [startingNote, setStartingNote] = createSignal(false);
   let editorInHistory = false;
   /** Pide el foco del editor en cuanto la nota nueva esté cargada. */
   let focusWhenReady = false;
@@ -192,22 +198,32 @@ export function MobileShell(props: MobileShellProps) {
 
   /**
    * Al crear una carpeta no hay forma de saber su ruta antes de crearla, así que
-   * se guarda el censo de carpetas de antes y se espera a que aparezca una nueva:
-   * esa es la carpeta creada, y queda seleccionada.
+   * se guarda el censo de carpetas de antes y se espera a que aparezca una nueva.
+   *
+   * Solo se mira el diff **mientras se está creando**. El watcher de la biblioteca
+   * sondea cada 2,5 segundos y puede traer una carpeta que no es de esta creación
+   * —una sincronizada desde otro sitio, otra máquina— y se seleccionaba esa en vez
+   * de la recién creada. Con la lista congelada no hay carrera, porque la carpeta
+   * propia tampoco estará aún.
    */
   createEffect(() => {
     if (!awaitingFolder()) return;
+    const creating = props.creating;
+    const draft = props.creation;
     const paths = folders().map((item) => item.path);
-    void props.creating;
-    void props.creation;
-    const created = paths.find((path) => !foldersBefore.has(path));
-    if (created) {
-      setFolder(created);
-      setAwaitingFolder(false);
+    if (creating || draft) {
+      const created = paths.find((path) => !foldersBefore.has(path));
+      if (created) {
+        setFolder(created);
+        setAwaitingFolder(false);
+      }
       return;
     }
-    // La creación terminó sin crear nada (se canceló o falló): no hay nada que elegir.
-    if (!props.creating && props.creation === null) setAwaitingFolder(false);
+    // Se acabó la creación sin carpeta nueva. Solo se desarma si ya no queda
+    // borrador: el controlador no limpia el suyo cuando la creación falla, así que
+    // quedarse esperando aquí dejaría el filtro de la lista apuntando a lo que
+    // apareciera después, y el botón flotante crearía las notas en esa carpeta.
+    setAwaitingFolder(false);
   });
 
   function pushEditorHistory(): void {
@@ -234,16 +250,42 @@ export function MobileShell(props: MobileShellProps) {
     void props.onSelect(path);
   }
 
-  /** Crea una nota en la carpeta seleccionada, o en la raíz si no hay ninguna. */
+  /**
+   * Crea una nota en la carpeta seleccionada, o en la raíz si no hay ninguna.
+   *
+   * La pantalla no cambia de golpe: primero avisa que hay algo en marcha y solo
+   * cuando llega el documento nuevo se entra al editor. Con un `setEditing(true)`
+   * antes de tiempo, el editor se abría con la nota **anterior** puesta y el foco
+   * en su título: escribir un nombre y dar a Enter renombraba el fichero viejo, que
+   * desaparecía del árbol. Y como `createUntitledNote` aborta si ya hay una
+   * creación en curso, la pulsación se perdía entera.
+   */
   function createNote(): void {
-    setEditing(true);
-    // `startCreation("note")` no pide escribir nada: crea la nota y la deja
-    // seleccionada, así que lo que hay que hacer es abrirla y poner el foco
-    // dentro cuando el documento llegue.
-    focusWhenReady = true;
-    pushEditorHistory();
+    if (props.creating) return;
+    setStartingNote(true);
     props.onStartCreation("note", folder() ?? "");
   }
+
+  /**
+   * Cuando la nota recién creada ya está cargada, se entra a escribir.
+   *
+   * Es el momento en que `selectedPath` y `document` apuntan a la misma nota
+   * nueva, y en el que el campo de título ya está montado para recibir el foco.
+   */
+  createEffect(() => {
+    const path = props.selectedPath;
+    const current = props.document;
+    if (!startingNote()) return;
+    if (path && current?.path === path) {
+      setStartingNote(false);
+      focusWhenReady = true;
+      setEditing(true);
+      pushEditorHistory();
+    }
+    // Si la creación se cancela o falla, el editor se queda esperando y no hay
+    // nota nueva que abrir.
+    if (!props.creating && props.creation === null && !path) setStartingNote(false);
+  });
 
   /**
    * Pasa el foco al editor de la nota recién creada.
@@ -263,6 +305,22 @@ export function MobileShell(props: MobileShellProps) {
     });
   });
 
+  /**
+   * Si la carpeta por la que se está filtrando deja de existir —borrada o
+   * renombrada desde otro sitio—, el filtro se suelta. Sin esto la lista se
+   * quedaba vacía con «Esta carpeta está vacía» y los chips ya no la ofrecen, así
+   * que no había forma de quitarlo sin tocar otro.
+   */
+  createEffect(() => {
+    const actual = folder();
+    if (!actual) return;
+    const existe = props.tree.some((node) => node.path === actual);
+    const dentroHija = flattenTree(props.tree)
+      .filter((node) => node.kind === "directory")
+      .some((node) => node.path === actual);
+    if (!existe && !dentroHija) setFolder(null);
+  });
+
   function createFolder(): void {
     if (props.creating) return;
     props.onStartCreation("folder", folder() ?? "");
@@ -276,11 +334,31 @@ export function MobileShell(props: MobileShellProps) {
 
   function toggleFolder(path: string): void {
     setFolder((current) => (current === path ? null : path));
+    // Cambiar de carpeta con una fila de creación abierta la descuadra: el padre
+    // ya está fijo en el borrador del controlador, y se crearía en la carpeta
+    // anterior mientras la lista enseña la nueva. Se cierra para que coincidan.
+    if (props.creation) props.onCancelCreation();
   }
 
   onMount(() => {
     if (typeof window === "undefined") return;
-    const onPopState = (): void => {
+    /**
+     * El botón atrás del WebView llega como `popstate`, y `history.back()` es
+     * asíncrono. Si la persona cierra con la flecha y toca otra nota antes de que
+     * llegue el `popstate` de la vuelta anterior, esa vuelta pendiente cerraba la
+     * nota que acababa de abrir.
+     *
+     * Se distingue por `event.state`: la entrada del editor lleva la marca, así
+     * que un `popstate` que llega **con** ella significa que aún estamos en el
+     * editor (se está abriendo), no que haya que salir de él.
+     */
+    const onPopState = (event: PopStateEvent): void => {
+      const estado = event.state as Record<string, unknown> | null;
+      if (estado && estado[EDITOR_HISTORY_STATE] === true) {
+        // Seguimos en el editor: la entrada es la de abrirlo.
+        editorInHistory = true;
+        return;
+      }
       editorInHistory = false;
       setEditing(false);
     };
@@ -369,6 +447,8 @@ export function MobileShell(props: MobileShellProps) {
             data-x-mobile="fab"
             aria-label="Nueva nota"
             title="Nueva nota"
+            disabled={props.creating || startingNote()}
+            aria-busy={startingNote()}
             onClick={createNote}
           >
             <PlusIcon />

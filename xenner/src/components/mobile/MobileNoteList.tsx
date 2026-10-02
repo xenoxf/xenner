@@ -1,6 +1,7 @@
 import { createSignal, For, Show } from "solid-js";
 
 import { noteTitleFromPath } from "../../workspace/note";
+import { parentPath } from "../../workspace/tree";
 import styles from "../../styles/components/MobileNoteList.module.css";
 import {
   ExplorerContextMenu,
@@ -8,7 +9,7 @@ import {
 } from "../explorer/ExplorerContextMenu";
 import { CreationRow, type CreationKind } from "../explorer/CreationRow";
 import type { CreationDraft } from "../explorer/Explorer";
-import { DotsIcon, NoteIcon } from "../ui/Icons";
+import { ClipboardIcon, DotsIcon, NoteIcon } from "../ui/Icons";
 import { IconButton } from "../ui/IconButton";
 
 export interface MobileNoteEntry {
@@ -108,6 +109,11 @@ export function MobileNoteList(props: MobileNoteListProps) {
             {(note) => {
               const title = () => noteTitleFromPath(note.path);
               const selected = () => props.selectedPath === note.path;
+              // Con algo en la tijera, la lista ofrece pegarlo junto a la nota.
+              // Sin esto «Cortar para mover» es un callejón sin salida: el menú de
+              // una nota no trae «Pegar» —el de `ExplorerContextMenu` solo lo
+              // ofrece en carpetas— y en un WebView no hay `Ctrl+V`.
+              const canPasteHere = () => props.canPaste && parentPath(note.path) !== undefined;
               return (
                 <li
                   class={`${styles.row} ${selected() ? styles.rowActive : ""}`}
@@ -127,6 +133,16 @@ export function MobileNoteList(props: MobileNoteListProps) {
                     </span>
                     <span class={styles.label}>{title()}</span>
                   </button>
+                  <Show when={canPasteHere()}>
+                    <IconButton
+                      size="small"
+                      aria-label={`Pegar en la carpeta de ${title()}`}
+                      title="Pegar aquí"
+                      onClick={() => props.onPaste(parentPath(note.path))}
+                    >
+                      <ClipboardIcon />
+                    </IconButton>
+                  </Show>
                   <IconButton
                     size="small"
                     aria-label={`Acciones de ${title()}`}

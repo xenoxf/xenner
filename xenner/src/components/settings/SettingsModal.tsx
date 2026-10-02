@@ -11,6 +11,7 @@ import { FontSelect } from "./FontSelect";
 import { IconButton } from "../ui/IconButton";
 import { ModalBackdrop } from "../ui/ModalBackdrop";
 import { SkinCreator } from "./SkinCreator";
+import { exportSkin } from "../../services/skinExport";
 
 export interface SettingsModalProps {
   skins: SkinInfo[];
@@ -102,6 +103,16 @@ export function SettingsModal(props: SettingsModalProps) {
 
   const canReset = (): boolean =>
     section() === "appearance" && !isDefaultAppearance(props.appearance);
+
+  const [avisoExport, setAvisoExport] = createSignal<string | null>(null);
+  async function compartirSkin(id: string): Promise<void> {
+    try {
+      const destino = await exportSkin(id);
+      if (destino) setAvisoExport(`Tema guardado en: ${destino}`);
+    } catch (cause) {
+      setAvisoExport(cause instanceof Error ? cause.message : "No se pudo exportar");
+    }
+  }
 
   // Con un tema abierto, «restablecer» no puede ser «volver a los valores de
   // fábrica» sin más: sería mentir, porque no es el tema de fábrica. Se dice lo
@@ -301,6 +312,9 @@ export function SettingsModal(props: SettingsModalProps) {
                     al momento.
                   </p>
                   <ul class={styles.skinList}>
+                    <Show when={avisoExport()}>
+                      <p class={styles.footnote} role="status">{avisoExport()}</p>
+                    </Show>
                     <li>
                       <button
                         type="button"
@@ -351,6 +365,13 @@ export function SettingsModal(props: SettingsModalProps) {
                             que la tarjeta deja de funcionar al pulsarla.
                           */}
                           <Show when={skin.origin === "user"}>
+                            <button
+                              type="button"
+                              class={styles.skinEdit}
+                              onClick={() => void compartirSkin(skin.id)}
+                            >
+                              Exportar
+                            </button>
                             <button
                               type="button"
                               class={styles.skinEdit}

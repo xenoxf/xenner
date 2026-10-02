@@ -22,6 +22,7 @@ import {
   type ParsedSkinComponent,
 } from "../../skin/parse";
 import { assetName, chooseSkinAsset, humanBytes } from "../../services/skinAssets";
+import { exportSkin } from "../../services/skinExport";
 import styles from "../../styles/components/SkinCreator.module.css";
 import type { SkinDraft, SkinEditor, SkinInfo } from "../../types/skin";
 import { Button } from "../ui/Button";
@@ -145,6 +146,42 @@ export function SkinCreator(props: SkinCreatorProps) {
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo elegir el archivo");
+    }
+  }
+
+  async function elegirFondo(): Promise<void> {
+    setError(null);
+    try {
+      const tomadas = editor().assets.map((asset) => asset.path.split("/").pop() ?? "");
+      const elegido = await chooseSkinAsset(tomadas);
+      if (!elegido) return;
+      actualizar((previo) =>
+        setValue(
+          { ...previo, assets: [...previo.assets, elegido] },
+          "background",
+          "overlay",
+          `url("${elegido.path}")`,
+        ),
+      );
+      setAviso(`Fondo puesto: ${elegido.name}.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo elegir el archivo");
+    }
+  }
+
+  function quitarFondo(): void {
+    actualizar((previo) => setValue(previo, "background", "overlay", "none"));
+  }
+
+  async function exportar(): Promise<void> {
+    const id = props.editing?.id;
+    if (!id) return;
+    setError(null);
+    try {
+      const destino = await exportSkin(id);
+      if (destino) setAviso(`Tema exportado en: ${destino}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo exportar el tema");
     }
   }
 
@@ -285,6 +322,8 @@ export function SkinCreator(props: SkinCreatorProps) {
           onChange={(draft) =>
             actualizar((previo) => draftToEditor({ ...draft, name: previo.name }, previo))
           }
+          onElegirFondo={() => void elegirFondo()}
+          onQuitarFondo={quitarFondo}
         />
       </div>
 
@@ -436,6 +475,11 @@ export function SkinCreator(props: SkinCreatorProps) {
         <Button type="submit" variant="primary" disabled={busy() || cargando()}>
           {busy() ? "Guardando…" : props.editing ? "Guardar los cambios" : "Guardar tema"}
         </Button>
+        <Show when={props.editing}>
+          <Button type="button" onClick={() => void exportar()}>
+            Exportar tema
+          </Button>
+        </Show>
       </div>
     </form>
   );

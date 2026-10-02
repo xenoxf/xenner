@@ -3,12 +3,12 @@ import { createSignal, For, Show } from "solid-js";
 import {
   DEFAULT_SKIN_DRAFT,
   SKIN_COLOR_FIELDS,
-  SKIN_PALETTES,
   SKIN_PRESETS,
   SKIN_SHADOW_OPTIONS,
 } from "../../data/skin";
 import { DEFAULT_FONT_VALUE } from "../../data/skin";
 import { editorToDraft } from "../../skin/creator";
+import { paletaDesdeColor } from "../../skin/palette";
 import styles from "../../styles/components/SkinCreator.module.css";
 import type { SkinDraft, SkinEditor } from "../../types/skin";
 import { FontSelect } from "./FontSelect";
@@ -17,6 +17,10 @@ export interface QuickPaletteProps {
   /** El editor del que se leen los valores que hay ahora. */
   value: SkinEditor;
   onChange(draft: SkinDraft): void;
+  /** El botón «Elige tu fondo»: la persona elige una imagen de su disco. */
+  onElegirFondo?: () => void;
+  /** El botón «Quitar el fondo». */
+  onQuitarFondo?: () => void;
 }
 
 /**
@@ -39,10 +43,15 @@ export function QuickPalette(props: QuickPaletteProps) {
   }
 
   function setModo(modo: SkinDraft["mode"]): void {
-    // Cambiar de claro a oscuro trae la paleta del otro modo. Es lo que espera
-    // quien pulsa «Oscuro»: un tema oscuro de verdad, no el mismo con el fondo
-    // más oscuro.
-    props.onChange({ ...draft(), mode: modo, ...SKIN_PALETTES[modo] });
+    // Cambiar de claro a oscuro se lleva tu color principal, no lo sustituye:
+    // quien pulsa «Oscuro» espera ver SU tema en oscuro, no el de fábrica.
+    const accent = draft().accent;
+    props.onChange({ ...draft(), mode: modo, ...paletaDesdeColor(modo, accent) });
+  }
+
+  function setPrincipal(color: string): void {
+    const modo = draft().mode;
+    props.onChange({ ...draft(), ...paletaDesdeColor(modo, color) });
   }
 
   function aplicarPreset(preset: (typeof SKIN_PRESETS)[number]): void {
@@ -107,6 +116,19 @@ export function QuickPalette(props: QuickPaletteProps) {
           </div>
         </div>
         <div class={styles.colorGrid}>
+          <label class={styles.colorField} for="skin-principal">
+            <span>Color principal</span>
+            <span class={styles.colorControl}>
+              <input
+                id="skin-principal"
+                class={styles.colorInput}
+                type="color"
+                value={paraSelector(draft().accent, "accent")}
+                onInput={(evento) => setPrincipal(evento.currentTarget.value)}
+              />
+              <output>{draft().accent}</output>
+            </span>
+          </label>
           <For each={SKIN_COLOR_FIELDS}>
             {(campo) => (
               <label class={styles.colorField} for={`skin-${campo.key}`}>
@@ -126,10 +148,33 @@ export function QuickPalette(props: QuickPaletteProps) {
           </For>
         </div>
         <p class={styles.quickNote}>
-          Con esto se cambia el aspecto entero de un tirón. Para poner una imagen de
-          fondo, un degradado o cambiar una parte solo, ve a <strong>Cada parte</strong>.
+          «Color principal» rellena los nueve de golpe. Cada uno se puede
+          afinar a mano debajo, y para una imagen de fondo o un degradado usa
+          «Cada parte».
         </p>
       </section>
+
+      <Show when={props.onElegirFondo}>
+        <section class={styles.creatorBlock}>
+          <div class={styles.blockHeader}>
+            <strong>Fondo</strong>
+          </div>
+          <div class={styles.controlsGrid}>
+            <button type="button" class={styles.resetButton} onClick={() => props.onElegirFondo?.()}>
+              Elegir una imagen…
+            </button>
+            <Show when={props.onQuitarFondo}>
+              <button type="button" class={styles.resetButton} onClick={() => props.onQuitarFondo?.()}>
+                Quitar la imagen
+              </button>
+            </Show>
+          </div>
+          <p class={styles.quickNote}>
+            La imagen se guarda dentro del tema: puedes moverlo o pasarlo a otro
+            equipo y sigue funcionando.
+          </p>
+        </section>
+      </Show>
 
       <section class={styles.creatorBlock}>
         <div class={styles.blockHeader}>

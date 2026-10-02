@@ -39,6 +39,7 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
+use tauri_plugin_dialog::DialogExt;
 
 use crate::config;
 
@@ -1082,6 +1083,63 @@ pub async fn create_skin(app: AppHandle, request: CreateSkinRequest) -> Result<S
     tauri::async_runtime::spawn_blocking(move || create_skin_blocking(&app, request))
         .await
         .map_err(|_| "no se pudo crear la skin".to_string())?
+}
+
+/// Copia entera y real, para exportar: a diferencia de `copy_tree_if_absent`,
+/// aquí se copia todo a una carpeta nueva que no puede existir ya.
+fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
+    let metadata = fs::symlink_metadata(from)?;
+    if metadata.is_dir() && !metadata.file_type().is_symlink() {
+        fs::create_dir_all(to)?;
+        for entry in fs::read_dir(from)? {
+            let entry = entry?;
+            copy_tree(&entry.path(), &to.join(entry.file_name()))?;
+        }
+        Ok(())
+    } else if metadata.is_file() && !metadata.file_type().is_symlink() {
+        fs::copy(from, to).map(|_| ())
+    } else {
+        Ok(())
+    }
+}
+
+/// Exporta un tema a la carpeta que elija la persona, listo para compartir o
+/// guardar. Devuelve la ruta del destino, o `None` si canceló el diálogo.
+#[tauri::command]
+pub async fn export_skin(app: AppHandle, skin: String) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if !valid_skin_id(&skin) {
+            return Err("identificador de tema inválido".into());
+        }
+
+        let origen = [user_skins_dir(&app), system_skins_dir(&app)]
+            .into_iter()
+            .flatten()
+            .map(|dir| dir.join(&skin))
+            .find(|dir| is_plain_directory(dir))
+            .ok_or("no se encontró el tema")?;
+
+        let elegida = app
+            .dialog()
+            .file()
+            .set_title("¿Dónde guardas el tema?")
+            .blocking_pick_folder();
+        let Some(carpeta) = elegida else {
+            return Ok(None);
+        };
+        let base: PathBuf = carpeta
+            .into_path()
+            .map_err(|error| format!("no se pudo leer la carpeta: {error}"))?;
+
+        let destino = base.join(&skin);
+        if fs::symlink_metadata(&destino).is_ok() {
+            return Err(format!("ya hay una carpeta llamada «{skin}» ahí"));
+        }
+        copy_tree(&origen, &destino).map_err(|error| format!("no se pudo copiar: {error}"))?;
+        Ok(Some(destino.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(|_| "no se pudo exportar el tema".to_string())?
 }
 
 #[cfg(test)]

@@ -76,7 +76,7 @@ const TEXT_BACKGROUND_TOOLBAR_ICON = `
  * real: si el menú fuera más ancho de lo que el cálculo asume, se saldría por el
  * borde de la nota.
  */
-const BLOCK_MENU_WIDTH = 196;
+const BLOCK_MENU_WIDTH = 164;
 
 interface BlockMenuPlacement {
   left: number;
@@ -350,6 +350,23 @@ function insertAttachmentLink(relativePath: string, label: string): void {
 }
 
 /**
+ * Pulsa en el menú sin robarle el foco al editor.
+ *
+ * El panel vive dentro de la raíz del editor pero **fuera** del `contenteditable`.
+ * Sin esto, al pulsar un tipo el foco se iba al botón, el editor se quedaba sin
+ * selección y quien estaba escribiendo veía desaparecer el texto que acababa de
+ * seleccionar justo antes de elegir el tipo. Es el mismo truco que usa el dock
+ * con su `onMouseDown`, y por el mismo motivo: el editor nunca tiene que perder
+ * el foco para que un botón suyo funcione.
+ *
+ * `preventDefault` en `pointerdown` no se come el `click`, así que el comando
+ * sigue llegando.
+ */
+function keepEditorFocus(event: PointerEvent): void {
+  event.preventDefault();
+}
+
+/**
  * Abre o cierra el menú de tipos de texto, el que cuelga del `+` de la barra.
  *
  * Se ancla **debajo de la barra flotante**, no encima de la selección: encima
@@ -376,6 +393,14 @@ function toggleBlockMenu(): void {
   );
   const view = crepe.editor.ctx.get(editorViewCtx);
   const { selection } = view.state;
+  // La selección se guarda al abrir, no al cerrar: desde aquí hasta el clic hay
+  // un `preventDefault` que la deja intacta, pero guardarla cuesta una línea y
+  // quita la dependencia de que siga viva cuando alguien llegue a esta pantalla
+  // por el teclado.
+  selectionOnBlur =
+    selection instanceof TextSelection && !selection.empty
+      ? { from: selection.from, to: selection.to }
+      : null;
   const active = blockTypesInSelection(
     view.state.doc,
     selection.from,
@@ -784,7 +809,6 @@ function captureTextSelection(): void {
                 }
               }}
             >
-              <p class={styles.blockMenuTitle}>Tipo de texto</p>
               <div class={styles.blockMenuList} role="menu" aria-label="Tipos de texto">
                 <For each={EDITOR_BLOCKS}>
                   {(item) => (
@@ -793,6 +817,7 @@ function captureTextSelection(): void {
                       role="menuitemradio"
                       aria-checked={activeBlock() === item.id}
                       class={`${styles.blockMenuItem} ${activeBlock() === item.id ? styles.blockMenuItemActive : ""}`}
+                      onPointerDown={keepEditorFocus}
                       onClick={() => {
                         closeBlockMenu();
                         applyBlockType(item.id);

@@ -199,16 +199,32 @@ convierten en clases globales de aplicación.
     línea. La primera versión del arreglo metió los siete botones en la barra y
     fue peor: dejó de caber sobre el texto y se partió en dos filas, tapando
     justo lo que se había seleccionado. El `+` abre `styles/components/
-    MarkdownEditor.module.css` → `.blockMenu`, un panel de 196 px con los siete
-    tipos que se ancla **debajo** de la barra flotante —encima está la propia
-    barra— y que se recorta contra el borde de la nota con `BLOCK_MENU_WIDTH`, la
-    misma medida que el CSS, porque los dos tienen que decir lo mismo o el panel
-    se sale por la derecha. Los siete salen de `EDITOR_BLOCKS`, la misma lista que
-    usa el dock. Qué botón va marcado lo dice `editor/block-type.ts`
-    (`blockTypeAt`, `blockTypesInSelection`), que mira los ancestros del bloque y
-    no solo su padre inmediato: el padre de un texto citado es un `paragraph`, y
-    el de un elemento de lista un `list_item`. Con una selección de tipos
-    mezclados no se marca ninguno, porque no hay un único tipo que poner.
+    MarkdownEditor.module.css` → `.blockMenu`, un panel **de 164 px y sin
+    encabezados** que se ancla **debajo** de la barra flotante —encima está la
+    propia barra— y que se recorta contra el borde de la nota con
+    `BLOCK_MENU_WIDTH`, la misma medida que el CSS, porque los dos tienen que
+    decir lo mismo o el panel se sale por la derecha. Los siete salen de
+    `EDITOR_BLOCKS`, la misma lista que usa el dock. Qué botón va marcado lo dice
+    `editor/block-type.ts` (`blockTypeAt`, `blockTypesInSelection`), que mira los
+    ancestros del bloque y no solo su padre inmediato: el padre de un texto
+    citado es un `paragraph`, y el de un elemento de lista un `list_item`. Con
+    una selección de tipos mezclados no se marca ninguno, porque no hay un único
+    tipo que poner.
+- **El menú de tipos no puede robarle el foco al editor.** Vive dentro de la raíz
+    del editor pero fuera del `contenteditable`, así que sin `keepEditorFocus()`
+    en el `pointerdown` de sus filas, pulsar un tipo movía el foco al botón, el
+    editor se quedaba sin selección y quien escribía veía desaparecer el texto
+    que acababa de seleccionar. Es el mismo truco que el dock lleva usando con su
+    `onMouseDown`, y por el mismo motivo. Además `toggleBlockMenu()` guarda la
+    selección **al abrir**, no solo al perder el foco, para que el comando no
+    dependa de que siga viva por el camino. `src/editor/toolbar.test.ts` vigila las
+    dos cosas.
+- Los menús de bloques son **listas cortas y planas**, sin buscador y sin
+    encabezados de grupo: diez entradas de dos palabras se leen de un vistazo, y
+    un filtro solo hace falta cuando hay muchas. El recorrido con teclado
+    —flechas, Inicio, Fin, Escape— se conserva, que es como se usa sin ratón. Por
+    eso `EDITOR_BLOCKS` ya no lleva `keywords`: si algún día hace falta filtrar,
+    el filtro vuelve ahí como dato y no como un `input` metido en el menú.
   - Los dos botones de color no pueden usar el comando de Crepe porque abren el
     diálogo de color del sistema, que roba el foco y con él la selección: por eso
     `captureTextSelection()` la guarda antes y `applyTextStyleValue()` la vuelve a

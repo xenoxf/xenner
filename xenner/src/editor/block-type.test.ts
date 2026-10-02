@@ -172,14 +172,12 @@ test("un elemento dentro de una lista no cuenta también como texto suelto", () 
   assert.deepEqual([...types], ["bullet"]);
 });
 
-test("cada botón del dock tiene icono, etiqueta y una forma de buscarlo", () => {
-  // El dock y la barra flotante comparten esta lista. Un botón sin icono se ve
-  // como un hueco, y uno sin `keywords` es imposible de encontrar en el buscador
-  // del menú, que es como se llega al tipo de bloque sin ratón.
+test("cada tipo de bloque tiene icono y nombre", () => {
+  // El dock y el menú de la barra comparten esta lista. Un botón sin icono se ve
+  // como un hueco, y uno sin nombre no se puede elegir.
   for (const item of EDITOR_BLOCKS) {
     assert.ok(item.icon.includes("<svg"), `${item.label} se queda sin icono`);
     assert.ok(item.label.trim().length > 0, "un bloque sin nombre no se puede elegir");
-    assert.ok(item.keywords.trim().length > 0, `${item.label} no se puede buscar`);
   }
   assert.deepEqual(
     EDITOR_BLOCKS.map((item) => item.id),

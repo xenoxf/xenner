@@ -235,56 +235,49 @@
  *
  * Se ancla debajo de la barra, no encima de la selección: ahí está la propia
  * barra, y dos superficies superpuestas sobre el texto es justo lo que la barra
- * flotante dejó de hacer cuando dejó de partirse en dos filas. El ancho es el
- * de `BLOCK_MENU_WIDTH` en el componente, que es quien lo recorta contra el
- * borde de la nota: si los dos no dicen lo mismo, el menú se sale.
+ * flotante dejó de hacer cuando dejó de partirse en dos filas.
+ *
+ * Es deliberadamente pequeño y sin encabezados: siete opciones de una palabra
+ * cada una no necesitan un título encima ni separadores entre grupos. Solo los
+ * números importan aquí —`BLOCK_MENU_WIDTH` en el componente, que es quien
+ * recorta el menú contra el borde de la nota— porque el CSS y el cálculo tienen
+ * que decir lo mismo.
  */
 .blockMenu {
   position: absolute;
   z-index: 30;
   display: flex;
-  width: 196px;
+  width: 164px;
   max-width: calc(100% - 16px);
   flex-direction: column;
-  padding: 5px;
+  padding: 4px;
   color: var(--skin-toolbar-text);
   font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
-  border-radius: 10px;
+  border-radius: 9px;
   box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
   backdrop-filter: blur(var(--skin-toolbar-blur));
-}
-
-.blockMenuTitle {
-  margin: 0;
-  padding: 3px 6px 5px;
-  color: var(--skin-toolbar-textDim);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .blockMenuList {
   display: flex;
   flex-direction: column;
-  gap: 1px;
 }
 
 .blockMenuItem {
   display: flex;
   width: 100%;
-  height: 28px;
+  height: 25px;
   align-items: center;
-  gap: 8px;
-  padding: 0 7px;
+  gap: 7px;
+  padding: 0 6px;
   color: var(--skin-toolbar-text);
-  font-size: 12px;
+  font-size: 11.5px;
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: calc(var(--skin-button-radius) * 0.7);
+  border-radius: calc(var(--skin-button-radius) * 0.6);
   cursor: pointer;
   transition:
     color var(--motion-fast) ease,
@@ -304,7 +297,7 @@
 
 .blockMenuIcon {
   display: grid;
-  width: 18px;
+  width: 15px;
   flex: 0 0 auto;
   place-items: center;
   color: var(--skin-toolbar-textDim);
@@ -317,8 +310,8 @@
 }
 
 .blockMenuIcon svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 /*

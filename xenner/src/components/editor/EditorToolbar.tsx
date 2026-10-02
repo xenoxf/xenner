@@ -1,5 +1,4 @@
 import {
-  createMemo,
   createSignal,
   For,
   onCleanup,
@@ -40,35 +39,22 @@ interface EditorToolbarProps {
 interface InsertItem {
   id: InsertId;
   label: string;
-  group: "Texto" | "Insertar";
-  keywords: string;
 }
 
+/**
+ * Lo que ofrece el dock, en el orden en que se lee: primero los tipos de texto
+ * —que es lo que se usa casi siempre— y después lo que se inserta.
+ *
+ * Sin buscador y sin grupos. Diez entradas de dos palabras se leen de un
+ * vistazo, y un encabezado por grupo solo repetía en mayúsculas lo que el icono
+ * ya decía. `EDITOR_BLOCKS` sigue siendo la lista de tipos, la misma que
+ * recorre el `+` de la barra flotante.
+ */
 const INSERT_ITEMS: readonly InsertItem[] = [
-  ...EDITOR_BLOCKS.map((item) => ({
-    id: item.id,
-    label: item.label,
-    group: "Texto" as const,
-    keywords: item.keywords,
-  })),
-  {
-    id: "image",
-    label: "Imagen",
-    group: "Insertar",
-    keywords: "imagen foto archivo png jpg jpeg webp",
-  },
-  {
-    id: "whiteboard",
-    label: "Pizarra",
-    group: "Insertar",
-    keywords: "pizarra dibujo lienzo trazo formas svg",
-  },
-  {
-    id: "attachment",
-    label: "Adjuntar archivo",
-    group: "Insertar",
-    keywords: "adjuntar archivo documento pdf zip csv docx descargar papelera clip",
-  },
+  ...EDITOR_BLOCKS.map((item) => ({ id: item.id, label: item.label })),
+  { id: "image", label: "Imagen" },
+  { id: "whiteboard", label: "Pizarra" },
+  { id: "attachment", label: "Adjuntar archivo" },
 ];
 
 function ItemIcon(props: { id: InsertId }) {
@@ -84,28 +70,12 @@ function ItemIcon(props: { id: InsertId }) {
 
 export function EditorToolbar(props: EditorToolbarProps) {
   const [insertOpen, setInsertOpen] = createSignal(false);
-  const [query, setQuery] = createSignal("");
   const [activeIndex, setActiveIndex] = createSignal(0);
   let insertMenu: HTMLDivElement | undefined;
   let insertTrigger: HTMLButtonElement | undefined;
-  let searchInput: HTMLInputElement | undefined;
-
-  const visibleItems = createMemo(() => {
-    const normalized = query().trim().toLocaleLowerCase("es");
-    if (!normalized) return INSERT_ITEMS;
-    return INSERT_ITEMS.filter((item) => item.keywords.includes(normalized));
-  });
-  const groupedItems = createMemo(() => {
-    const items = visibleItems();
-    return [
-      { label: "Texto" as const, items: items.filter((item) => item.group === "Texto") },
-      { label: "Insertar" as const, items: items.filter((item) => item.group === "Insertar") },
-    ].filter((group) => group.items.length > 0);
-  });
 
   function closeMenu(restoreFocus = true): void {
     setInsertOpen(false);
-    setQuery("");
     setActiveIndex(0);
     if (restoreFocus) queueMicrotask(() => insertTrigger?.focus());
   }
@@ -113,7 +83,6 @@ export function EditorToolbar(props: EditorToolbarProps) {
   function openMenu(): void {
     if (props.loading || !props.ready) return;
     setInsertOpen(true);
-    setQuery("");
     setActiveIndex(0);
     queueMicrotask(() => {
       insertMenu?.querySelector<HTMLButtonElement>("[role='option']")?.focus({ preventScroll: true });
@@ -143,15 +112,11 @@ export function EditorToolbar(props: EditorToolbarProps) {
   }
 
   function moveMenuFocus(event: KeyboardEvent, index: number): void {
-    const items = visibleItems();
-    if (!items.length) return;
     let next = index;
-    if (event.key === "ArrowDown") {
-      next = event.currentTarget === searchInput ? 0 : (index + 1) % items.length;
-    }
-    else if (event.key === "ArrowUp") next = (index - 1 + items.length) % items.length;
+    if (event.key === "ArrowDown") next = (index + 1) % INSERT_ITEMS.length;
+    else if (event.key === "ArrowUp") next = (index - 1 + INSERT_ITEMS.length) % INSERT_ITEMS.length;
     else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = items.length - 1;
+    else if (event.key === "End") next = INSERT_ITEMS.length - 1;
     else return;
     event.preventDefault();
     setActiveIndex(next);
@@ -222,62 +187,32 @@ export function EditorToolbar(props: EditorToolbarProps) {
             role="dialog"
             aria-label="Bloques de texto e inserciones opcionales"
           >
-            <div class={styles.menuSearch}>
-              <SearchIcon />
-              <input
-                ref={(element) => (searchInput = element)}
-                type="search"
-                value={query()}
-                placeholder="Buscar bloque…"
-                aria-label="Buscar bloque"
-                onInput={(event) => {
-                  setQuery(event.currentTarget.value);
-                  setActiveIndex(0);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    moveMenuFocus(event, 0);
-                  } else if (event.key === "Enter" && visibleItems()[0]) {
-                    event.preventDefault();
-                    runItem(visibleItems()[0]);
-                  }
-                }}
-              />
+            {/*
+              Una lista plana, sin buscador ni encabezados. Diez opciones de
+              dos palabras caben de un vistazo: el buscador solo servía para
+              cuando eran muchas, y los grupos repetían en mayúsculas lo que cada
+              icono ya decía. Lo que sí se conserva es el recorrido con teclado
+              —flechas, Inicio, Fin, Escape— que es como se usa sin ratón.
+            */}
+            <div class={styles.menuResults}>
+              <For each={INSERT_ITEMS}>
+                {(item, position) => (
+                  <button
+                    type="button"
+                    class={`${styles.menuItem} ${activeIndex() === position() ? styles.menuItemActive : ""}`}
+                    role="option"
+                    aria-selected={activeIndex() === position()}
+                    tabIndex={activeIndex() === position() ? 0 : -1}
+                    onPointerEnter={() => setActiveIndex(position())}
+                    onClick={() => runItem(item)}
+                    onKeyDown={(event) => moveMenuFocus(event, position())}
+                  >
+                    <span class={styles.menuIcon}><ItemIcon id={item.id} /></span>
+                    <span>{item.label}</span>
+                  </button>
+                )}
+              </For>
             </div>
-            <Show when={visibleItems().length > 0} fallback={<p class={styles.emptyMenu}>No hay coincidencias</p>}>
-              <div class={styles.menuResults}>
-                <For each={groupedItems()}>
-                  {(group) => (
-                    <section class={styles.menuGroup} role="group" aria-label={group.label}>
-                      <p>{group.label}</p>
-                      <For each={group.items}>
-                        {(item) => {
-                          const index = () => visibleItems().findIndex((candidate) => candidate.id === item.id);
-                          return (
-                            <button
-                              type="button"
-                              class={`${styles.menuItem} ${activeIndex() === index() ? styles.menuItemActive : ""}`}
-                              role="option"
-                              aria-selected={activeIndex() === index()}
-                              tabIndex={activeIndex() === index() ? 0 : -1}
-                              onPointerEnter={() => setActiveIndex(index())}
-                              onClick={() => runItem(item)}
-                              onKeyDown={(event) => moveMenuFocus(event, index())}
-                            >
-                              <span class={styles.menuIcon}><ItemIcon id={item.id} /></span>
-                              <span>{item.label}</span>
-                              {item.id === "whiteboard" && <small>Dibuja con el lápiz</small>}
-                              {item.id === "attachment" && <small>PDF, hoja de cálculo…</small>}
-                            </button>
-                          );
-                        }}
-                      </For>
-                    </section>
-                  )}
-                </For>
-              </div>
-            </Show>
           </div>
         </Show>
       </div>
@@ -317,14 +252,5 @@ export function EditorToolbar(props: EditorToolbarProps) {
       </button>
       <span class="sr-only" role="status" aria-live="polite">{props.status}</span>
     </div>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-      <circle cx="10.5" cy="10.5" r="6.5" />
-      <path d="m16 16 4 4" />
-    </svg>
   );
 }

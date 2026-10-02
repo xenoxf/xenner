@@ -94,6 +94,52 @@ test("el menú de tipos se ancla bajo la barra, no encima de la selección", () 
   assert.match(COMPONENT, /bounds\.width - BLOCK_MENU_WIDTH/);
 });
 
+test("elegir un tipo no hace desaparecer el texto seleccionado", () => {
+  // Nació de un bug real: el menú vive dentro de la raíz del editor pero fuera
+  // del `contenteditable`, así que al pulsar un tipo el foco se iba al botón y el
+  // editor se quedaba sin selección. Quien estaba escribiendo veía desaparecer
+  // el texto que acababa de seleccionar, y el comando ya no tenía a qué
+  // aplicarse. Es el mismo truco que el dock usa con su `onMouseDown`.
+  assert.match(COMPONENT, /onPointerDown=\{keepEditorFocus\}/);
+  assert.match(COMPONENT, /function keepEditorFocus\(event: PointerEvent\)/);
+  const keep = COMPONENT.slice(
+    COMPONENT.indexOf("function keepEditorFocus"),
+    COMPONENT.indexOf("function toggleBlockMenu"),
+  );
+  assert.match(keep, /event\.preventDefault\(\)/);
+  // Y la selección se guarda al ABRIR el menú, no solo al perder el foco: así el
+  // comando no depende de que la selección siga viva por el camino.
+  const toggle = COMPONENT.slice(
+    COMPONENT.indexOf("function toggleBlockMenu"),
+    COMPONENT.indexOf("function closeBlockMenu"),
+  );
+  assert.match(toggle, /selectionOnBlur\s*=/);
+});
+
+test("los dos menús de tipo de texto son pequeños y sin adornos", () => {
+  // Diez entradas de dos palabras se leen de un vistazo. Un buscador y unos
+  // encabezados de grupo solo agrandaban el menú y repetían en mayúsculas lo que
+  // el icono ya decía.
+  assert.ok(
+    !TOOLBAR.includes('type="search"'),
+    "el menú del dock vuelve a tener un buscador dentro",
+  );
+  assert.ok(
+    !TOOLBAR.includes("menuGroup"),
+    "el menú del dock vuelve a agrupar las entradas bajo un encabezado",
+  );
+  assert.ok(
+    !CSS.includes("blockMenuTitle"),
+    "el menú de tipos vuelve a poner un título encima de las opciones",
+  );
+  // El CSS y el cálculo de colocación no pueden quedar en medidas distintas: el
+  // `left` se recorta contra el ancho real, y si no coinciden el menú se sale.
+  const declared = /const BLOCK_MENU_WIDTH = (\d+)/.exec(COMPONENT)?.[1];
+  const styled = /\.blockMenu\s*\{[^}]*width:\s*(\d+)px/.exec(CSS)?.[1];
+  assert.equal(declared, styled, "el ancho del menú difiere entre el CSS y el código");
+  assert.ok(Number(styled) <= 176, `el menú de tipos sigue siendo ancho: ${styled}px`);
+});
+
 test("cambiar el tipo de bloque no pierde el texto seleccionado", () => {
   // El dock y el menú se quedan con el foco al abrir. Si no se recupera la
   // selección del `blur` antes de aplicar el comando, el tipo acaba puesto en

@@ -69,8 +69,7 @@
 
 .button:focus-visible,
 .iconButton:focus-visible,
-.menuItem:focus-visible,
-.menuSearch input:focus-visible {
+.menuItem:focus-visible {
   outline: 2px solid var(--skin-input-focus);
   outline-offset: 2px;
 }
@@ -123,46 +122,18 @@
   bottom: calc(100% + 10px);
   left: 0;
   display: flex;
-  width: min(228px, calc(100vw - 32px));
+  width: min(184px, calc(100vw - 32px));
   max-height: min(430px, calc(100vh - 110px));
   flex-direction: column;
+  padding: 4px;
   overflow: hidden;
   color: var(--skin-toolbar-text);
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
-  border-radius: min(var(--skin-toolbar-radius, var(--skin-note-radius)), 12px);
+  border-radius: min(var(--skin-toolbar-radius, var(--skin-note-radius)), 11px);
   box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
   backdrop-filter: blur(var(--skin-toolbar-blur));
   transform-origin: bottom left;
-}
-
-.menuSearch {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 6px 6px 2px;
-  padding: 0 8px;
-  color: var(--skin-toolbar-textDim);
-  background: var(--skin-input-background);
-  border: var(--skin-input-border);
-  border-radius: calc(var(--skin-input-radius) * 0.85);
-}
-
-.menuSearch svg {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-}
-
-.menuSearch input {
-  width: 100%;
-  height: 29px;
-  padding: 0;
-  color: var(--skin-input-text);
-  background: transparent;
-  border: 0;
-  outline: 0;
-  font-size: 12px;
 }
 
 .menuResults {
@@ -186,35 +157,20 @@
 }
 
 .menuResults::-webkit-scrollbar-thumb {
-  background: var(--skin-toolbar-textDim);
+  background-color: var(--skin-toolbar-textDim);
   border-radius: 999px;
 }
 
-.menuGroup {
-  padding: 0 4px 4px;
-}
-
-.menuGroup + .menuGroup {
-  border-top: 1px solid var(--skin-toolbar-border);
-}
-
-.menuGroup p {
-  margin: 7px 6px 2px;
-  color: var(--skin-toolbar-textDim);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
+/* Una fila, icono a la izquierda y la etiqueta al lado. Ni caja ni columnas: el
+   dock y el menú de tipos usan la misma forma de fila para que las dos surfaces
+   se parezcan. */
 .menuItem {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  display: flex;
   width: 100%;
-  min-height: 30px;
+  height: 28px;
   align-items: center;
   gap: 8px;
-  padding: 3px 7px;
+  padding: 0 8px;
   color: var(--skin-toolbar-text);
   background: transparent;
   border: 1px solid transparent;
@@ -237,34 +193,21 @@
 
 .menuIcon {
   display: grid;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  flex: 0 0 auto;
   place-items: center;
   color: var(--skin-toolbar-textDim);
 }
 
 .menuItemActive .menuIcon,
-.menuItem:hover .menuIcon {
+.menuItem:hover .menuIcon,
+.menuItem:focus-visible .menuIcon {
   color: var(--skin-toolbar-accent);
 }
 
 .menuIcon svg {
-  width: 14px;
-  height: 14px;
-}
-
-.menuItem small {
-  color: var(--skin-toolbar-textDim);
-  font-size: 9px;
-  white-space: nowrap;
-}
-
-.emptyMenu {
-  margin: 0;
-  padding: 14px 10px 18px;
-  color: var(--skin-toolbar-textDim);
-  font-size: 12px;
-  text-align: center;
+  width: 15px;
+  height: 15px;
 }
 
 @media (max-width: 760px) {

@@ -7,6 +7,7 @@ import {
   confirmDialog,
   getPendingDialog,
   hasPendingDialog,
+  isDialogPending,
   promptDialog,
   resetDialogs,
 } from "./dialogs.ts";
@@ -25,6 +26,9 @@ import {
 afterEach(() => {
   resetDialogs();
 });
+
+/** Deja correr los turnos pendientes: el relevo de la cola va en microtask. */
+const turn = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 test("una confirmación devuelve true al aceptar", async () => {
   const respuesta = confirmDialog({ title: "¿Seguir?", message: "Se puede deshacer." });
@@ -79,6 +83,81 @@ test("aceptar sin texto devuelve el valor con el que se abrió", async () => {
   const respuesta = promptDialog({ title: "Renombrar", value: "  nota.md  " });
   acceptPendingDialog();
   assert.equal(await respuesta, "nota.md", "se recorta igual");
+});
+
+test("preguntar al despertar no tira la de la cola", async () => {
+  // El `settle` reanuma a quien esperaba, y ese codigo puede abrir ya la
+  // siguiente pregunta. Ahi es donde se perdia una promesa entera.
+  const primera = confirmDialog({ title: "Primera", message: "…" });
+  const encolada = confirmDialog({ title: "En cola", message: "…" });
+  acceptPendingDialog();
+
+  assert.equal(await primera, true);
+
+  // Esto es lo que hace el codigo que se desperto: pregunta otra vez. Ojo, sin
+  // `await`: la promesa no se resuelve sola, hay que contestarla.
+  const nueva = promptDialog({ title: "Nueva", value: "x" });
+  await turn();
+
+  // Lo que importa no es cual se ve primero -si lo de la cola ya se habia
+  // pintado, la nueva se encola detras-, sino que **nada se pierde**: las dos
+  // llegan a pintarse y sus dos promesas se resuelven.
+  const vistas: string[] = [];
+  for (let i = 0; i < 3 && getPendingDialog(); i += 1) {
+    const actual = getPendingDialog();
+    if (!actual) break;
+    vistas.push(actual.title);
+    if (actual.kind === "text") acceptPendingDialog("x");
+    else acceptPendingDialog();
+    await turn();
+  }
+
+  assert.deepEqual(vistas.sort(), ["En cola", "Nueva"], "las dos se contestaron");
+  assert.equal(await nueva, "x");
+  assert.equal(await encolada, true);
+  assert.equal(getPendingDialog(), null, "la cola se vacia: nadie se queda colgado");
+});
+
+test("contestar dos veces no contesta la siguiente", async () => {
+  const primera = confirmDialog({ title: "Primera", message: "…" });
+  const segunda = confirmDialog({ title: "Segunda", message: "…" });
+
+  acceptPendingDialog();
+  acceptPendingDialog(); // doble clic o Enter repetido
+  assert.equal(await primera, true);
+
+  // La segunda sigue esperando su turno, no se ha contestado por error.
+  assert.equal(
+    getPendingDialog()?.kind === "confirm" && getPendingDialog()?.title,
+    "Segunda",
+  );
+  acceptPendingDialog();
+  assert.equal(await segunda, true);
+});
+
+test("isDialogPending avisa de lo que esta a la espera", async () => {
+  assert.equal(isDialogPending(), false, "nada abierto al empezar");
+
+  // Primero la de pantalla, despues la que se encola. Al reves, la segunda se
+  // queda en pantalla y la primera en la cola, que no es lo que se quiere probar.
+  const enPantalla = confirmDialog({ title: "Primera", message: "..." });
+  const encolada = promptDialog({ title: "Segunda", value: "b" });
+  assert.equal(isDialogPending(), true, "con una en pantalla si hay dialogo");
+
+  acceptPendingDialog();
+  assert.equal(await enPantalla, true);
+
+  await turn();
+  assert.equal(
+    getPendingDialog()?.kind === "text" && getPendingDialog()?.title,
+    "Segunda",
+    "la de la cola entra cuando se contesta la anterior",
+  );
+  assert.equal(isDialogPending(), true);
+
+  cancelPendingDialog();
+  assert.equal(await encolada, null, "cancelar devuelve null");
+  assert.equal(isDialogPending(), false, "la cola se vacia al contestarla");
 });
 
 test("cerrar y volver a preguntar funciona", async () => {

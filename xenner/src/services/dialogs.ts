@@ -62,7 +62,13 @@ export interface TextRequest {
   settle(value: string | null): void;
 }
 
-export type PendingDialog = ConfirmRequest | TextRequest;
+export type PendingDialog = (ConfirmRequest | TextRequest) & {
+  /**
+   * Ya tiene respuesta. Se marca antes de entregarla para que un segundo clic o
+   * un segundo Enter no la entreguen dos veces.
+   */
+  settled: boolean;
+};
 
 const [pending, setPending] = createSignal<PendingDialog | null>(null);
 const waiting: PendingDialog[] = [];
@@ -72,7 +78,7 @@ export function getPendingDialog(): PendingDialog | null {
   return pending();
 }
 
-/** Si hay algo esperando que se conteste. */
+/** Si hay algo esperando que se conteste, en pantalla o en la cola. */
 export function hasPendingDialog(): boolean {
   return pending() !== null || waiting.length > 0;
 }
@@ -87,12 +93,38 @@ function open(request: PendingDialog): void {
   setPending(request);
 }
 
+/**
+ * Saca de la cola la que le toca y la pone en pantalla.
+ *
+ * Se comprueba dentro del turno, no antes: al contestar una pregunta se reanuda a
+ * quien esperaba, y ese código puede abrir ya la siguiente. Esa gana la pantalla
+ * —es lo que la persona acaba de pedir—, así que lo de la cola no la pisa ni
+ * gasta su turno, porque si no su promesa se quedaría sin resolver para siempre.
+ */
+function takeNext(): void {
+  while (waiting.length > 0) {
+    if (pending()) return;
+    const upcoming = waiting.shift();
+    if (!upcoming || upcoming.settled) continue;
+    setPending(upcoming);
+    return;
+  }
+}
+
+/**
+ * Encadena la pregunta que sigue, si la hay.
+ *
+ * El turno se da con `queueMicrotask` para que el modal saliente se desmonte
+ * antes de que entre el entrante. El hueco también sirve para que quien se acaba
+ * de despertar abra su propia pregunta, que tiene prioridad.
+ */
 function next(): void {
-  const upcoming = waiting.shift();
-  if (!upcoming) return;
-  // En el siguiente turno, para que el modal saliente se desmonte antes de que
-  // entre el entrante.
-  queueMicrotask(() => setPending(upcoming));
+  if (waiting.length === 0) return;
+  queueMicrotask(takeNext);
+  // Red de seguridad: si el microtask no llegara a correr porque no queda nada
+  // más que hacer en el bucle de eventos, la cola sevacía igualmente. `Promise`
+  // sí se encola cuando no quedan tareas pendientes.
+  void Promise.resolve().then(takeNext);
 }
 
 /**
@@ -111,7 +143,8 @@ function cancel(current: PendingDialog): void {
 /** Cierra lo que haya abierto sin contestarlo: Escape, fondo o el botón de cancelar. */
 export function cancelPendingDialog(): void {
   const current = pending();
-  if (!current) return;
+  if (!current || current.settled) return;
+  current.settled = true;
   setPending(null);
   cancel(current);
   next();
@@ -123,11 +156,25 @@ export function cancelPendingDialog(): void {
  */
 export function acceptPendingDialog(text?: string): void {
   const current = pending();
-  if (!current) return;
+  if (!current || current.settled) return;
+  // `settled` antes de entregar la respuesta: un doble clic en «Aceptar» o un
+  // Enter repetido no puede contestar dos veces, y contestando la de en cola sin
+  // haberla visto nadie.
+  current.settled = true;
   setPending(null);
   if (current.kind === "confirm") current.settle(true);
   else current.settle((text ?? current.value).trim());
   next();
+}
+
+/**
+ * Si hay una pregunta pendiente. Lo consulta el explorador para no disparar sus
+ * atajos (`F2`, `Supr`) mientras un diálogo está encima: sin esto, abrir «Renombrar»
+ * con `F2` y pulsar `Supr` encolaba detrás una pregunta de borrar que nadie había
+ * pedido, y el siguiente Escape la hacía aparecer.
+ */
+export function isDialogPending(): boolean {
+  return pending() !== null;
 }
 
 /** Vacía la cola y cancela lo pendiente. Solo lo usan los tests. */
@@ -144,6 +191,7 @@ export function confirmDialog(options: ConfirmOptions): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     open({
       kind: "confirm",
+      settled: false,
       title: options.title,
       message: options.message,
       confirmLabel: options.confirmLabel ?? "Continuar",
@@ -159,6 +207,7 @@ export function promptDialog(options: TextOptions): Promise<string | null> {
   return new Promise<string | null>((resolve) => {
     open({
       kind: "text",
+      settled: false,
       title: options.title,
       label: options.label ?? options.title,
       hint: options.hint ?? "",

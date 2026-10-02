@@ -52,13 +52,31 @@ function TextCard(props: { request: TextRequest }) {
   const [value, setValue] = createSignal(props.request.value);
   let input: HTMLInputElement | undefined;
 
-  function accept(): void {
+  function accept(event?: KeyboardEvent): void {
+    // Sin texto no se acepta, igual que hace el botón. Si no, Enter cerraba el
+    // diálogo con una respuesta que su propio botón prohíbe.
+    if (!value().trim()) return;
+    // `isComposing` importa más de lo que parece en móvil: con un teclado de
+    // composición (Gboard en chino o japonés) el Enter que confirma la
+    // composición también llega como `key === "Enter"`, y sin esta comprobación
+    // el diálogo se cerraría con el texto a medio componer.
+    if (event?.isComposing) return;
     acceptPendingDialog(value());
   }
 
   // El campo entra con el foco y el texto seleccionado, que es lo que se espera
   // de un «renombrar» abierto con un nombre ya escrito.
-  onMount(() => queueMicrotask(() => input?.select()));
+  //
+  // `select()` no mueve el foco por sí solo (MDN lo dice: no hace focus), así
+  // que hay que llamar a los dos. Sin el `focus()`, al abrir «Renombrar» el foco
+  // se quedaba en la fila de la nota: había que tocar el campo antes de poder
+  // escribir, y `window.prompt` sí enfocaba, así que esto era una regresión.
+  onMount(() =>
+    queueMicrotask(() => {
+      input?.focus();
+      input?.select();
+    }),
+  );
 
   return (
     <>
@@ -77,7 +95,7 @@ function TextCard(props: { request: TextRequest }) {
           onKeyDown={(event) => {
             if (event.key !== "Enter") return;
             event.preventDefault();
-            accept();
+            accept(event);
           }}
         />
         <Show when={props.request.hint}>
@@ -88,7 +106,12 @@ function TextCard(props: { request: TextRequest }) {
         <Button type="button" onClick={cancelPendingDialog}>
           {props.request.cancelLabel}
         </Button>
-        <Button type="button" variant="primary" disabled={!value().trim()} onClick={accept}>
+        <Button
+          type="button"
+          variant="primary"
+          disabled={!value().trim()}
+          onClick={() => accept()}
+        >
           {props.request.confirmLabel}
         </Button>
       </div>

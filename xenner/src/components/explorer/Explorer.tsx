@@ -12,6 +12,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from "../ui/Icons";
+import { isDialogPending } from "../../services/dialogs";
 import { CreationRow, type CreationKind } from "./CreationRow";
 import {
   ExplorerContextMenu,
@@ -273,6 +274,10 @@ export function Explorer(props: ExplorerProps) {
   function handleExplorerKeyDown(event: KeyboardEvent): void {
     const target = event.target;
     if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+    // Con un diálogo encima, el foco sigue en la fila de la nota y estos atajos
+    // se seguirían detrás: abrir «Renombrar» con F2 y pulsar Supr encolaba una
+    // pregunta de borrar que nadie había pedido. Un Escape la hacía aparecer.
+    if (isDialogPending()) return;
     const selected = props.selectedPath ? findNode(props.nodes, props.selectedPath) : null;
     const command = event.ctrlKey || event.metaKey;
     if (event.key === "F2" && selected) {

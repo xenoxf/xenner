@@ -14,7 +14,7 @@ import { Plugin, PluginKey, TextSelection } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { $prose, replaceAll } from "@milkdown/kit/utils";
 import { imageBlockSchema } from "@milkdown/kit/component/image-block";
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
 import { blockTypesInSelection } from "../../editor/block-type";
 import { EDITOR_BLOCKS } from "../../data/editor";
@@ -70,26 +70,6 @@ const TEXT_BACKGROUND_TOOLBAR_ICON = `
   </svg>
 `;
 
-/**
- * Ancho del menú de tipos, en píxeles. Va en una constante y no solo en el CSS
- * porque el cálculo de dónde ponerlo tiene que decir lo mismo que el ancho
- * real: si el menú fuera más ancho de lo que el cálculo asume, se saldría por el
- * borde de la nota.
- */
-const BLOCK_MENU_WIDTH = 164;
-
-interface BlockMenuPlacement {
-  left: number;
-  top: number;
-}
-
-const BLOCK_MENU_TOOLBAR_ICON = `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M12 5v14M5 12h14" />
-  </svg>
-`;
-
 interface MarkdownEditorProps {
   notePath: string;
   initialValue: string;
@@ -102,11 +82,7 @@ interface MarkdownEditorProps {
 export function MarkdownEditor(props: MarkdownEditorProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
-  const [blockMenu, setBlockMenu] = createSignal<BlockMenuPlacement | null>(null);
-  /** El tipo que ya tienen lo seleccionado, para marcarlo en el menú. */
-  const [activeBlock, setActiveBlock] = createSignal<EditorBlockType | null>(null);
   let root: HTMLDivElement | undefined;
-  let blockMenuPanel: HTMLDivElement | undefined;
   let crepe: CrepeInstance | null = null;
   let textColorInput: HTMLInputElement | undefined;
   let textBackgroundInput: HTMLInputElement | undefined;
@@ -127,21 +103,24 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   let textCursorPos: number | null = null;
 
   /**
-   * El texto seleccionado en el momento en que el editor perdió el foco.
+   * Avisa de un fallo en vez de tragárselo.
    *
-   * Es la pieza que faltaba para poder cambiar el tipo de un texto
-   * seleccionado: el dock abre un menú que se queda con el foco (para que se
-   * pueda recorrer con el teclado) y ese menú deja el `contenteditable` sin
-   * él. ProseMirror aguanta la selección en el estado, pero entre el clic y el
-   * comando hay un `queueMicrotask` que mueve el foco, y lo que se perdía era
-   * justo el texto que se quería cambiar: el tipo se acababa poniendo en la
-   * línea de al lado.
-   *
-   * Guardarla en el `blur` —y solo ahí— es lo que evita el problema de envejeci-
-   * miento: la selección guardada vale para el gesto que la dejó obsoleta, y
-   * cualquier clic o tecla posterior dentro del editor la borra.
+   * Este archivo estuvo un tiempo con bloques `catch` sin cuerpo alrededor de
+   * todo lo delicado, y por eso un botón dio un resultado imposible de razonar:
+   * al cambiar el tipo de un texto seleccionado, el texto desaparecía, el editor
+   * dejaba de aceptar nada y al reabrir la nota todo estaba bien. Un `catch`
+   * sin cuerpo se come justo la excepción que explica eso —una transacción
+   * empezada que se corta a mitad deja la vista a medias, el serializador de
+   * Markdown falla sobre ese documento y no se guarda nada— y mientras siga
+   * así, el siguiente fallo del mismo tipo tampoco se va a ver.
    */
-  let selectionOnBlur: { from: number; to: number } | null = null;
+  function reportEditorFailure(what: string, error: unknown): void {
+    console.error(`xenner: ${what}`, error);
+    // Y también se lo decimos a quien escribe. Un `console.error` no lo ve
+    // nadie: un fallo al aplicar el tipo de bloque se llevaba el texto y lo
+    // dejaba sin explicar, y eso es un callejón sin salida para el usuario.
+    notifyError("No se pudo aplicar el formato", what);
+  }
 
   function rememberTextCursor(view: EditorView): void {
     const { selection } = view.state;
@@ -150,58 +129,13 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     textCursorPos = selection.from;
   }
 
-  /**
-   * Descarta la selección guardada en cuanto el editor vuelve a tener una
-   * selección propia. Se queda solo si la selección que hay ahora es
-   * exactamente la que se guardó al perder el foco, que es el caso normal del
-   * menú: el editor no se ha movido.
-   */
-  function forgetStaleSelectionOnBlur(view: EditorView): void {
-    if (!selectionOnBlur) return;
-    const { selection } = view.state;
-    if (
-      selection instanceof TextSelection &&
-      selection.from === selectionOnBlur.from &&
-      selection.to === selectionOnBlur.to
-    ) {
-      return;
-    }
-    selectionOnBlur = null;
-  }
-
-  /**
-   * Devuelve al texto seleccionado lo que le corresponde: pone el tipo de bloque
-   * sobre lo que estaba seleccionado, no sobre la línea donde quedó el cursor.
-   * Es idempotente y no toca nada si no hay nada que recuperar.
-   */
-  function restoreSelectionOnBlur(view: EditorView): void {
-    const remembered = selectionOnBlur;
-    selectionOnBlur = null;
-    if (!remembered) return;
-    const { selection } = view.state;
-    if (
-      selection instanceof TextSelection &&
-      !selection.empty &&
-      selection.from === remembered.from &&
-      selection.to === remembered.to
-    ) {
-      return;
-    }
-    const { doc } = view.state;
-    if (remembered.from < 0 || remembered.to > doc.content.size || remembered.from >= remembered.to) {
-      return;
-    }
-    try {
-      view.dispatch(
-        view.state.tr.setSelection(TextSelection.create(doc, remembered.from, remembered.to)),
-      );
-    } catch {
-      // Un texto que ya no se puede seleccionar deja intacta la selección actual.
-    }
-  }
-
   // Recoloca la selección en el cursor de texto conocido. Es idempotente: si
   // ya hay una selección de texto válida, no toca nada.
+  //
+  // Solo lo usan las inserciones de bloque —imagen y pizarra—, que pueden
+  // llegar con una selección de nodo o sin que el editor tenga el foco. Cambiar
+  // el tipo de texto no lo necesita: el camino está en la barra flotante, cuyos
+  // botones son de Crepe y no le roban el foco a nadie.
   function restoreTextCursor(view: EditorView): void {
     const { selection } = view.state;
     if (selection instanceof TextSelection && selection.$from.parent.isTextblock) return;
@@ -209,8 +143,8 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     const pos = Math.min(Math.max(textCursorPos, 0), view.state.doc.content.size);
     try {
       view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos), 1)));
-    } catch {
-      // Una selección que ya no se puede reconstruir deja intacta la actual.
+    } catch (error) {
+      reportEditorFailure("no se pudo devolver el cursor al texto", error);
     }
   }
 
@@ -224,8 +158,8 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     try {
       const near = TextSelection.near(view.state.selection.$to, 1);
       view.dispatch(view.state.tr.setSelection(near));
-    } catch {
-      // El bloque ya está insertado; no vale la pena fallar por el cursor.
+    } catch (error) {
+      reportEditorFailure("el bloque se insertó pero el cursor no se quedó detrás", error);
     }
     view.focus();
   }
@@ -234,25 +168,10 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     () =>
       new Plugin({
         key: new PluginKey("xennerTextCursor"),
-        // El editor pierde el foco cada vez que se abre un menú, un diálogo de
-        // color o el propio dock. Lo que había seleccionado en ese momento es lo
-        // que hay que volver a poner antes de aplicar nada.
-        handleDOMEvents: {
-          blur: (view: EditorView) => {
-            if (disposed) return false;
-            const { selection } = view.state;
-            selectionOnBlur =
-              selection instanceof TextSelection && !selection.empty
-                ? { from: selection.from, to: selection.to }
-                : null;
-            return false;
-          },
-        },
         view: () => ({
           update: (view) => {
             if (disposed) return;
             rememberTextCursor(view);
-            forgetStaleSelectionOnBlur(view);
           },
         }),
       }),
@@ -279,35 +198,89 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   /**
    * Pone un tipo de bloque a lo que está seleccionado.
    *
-   * `setBlockType` del handle y los botones del mini menú pasan por aquí, y
-   * ambos caminos tienen que acabar igual: lo seleccionado cambia de tipo, no la
-   * línea de al lado. Los dos empiezan recuperando la selección del `blur` —el
-   * dock y la propia barra se quedan con el foco— y solo después dejan el
-   * cursor ir al último texto conocido, que es lo que hace falta cuando no hay
-   * nada seleccionado.
+   * Un solo camino, el de los botones de la barra flotante. Esos botones son de
+   * Crepe y los dispara en `pointerdown` con `preventDefault`, así que nunca le
+   * quitan el foco al `contenteditable`: la selección que hay en el editor es,
+   * sin más, la que se quiere cambiar. Por eso aquí no hay nada que recordar ni
+   * que recuperar.
+   *
+   * Lo que hay detrás es un diagnóstico, no una suposición. Este botón dio un
+   * resultado imposible de razonar —al cambiar el tipo de un texto
+   * seleccionado, el texto desaparecía, el editor dejaba de aceptar nada, y al
+   * reabrir la nota todo estaba bien y sin guardar— y la causa era que los
+   * bloques `catch` sin cuerpo de este archivo se comían la excepción. Una
+   * transacción que se corta a mitad deja la vista a medias, el serializador de
+   * Markdown falla sobre ese documento, no se guarda nada y ProseMirror se queda
+   * sin poder despachar. Aquí ya no hay nada que tragarse: o funciona, o se ve
+   * por qué.
    */
-  function applyBlockType(type: EditorBlockType): boolean {
-    if (!crepe) return false;
+  function applyBlockType(type: EditorBlockType): void {
+    if (!crepe) return;
     const view = crepe.editor.ctx.get(editorViewCtx);
-    restoreSelectionOnBlur(view);
-    restoreTextCursor(view);
+    const { selection } = view.state;
+    const before = view.state.doc.textContent.length;
     const commands = crepe.editor.ctx.get(commandsCtx);
-    const applied =
-      type === "paragraph"
-        ? commands.call(turnIntoTextCommand.key)
-        : type === "heading1"
-          ? commands.call(wrapInHeadingCommand.key, 1)
-          : type === "heading2"
-            ? commands.call(wrapInHeadingCommand.key, 2)
-            : type === "heading3"
-              ? commands.call(wrapInHeadingCommand.key, 3)
-              : type === "bullet"
-                ? commands.call(wrapInBulletListCommand.key)
-                : type === "ordered"
-                  ? commands.call(wrapInOrderedListCommand.key)
-                  : commands.call(wrapInBlockquoteCommand.key);
+    let applied = false;
+    try {
+      applied =
+        type === "paragraph"
+          ? commands.call(turnIntoTextCommand.key)
+          : type === "heading1"
+            ? commands.call(wrapInHeadingCommand.key, 1)
+            : type === "heading2"
+              ? commands.call(wrapInHeadingCommand.key, 2)
+              : type === "heading3"
+                ? commands.call(wrapInHeadingCommand.key, 3)
+                : type === "bullet"
+                  ? commands.call(wrapInBulletListCommand.key)
+                  : type === "ordered"
+                    ? commands.call(wrapInOrderedListCommand.key)
+                    : commands.call(wrapInBlockquoteCommand.key);
+      if (applied) leaveCaretAfterBlockType(view);
+      else reportEditorFailure(`el tipo ${type} no se pudo aplicar`, "el comando no hizo nada");
+    } catch (error) {
+      reportEditorFailure(`el tipo ${type} no se pudo aplicar`, error);
+    }
+    const after = view.state.doc.textContent.length;
+    // Un comando de Milkdown solo cambia el tipo de los bloques que toca la
+    // selección: no puede borrar texto. Si alguna vez aparece texto en esta
+    // línea, el culpable es esta función y no el comando, así que el aviso se
+    // lleva a quien escribe en lugar de quedarse en la consola. De momento solo
+    // suena en `debug`, porque no está pasando y no hay nada que contar.
+    if (import.meta.env.DEV) {
+      console.debug("xenner: tipo de bloque", {
+        type,
+        aplicado: applied,
+        seleccion: `${selection.from}–${selection.to}`,
+        bloque: selection.$from.parent.type.name,
+        caracteresAntes: before,
+        caracteresDespues: after,
+      });
+      if (after !== before) {
+        console.warn("xenner: el texto ha cambiado al aplicar el tipo; revisa esta función");
+      }
+    }
     view.focus();
-    return applied;
+  }
+
+  /**
+   * Deja el cursor al final de lo que se acaba de retocar, con nada seleccionado.
+   *
+   * Sin esto la selección se queda puesta y el siguiente carácter que se escriba
+   * sustituye el texto entero, por el gesto más natural del mundo: cambiar el
+   * tipo y seguir escribiendo. El texto se conserva; lo que se suelta es la
+   * selección, que ya ha hecho su trabajo y estorbaría para escribir.
+   */
+  function leaveCaretAfterBlockType(view: EditorView): void {
+    try {
+      view.dispatch(
+        view.state.tr
+          .setSelection(TextSelection.near(view.state.selection.$to, 1))
+          .scrollIntoView(),
+      );
+    } catch (error) {
+      reportEditorFailure("el tipo se puso pero el cursor no se quedó al final", error);
+    }
   }
 
   /**
@@ -347,107 +320,6 @@ function insertAttachmentLink(relativePath: string, label: string): void {
     .addMark(from, from + text.length, mark);
   view.dispatch(transaction.scrollIntoView());
   view.focus();
-}
-
-/**
- * Pulsa en el menú sin robarle el foco al editor.
- *
- * El panel vive dentro de la raíz del editor pero **fuera** del `contenteditable`.
- * Sin esto, al pulsar un tipo el foco se iba al botón, el editor se quedaba sin
- * selección y quien estaba escribiendo veía desaparecer el texto que acababa de
- * seleccionar justo antes de elegir el tipo. Es el mismo truco que usa el dock
- * con su `onMouseDown`, y por el mismo motivo: el editor nunca tiene que perder
- * el foco para que un botón suyo funcione.
- *
- * `preventDefault` en `pointerdown` no se come el `click`, así que el comando
- * sigue llegando.
- */
-function keepEditorFocus(event: PointerEvent): void {
-  event.preventDefault();
-}
-
-/**
- * Abre o cierra el menú de tipos de texto, el que cuelga del `+` de la barra.
- *
- * Se ancla **debajo de la barra flotante**, no encima de la selección: encima
- * está la propia barra, y dos superficies superpuestas sobre el texto es
- * exactamente lo que se quiere evitar. Se mide la barra de verdad —es un
- * elemento del DOM, y Crepe la coloca con `floating-ui`— así que el menú sale
- * pegado a ella aunque la selección esté en cualquier parte de la nota.
- */
-function toggleBlockMenu(): void {
-  if (blockMenu()) {
-    closeBlockMenu();
-    return;
-  }
-  if (!crepe || !root) return;
-  const toolbar = root.querySelector<HTMLElement>(".milkdown-toolbar");
-  const bounds = root.getBoundingClientRect();
-  if (!toolbar) return;
-  const anchor = toolbar.getBoundingClientRect();
-  // El `left` se recorta contra el ancho real de la nota para que un menú
-  // abierto cerca del borde derecho no quede medio fuera.
-  const left = Math.max(
-    8,
-    Math.min(anchor.left - bounds.left, bounds.width - BLOCK_MENU_WIDTH - 8),
-  );
-  const view = crepe.editor.ctx.get(editorViewCtx);
-  const { selection } = view.state;
-  // La selección se guarda al abrir, no al cerrar: desde aquí hasta el clic hay
-  // un `preventDefault` que la deja intacta, pero guardarla cuesta una línea y
-  // quita la dependencia de que siga viva cuando alguien llegue a esta pantalla
-  // por el teclado.
-  selectionOnBlur =
-    selection instanceof TextSelection && !selection.empty
-      ? { from: selection.from, to: selection.to }
-      : null;
-  const active = blockTypesInSelection(
-    view.state.doc,
-    selection.from,
-    selection.to,
-  );
-  // Con más de un tipo en la selección no hay uno que poner de relieve.
-  setActiveBlock(active.size === 1 ? [...active][0] : null);
-  setBlockMenu({ left, top: anchor.bottom - bounds.top + 6 });
-}
-
-function closeBlockMenu(): void {
-  setBlockMenu(null);
-  setActiveBlock(null);
-}
-
-/**
- * Fuera del menú o con Escape se cierra. Se registra al abrirlo y no antes:
- * mientras está cerrado no hay nada que cerrar y un `pointerdown` en cualquier
- * sitio —incluido dentro del editor— se ignora.
- *
- * La barra flotante queda excepta, y no por descuido: Crepe dispara sus botones
- * en `pointerdown`, así que si este menú se cerrara con el clic en la barra, el
- * `+` se cerraría aquí y su propio `onRun` lo volvería a abrir en el mismo
- * gesto, así que el botón no cerraría nunca. Los botones de la barra son de
- * Crepe y cada uno sabe lo que hace; este menú se aparta al hacer clic en el
- * texto, que es cuando de verdad deja de importar.
- */
-function watchBlockMenuDismissal(): () => void {
-  const onPointerDown = (event: PointerEvent): void => {
-    const target = event.target;
-    if (!(target instanceof Node)) return;
-    if (blockMenuPanel?.contains(target)) return;
-    if (target instanceof Element && target.closest(".milkdown-toolbar")) return;
-    closeBlockMenu();
-  };
-  const onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    closeBlockMenu();
-    crepe?.editor.ctx.get(editorViewCtx).focus();
-  };
-  document.addEventListener("pointerdown", onPointerDown, true);
-  document.addEventListener("keydown", onKeyDown, true);
-  return () => {
-    document.removeEventListener("pointerdown", onPointerDown, true);
-    document.removeEventListener("keydown", onKeyDown, true);
-  };
 }
 
 function captureTextSelection(): void {
@@ -609,20 +481,56 @@ function captureTextSelection(): void {
             text: "Escribe tu nota…",
             mode: "doc",
           },
+          [Crepe.Feature.LinkTooltip]: {
+            // Solo el marcador de posición es texto: `editButton`,
+            // `removeButton` y `confirmButton` reciben SVG. El tooltip que
+            // sale sobre un enlace ya escrito está en inglés dentro del
+            // paquete y no hay ningún campo para cambiarlo; queda anotado en
+            // `docs/FRONTEND_ARCHITECTURE.md` como lo que queda en inglés.
+            inputPlaceholder: "Pega el enlace…",
+          },
+          [Crepe.Feature.CodeMirror]: {
+            searchPlaceholder: "Buscar lenguaje",
+            noResultText: "Sin resultados",
+          },
           [Crepe.Feature.Toolbar]: {
+            // Los nombres accesibles de los botones que pone Crepe. Los botones
+            // solo llevan un SVG dentro, así que sin `label` no tienen nombre
+            // accesible: un lector de pantalla lee «botón» a secas. Y en una app
+            // donde todo lo demás está en español, leer *Bold* en mitad de una
+            // nota en español es un descuido, no una traducción pendiente.
+            //
+            // El `title` que se ve al pasar el ratón sale de aquí también, y es
+            // lo que de verdad se lee de un vistazo.
+            boldLabel: "Negrita",
+            italicLabel: "Cursiva",
+            strikethroughLabel: "Tachado",
+            codeLabel: "Código en línea",
+            latexLabel: "Fórmula",
+            linkLabel: "Enlace",
             buildToolbar(builder) {
-              // El tipo de bloque entra por UN botón, no por siete. Con los
-              // siete la barra dejaba de caber sobre el texto y se partía en dos
-              // filas: una barra de formato que tapa lo que está seleccionado es
-              // justo lo que hay que evitar. El `+` abre un menú pequeño con los
-              // siete tipos, que es el orden que se espera: primero elegir, luego
-              // aplicar.
-              builder.addGroup("blocks", "Bloque").addItem("block-menu", {
-                icon: BLOCK_MENU_TOOLBAR_ICON,
-                label: "Tipo de texto",
-                active: () => false,
-                onRun: () => toggleBlockMenu(),
-              });
+              // El tipo de bloque va en la MISMA barra flotante que el formato,
+              // no en un segundo menú. Dos menús para lo mismo obligaban a
+              // decidir cuál era el bueno, y el dock acababa siendo el sitio
+              // donde el tipo se cambiaba de verdad mientras la barra —la que
+              // sale justo encima del texto— no podía.
+              const blocks = builder.addGroup("blocks", "Tipo de texto");
+              for (const item of EDITOR_BLOCKS) {
+                blocks.addItem(`block-${item.id}`, {
+                  icon: item.icon,
+                  label: item.label,
+                  active: (ctx) => {
+                    const view = ctx.get(editorViewCtx);
+                    const { selection } = view.state;
+                    return blockTypesInSelection(
+                      view.state.doc,
+                      selection.from,
+                      selection.to,
+                    ).has(item.id);
+                  },
+                  onRun: () => applyBlockType(item.id),
+                });
+              }
               builder
                 .addGroup("appearance", "Apariencia")
                 .addItem("text-color", {
@@ -640,6 +548,15 @@ function captureTextSelection(): void {
             },
           },
           [Crepe.Feature.ImageBlock]: {
+            // Los textos que se ven al subir una imagen. Los botones de esta
+            // pieza llevan SVG, no palabras, así que lo único que hay que
+            // traducir son los marcadores de posición y el rótulo de confirmar.
+            blockUploadButton: "Subir archivo",
+            blockConfirmButton: "Confirmar",
+            blockUploadPlaceholderText: "o pega un enlace",
+            blockCaptionPlaceholderText: "Escribe el pie de la imagen",
+            inlineUploadButton: "Subir",
+            inlineUploadPlaceholderText: "o pega un enlace",
             onUpload: async (file) => {
               try {
                 const imported = await importImageForEditor(props.notePath, file);
@@ -716,9 +633,6 @@ function captureTextSelection(): void {
         focus() {
           instance.editor.ctx.get(editorViewCtx).focus();
         },
-        setBlockType(type) {
-          applyBlockType(type);
-        },
         async insertWhiteboard(tool: DrawingTool) {
           await insertWhiteboard(tool);
         },
@@ -774,15 +688,8 @@ function captureTextSelection(): void {
     })();
   });
 
-  createEffect(() => {
-    if (!blockMenu()) return;
-    const stop = watchBlockMenuDismissal();
-    onCleanup(stop);
-  });
-
   onCleanup(() => {
     disposed = true;
-    closeBlockMenu();
     props.onDispose?.();
     if (crepe) void crepe.destroy();
   });
@@ -794,44 +701,6 @@ function captureTextSelection(): void {
         class={styles.editor}
         data-x="editor-surface"
       >
-        <Show when={blockMenu()}>
-          {(placement) => (
-            <div
-              ref={(element) => (blockMenuPanel = element)}
-              class={styles.blockMenu}
-              data-x="block-menu"
-              style={{ left: `${placement().left}px`, top: `${placement().top}px` }}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  closeBlockMenu();
-                  crepe?.editor.ctx.get(editorViewCtx).focus();
-                }
-              }}
-            >
-              <div class={styles.blockMenuList} role="menu" aria-label="Tipos de texto">
-                <For each={EDITOR_BLOCKS}>
-                  {(item) => (
-                    <button
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={activeBlock() === item.id}
-                      class={`${styles.blockMenuItem} ${activeBlock() === item.id ? styles.blockMenuItemActive : ""}`}
-                      onPointerDown={keepEditorFocus}
-                      onClick={() => {
-                        closeBlockMenu();
-                        applyBlockType(item.id);
-                      }}
-                    >
-                      <span class={styles.blockMenuIcon} innerHTML={item.icon} />
-                      {item.label}
-                    </button>
-                  )}
-                </For>
-              </div>
-            </div>
-          )}
-        </Show>
       </div>
       <input
         ref={(element) => (textColorInput = element)}

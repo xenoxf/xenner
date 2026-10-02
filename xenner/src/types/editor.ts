@@ -24,7 +24,6 @@ export interface ImportedEditorAsset {
 
 export interface MarkdownEditorHandle {
   focus(): void;
-  setBlockType(type: EditorBlockType): void;
   insertWhiteboard(tool: DrawingTool): Promise<void>;
   insertAsset(
     dataUrl: string,

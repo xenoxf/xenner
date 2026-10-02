@@ -1,18 +1,13 @@
 import type { EditorBlockType } from "../types/editor";
 
 /**
- * Un tipo de bloque de texto, con lo que necesitan las dos superficies que lo
- * ofrecen: el dock de abajo y el menú que abre el `+` de la barra flotante.
+ * Los tipos de bloque de texto, con lo que necesita la barra flotante.
  *
- * `icon` es SVG crudo a propósito. El dock lo pinta como componente de Solid
- * (`components/ui/Icons.tsx`) porque le puede dar color del tema, pero la barra
- * de Crepe solo acepta cadenas de markup: _innerHTML_ sobre ellas. Las dos
- * formas conviven sin que el mismo dibujo tenga dos versiones distintas, porque
- * las dos salen del mismo `path`.
- *
- * No hay campo de búsqueda: los dos menús son una lista corta y se recorre con
- * los ojos. Cuando una lista necesite filtrarse, el filtro vuelve aquí como dato
- * y no como un `input` metido en el menú.
+ * `icon` es SVG crudo a propósito: la barra de Crepe solo acepta cadenas de
+ * markup porque las pinta con _innerHTML_, y un componente de Solid no cabe
+ * ahí. El dock ya no los usa —los tipos se cambian en la barra flotante— así
+ * que esta lista tiene un único consumidor y no hay dos versiones del mismo
+ * dibujo que se puedan separar sin que nadie se entere.
  */
 export interface EditorBlockItem {
   id: EditorBlockType;
@@ -65,6 +60,5 @@ export const EDITOR_BLOCKS: readonly EditorBlockItem[] = [
   },
 ];
 
-export function editorBlockItem(id: EditorBlockType): EditorBlockItem | undefined {
-  return EDITOR_BLOCKS.find((item) => item.id === id);
-}
+/** Los siete, en el orden en que se leen. Lo que recorre la barra flotante. */
+export const EDITOR_BLOCK_TYPES = EDITOR_BLOCKS.map((item) => item.id);

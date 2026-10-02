@@ -19,6 +19,8 @@
     "allow-read-note",
     "allow-import-asset",
     "allow-choose-image-asset",
+    "allow-import-attachment",
+    "allow-choose-attachment",
     "allow-read-asset",
     "allow-update-asset",
     "allow-delete-asset",

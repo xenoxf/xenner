@@ -1,40 +1,36 @@
+/*
+ * El dock: tres botones de icono.
+ *
+ * No hay `min-width`: antes estaba puesto para que el botón con texto y su menú
+ * tuvieran sitio. Con tres iconos la barra se ajusta a lo que ocupa y se queda
+ * en el centro, que es lo que se ve: una fila corta, no un panel.
+ */
 .dock {
   position: absolute;
   z-index: 20;
   bottom: 16px;
   left: 50%;
   display: flex;
-  width: max-content;
-  min-width: min(292px, calc(100% - 32px));
-  min-height: 48px;
+  gap: 2px;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 6px 8px;
+  padding: 5px;
   color: var(--skin-toolbar-text);
   background-color: var(--skin-toolbar-background);
   border: var(--skin-toolbar-border);
-  border-radius: min(var(--skin-toolbar-radius, var(--skin-note-radius)), 16px);
+  border-radius: min(var(--skin-toolbar-radius, var(--skin-note-radius)), 14px);
   box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
   transform: translateX(-50%);
   backdrop-filter: blur(var(--skin-toolbar-blur));
   font-family: var(--skin-toolbar-font, var(--skin-ui-font, inherit));
 }
 
-.anchor {
-  position: relative;
-}
-
-.button,
 .iconButton {
   position: relative;
   display: inline-flex;
-  height: 36px;
-  min-width: 36px;
+  width: 38px;
+  height: 38px;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 0 9px;
   color: var(--skin-toolbar-textDim);
   background: transparent;
   border: 1px solid transparent;
@@ -46,53 +42,30 @@
     border-color var(--motion-fast) ease;
 }
 
-.iconButton {
-  width: 38px;
-  padding: 0;
-}
-
-.button:hover:not(:disabled),
-.iconButton:hover:not(:disabled),
-.button.open,
-.iconButton.open,
-.iconButton.active {
+.iconButton:hover:not(:disabled) {
   color: var(--skin-toolbar-text);
   background-color: var(--skin-toolbar-backgroundHover, var(--skin-button-backgroundHover));
 }
 
-.button.open,
-.iconButton.open,
-.iconButton.active {
-  color: var(--skin-toolbar-accent);
-  border-color: var(--skin-toolbar-accent);
-}
-
-.button:focus-visible,
-.iconButton:focus-visible,
-.menuItem:focus-visible {
+.iconButton:focus-visible {
   outline: 2px solid var(--skin-input-focus);
   outline-offset: 2px;
 }
 
-.button svg,
 .iconButton svg {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
 }
 
-.buttonLabel {
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.iconButton:disabled,
-.button:disabled {
+.iconButton:disabled {
   cursor: not-allowed;
   opacity: 0.42;
 }
 
+/* El icono se oculta y en su lugar gira un anillo. El `color: transparent` es
+   lo que apaga el dibujo sin tocar el tamaño del botón, para que la fila no dé
+   un salto en el momento de empezar a subir el archivo. */
 .busy {
   color: transparent;
 }
@@ -108,120 +81,12 @@
   animation: asset-spin 700ms linear infinite;
 }
 
-.separator {
-  width: 1px;
-  height: 22px;
-  margin: 0 3px;
-  background-color: var(--skin-toolbar-border);
-  opacity: 0.9;
-}
-
-.menu {
-  position: absolute;
-  z-index: 30;
-  bottom: calc(100% + 10px);
-  left: 0;
-  display: flex;
-  width: min(184px, calc(100vw - 32px));
-  max-height: min(430px, calc(100vh - 110px));
-  flex-direction: column;
-  padding: 4px;
-  overflow: hidden;
-  color: var(--skin-toolbar-text);
-  background-color: var(--skin-toolbar-background);
-  border: var(--skin-toolbar-border);
-  border-radius: min(var(--skin-toolbar-radius, var(--skin-note-radius)), 11px);
-  box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
-  backdrop-filter: blur(var(--skin-toolbar-blur));
-  transform-origin: bottom left;
-}
-
-.menuResults {
-  min-height: 0;
-  max-height: 330px;
-  flex: 1 1 auto;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  scrollbar-color: var(--skin-toolbar-textDim) transparent;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-}
-
-.menuResults::-webkit-scrollbar {
-  width: 5px;
-}
-
-.menuResults::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.menuResults::-webkit-scrollbar-thumb {
-  background-color: var(--skin-toolbar-textDim);
-  border-radius: 999px;
-}
-
-/* Una fila, icono a la izquierda y la etiqueta al lado. Ni caja ni columnas: el
-   dock y el menú de tipos usan la misma forma de fila para que las dos surfaces
-   se parezcan. */
-.menuItem {
-  display: flex;
-  width: 100%;
-  height: 28px;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  color: var(--skin-toolbar-text);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: calc(var(--skin-button-radius) * 0.7);
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.menuItem:hover,
-.menuItem:focus-visible,
-.menuItemActive {
-  color: var(--skin-toolbar-accent);
-  background-color: var(--skin-toolbar-backgroundHover, var(--skin-button-backgroundHover));
-}
-
-.menuItemActive {
-  border-color: color-mix(in srgb, var(--skin-toolbar-accent) 60%, transparent);
-}
-
-.menuIcon {
-  display: grid;
-  width: 16px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: var(--skin-toolbar-textDim);
-}
-
-.menuItemActive .menuIcon,
-.menuItem:hover .menuIcon,
-.menuItem:focus-visible .menuIcon {
-  color: var(--skin-toolbar-accent);
-}
-
-.menuIcon svg {
-  width: 15px;
-  height: 15px;
-}
-
 @media (max-width: 760px) {
-  .dock {
-    min-width: 0;
-    width: calc(100% - 32px);
-  }
-
-  .buttonLabel {
-    display: none;
-  }
-
-  .button {
-    width: 38px;
-    padding: 0;
+  /* En un móvil el dedo es el puntero: 38 px es el suelo de lo que se puede
+     pulsar sin acertar de más, pero el mínimo cómodo está más cerca de 44. Con
+     tres botones caben de sobra. */
+  .iconButton {
+    width: 44px;
+    height: 44px;
   }
 }

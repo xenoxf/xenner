@@ -69,115 +69,159 @@ test("el mini menu conserva los dos botones propios de Xenner", () => {
   assert.match(COMPONENT, /addItem\(\s*"text-background"/);
 });
 
-test("el mini menu cambia el tipo de texto desde un botón, no desde siete", () => {
+test("un fallo al aplicar el tipo de texto se le dice a quien escribe", () => {
+  // Un `console.error` no lo ve nadie. El síntoma era el peor posible: el texto
+  // desaparecía sin explicación, y quien escribía se quedaba sin saber si había
+  // hecho algo mal.
+  assert.match(COMPONENT, /function reportEditorFailure/);
+  assert.match(COMPONENT, /reportEditorFailure[\s\S]*?notifyError\(/);
+  // Que el comando no haga nada también es un fallo, no un no-op silencioso.
+  assert.match(COMPONENT, /else reportEditorFailure\(/);
+  // Y el aviso de producción va dentro de DEV: fuera de desarrollo no hay nada
+  // que reportar y no debe quedar ruido en la consola.
+  assert.match(COMPONENT, /import\.meta\.env\.DEV/);
+});
+
+test("el tipo de texto se cambia en la barra flotante, no en otro sitio", () => {
   // Nació de un bug real: Crepe pone en su barra negrita, cursiva, tachado,
-  // código, fórmula y enlace, pero ningún botón que cambie el bloque. Con un
-  // botón por tipo, la barra dejó de caber sobre el texto y se partió en dos
-  // filas, tapando justo lo que se había seleccionado. Ahora hay un `+` que
-  // abre un menú con los siete tipos.
+  // código, fórmula y enlace, pero ningún botón que cambie el bloque. Sin esto
+  // el tipo solo se podía cambiar con el cursor en una línea, nunca sobre el
+  // texto que se acababa de seleccionar.
   assert.match(COMPONENT, /addGroup\(\s*"blocks"/);
-  assert.match(COMPONENT, /addItem\(\s*"block-menu"/);
-  assert.match(COMPONENT, /toggleBlockMenu/);
-  // Ni un botón por tipo en la barra: es lo que la hacía más ancha que el texto.
+  assert.match(COMPONENT, /EDITOR_BLOCKS/);
+  assert.match(COMPONENT, /for \(const item of EDITOR_BLOCKS\)/);
+  // Y el dock no los repite: dos menús para lo mismo obligaban a decidir cuál
+  // era el bueno.
   assert.ok(
-    !/addItem\(\s*`block-/.test(COMPONENT),
-    "vuelve un botón por cada tipo de texto en la barra flotante",
+    !TOOLBAR.includes("EDITOR_BLOCKS"),
+    "el dock vuelve a ofrecer los tipos de texto: duplica el sitio donde se cambian",
+  );
+  assert.ok(
+    !TOOLBAR.includes("onApplyBlock"),
+    "el dock vuelve a poder cambiar el tipo de texto",
   );
 });
 
-test("el menú de tipos se ancla bajo la barra, no encima de la selección", () => {
-  // Encima de la selección está la propia barra flotante: dos superficies
-  // superpuestas sobre el texto es justo lo que se quería evitar.
-  assert.match(COMPONENT, /anchor\.bottom - bounds\.top/);
-  assert.match(CSS, /\.blockMenu\s*\{[^}]*position:\s*absolute/);
-  // Y se recorta contra el borde de la nota para no salirse por la derecha.
-  assert.match(COMPONENT, /bounds\.width - BLOCK_MENU_WIDTH/);
+test("cambiar el tipo de bloque no traga ninguna excepción", () => {
+  // El síntoma que hizo falta reconstruir esto: al cambiar el tipo de un texto
+  // seleccionado, el texto desaparecía, el editor dejaba de aceptar nada y al
+  // reabrir la nota todo estaba bien y sin guardar. Los `catch` mudos de este
+  // archivo se comían justo la excepción que lo explica. Aquí no puede quedar
+  // ni uno, y el botón avisa de lo que hace.
+  assert.ok(
+    !/catch \{\s*\}/.test(COMPONENT),
+    "queda un catch mudo: se vuelve a tragarse la excepción que rompe el editor",
+  );
+  assert.match(COMPONENT, /function reportEditorFailure/);
+  assert.match(COMPONENT, /console\.debug\("xenner: tipo de bloque"/);
+  // Si el largo del texto cambia, ha entrado un comando que borra.
+  assert.match(COMPONENT, /caracteresAntes: before/);
+  assert.match(COMPONENT, /caracteresDespues: after/);
 });
 
-test("elegir un tipo no hace desaparecer el texto seleccionado", () => {
-  // Nació de un bug real: el menú vive dentro de la raíz del editor pero fuera
-  // del `contenteditable`, así que al pulsar un tipo el foco se iba al botón y el
-  // editor se quedaba sin selección. Quien estaba escribiendo veía desaparecer
-  // el texto que acababa de seleccionar, y el comando ya no tenía a qué
-  // aplicarse. Es el mismo truco que el dock usa con su `onMouseDown`.
-  assert.match(COMPONENT, /onPointerDown=\{keepEditorFocus\}/);
-  assert.match(COMPONENT, /function keepEditorFocus\(event: PointerEvent\)/);
-  const keep = COMPONENT.slice(
-    COMPONENT.indexOf("function keepEditorFocus"),
-    COMPONENT.indexOf("function toggleBlockMenu"),
-  );
-  assert.match(keep, /event\.preventDefault\(\)/);
-  // Y la selección se guarda al ABRIR el menú, no solo al perder el foco: así el
-  // comando no depende de que la selección siga viva por el camino.
-  const toggle = COMPONENT.slice(
-    COMPONENT.indexOf("function toggleBlockMenu"),
-    COMPONENT.indexOf("function closeBlockMenu"),
-  );
-  assert.match(toggle, /selectionOnBlur\s*=/);
+test("cambiar el tipo no necesita recordar la selección", () => {
+  // El camino está en la barra flotante, cuyos botones son de Crepe y no le
+  // quitan el foco al editor: la selección viva ES la que hay que cambiar.
+  // Guardarla y recuperarla era estado defensivo que nadie entendía.
+  for (const gone of [
+    "selectionOnBlur",
+    "forgetStaleSelectionOnBlur",
+    "restoreSelectionOnBlur",
+    "keepEditorFocus",
+    "blockMenuPanel",
+    "BLOCK_MENU_WIDTH",
+    "toggleBlockMenu",
+  ]) {
+    assert.ok(
+      !COMPONENT.includes(gone),
+      `vuelve \`${gone}\`: el camino del tipo de texto ya no lo necesita`,
+    );
+  }
 });
 
-test("los dos menús de tipo de texto son pequeños y sin adornos", () => {
-  // Diez entradas de dos palabras se leen de un vistazo. Un buscador y unos
-  // encabezados de grupo solo agrandaban el menú y repetían en mayúsculas lo que
-  // el icono ya decía.
+test("la barra flotante es compacta para caber en una fila con los 7 tipos", () => {
+  // La barra lleva formato y tipo de texto: quince botones. Para que siga
+  // cabiendo sobre la columna de lectura se aprieta —28 px de botón, 3 px de
+  // margen— y el `flex-wrap` queda solo como red de seguridad para ventanas
+  // estrechas o temas con otros iconos, no como su forma normal.
+  const items = /\.milkdown-toolbar \.toolbar-item\)\s*\{([^}]*)\}/.exec(CSS)?.[1] ?? "";
+  assert.match(items, /width:\s*28px/);
+  assert.match(items, /height:\s*28px/);
+  assert.match(items, /margin:\s*3px/);
+  assert.match(CSS, /\.milkdown-toolbar\)\s*\{[^}]*max-width:/);
+});
+
+test("el dock son tres botones y no hay dos caminos para lo mismo", () => {
+  // El dock tuvo un botón «Insertar» con un menú Y los tres botones al lado, y los
+  // dos caminos hacían lo mismo. Con tres acciones, iconos solos: un clic en vez
+  // de dos y una barra que se ajusta a lo que ocupa.
+  assert.ok(
+    !TOOLBAR.includes("insertOpen"),
+    "el dock vuelve a abrir un menú: los mismos botones en dos sitios",
+  );
   assert.ok(
     !TOOLBAR.includes('type="search"'),
     "el menú del dock vuelve a tener un buscador dentro",
   );
-  assert.ok(
-    !TOOLBAR.includes("menuGroup"),
-    "el menú del dock vuelve a agrupar las entradas bajo un encabezado",
-  );
-  assert.ok(
-    !CSS.includes("blockMenuTitle"),
-    "el menú de tipos vuelve a poner un título encima de las opciones",
-  );
-  // El CSS y el cálculo de colocación no pueden quedar en medidas distintas: el
-  // `left` se recorta contra el ancho real, y si no coinciden el menú se sale.
-  const declared = /const BLOCK_MENU_WIDTH = (\d+)/.exec(COMPONENT)?.[1];
-  const styled = /\.blockMenu\s*\{[^}]*width:\s*(\d+)px/.exec(CSS)?.[1];
-  assert.equal(declared, styled, "el ancho del menú difiere entre el CSS y el código");
-  assert.ok(Number(styled) <= 176, `el menú de tipos sigue siendo ancho: ${styled}px`);
+  for (const action of [
+    'aria-label="Insertar imagen"',
+    'aria-label="Insertar pizarra"',
+    'aria-label="Adjuntar archivo"',
+  ]) {
+    assert.ok(TOOLBAR.includes(action), `falta el botón ${action}`);
+  }
+  // Y los tres tienen el mismo feedback de «subiendo», no solo imagen y pizarra:
+  // sin él, subir un PDF de varios megas parece que la app se ha colgado.
+  const spinners = TOOLBAR.match(/styles\.busy/g) ?? [];
+  assert.equal(spinners.length, 3, "un botón del dock se queda sin indicador de carga");
 });
 
-test("cambiar el tipo de bloque no pierde el texto seleccionado", () => {
-  // El dock y el menú se quedan con el foco al abrir. Si no se recupera la
-  // selección del `blur` antes de aplicar el comando, el tipo acaba puesto en
-  // la línea del cursor en vez de en lo seleccionado.
-  assert.match(COMPONENT, /function applyBlockType/);
-  const apply = COMPONENT.slice(
-    COMPONENT.indexOf("function applyBlockType"),
-    COMPONENT.indexOf("function captureTextSelection"),
-  );
-  assert.match(apply, /restoreSelectionOnBlur\(view\)/);
+test("la interfaz del editor habla un solo idioma", () => {
+  // La barra flotante la pinta Crepe, que por defecto pone los nombres en
+  // inglés. Los botones solo llevan un SVG dentro, así que sin `label` no tienen
+  // nombre accesible y un lector de pantalla lee «botón» a secas; con el nombre en
+  // inglés, en una nota en español se lee *Bold* a mitad de frase.
+  for (const label of [
+    'boldLabel: "Negrita"',
+    'italicLabel: "Cursiva"',
+    'strikethroughLabel: "Tachado"',
+    'codeLabel: "Código en línea"',
+    'latexLabel: "Fórmula"',
+    'linkLabel: "Enlace"',
+  ]) {
+    assert.ok(COMPONENT.includes(label), `la barra flotante no traduce ${label}`);
+  }
+  // Los textos de subir imagen y de pegar un enlace también venían en inglés.
+  for (const label of [
+    'blockUploadButton: "Subir archivo"',
+    'blockConfirmButton: "Confirmar"',
+    'blockUploadPlaceholderText: "o pega un enlace"',
+    'blockCaptionPlaceholderText: "Escribe el pie de la imagen"',
+    'inlineUploadButton: "Subir"',
+    'inlineUploadPlaceholderText: "o pega un enlace"',
+    'inputPlaceholder: "Pega el enlace…"',
+    'searchPlaceholder: "Buscar lenguaje"',
+    'noResultText: "Sin resultados"',
+  ]) {
+    assert.ok(COMPONENT.includes(label), `queda en inglés: ${label}`);
+  }
+});
+
+test("arrastrar un archivo cualquiera lo adjunta de verdad", () => {
+  // El `onDragOver` solo hacía `preventDefault` para imágenes mientras el `drop`
+  // aceptaba todas: arrastrar un PDF no cancelaba el gesto, así que el WebView lo
+  // abría por su cuenta en vez de adjuntarlo. Los dos tienen que mirar lo mismo.
   assert.ok(
-    apply.indexOf("restoreSelectionOnBlur") < apply.indexOf("commands.call"),
-    "la selección se recupera después del comando: llega tarde",
+    !/onDragOver=\{\(event\) => \{\s*if \([a-zA-Z]+FileFromDataTransfer/.test(COMPONENT.replace("EditorPane", "")),
+    "el dragover vuelve a mirar solo imágenes",
   );
-  assert.match(COMPONENT, /handleDOMEvents:\s*\{\s*blur:/);
-});
-
-test("la barra flotante no se parte en dos filas", () => {
-  // Con los siete botones de tipo tenía que partirse; ahora cabe en una fila.
-  // El tope de ancho sigue estando por si un tema cambia el tamaño de los
-  // botones, pero sin `flex-wrap` no hay una segunda fila.
-  assert.match(CSS, /\.milkdown-toolbar\)\s*\{[^}]*max-width:/);
-  assert.ok(
-    !/\.milkdown-toolbar\)\s*\{[^}]*flex-wrap:\s*wrap/.test(CSS),
-    "la barra flotante vuelve a partirse en dos filas",
+  const pane = readFileSync(
+    new URL("../components/editor/EditorPane.tsx", import.meta.url),
+    "utf-8",
   );
-});
-
-test("el menú de tipos se cierra sin que el `+` se cierre y se abra a la vez", () => {
-  // Crepe dispara sus botones en `pointerdown`. Si el menú se cerrara con un
-  // clic en la barra, el `+` se cerraría en el `pointerdown` y su propio `onRun`
-  // lo abriría otra vez en el mismo gesto: el botón no cerraría nunca.
-  assert.match(COMPONENT, /closest\("\.milkdown-toolbar"\)/);
-});
-
-test("el menú de adjuntos existe en el dock", () => {
-  // Adjuntar es insertar un archivo cualquiera en `.assets` y enlazarlo desde la
-  // nota. Sin su entrada en el menú solo se llegaba arrastrándolo encima.
-  assert.match(TOOLBAR, /id:\s*"attachment"/);
-  assert.match(TOOLBAR, /onChooseAttachment/);
+  assert.match(pane, /onDragOver=\{\(event\) => \{[^}]*droppedFile\(event\.dataTransfer\)/);
+  assert.match(pane, /onDrop=\{handleFileDrop\}/);
+  // La función que solo miraba imágenes era del `dragover` viejo y se quedaba
+  // muerta en medio del archivo.
+  assert.ok(!pane.includes("imageFileFromDataTransfer"), "queda la función muerta del dragover antiguo");
 });

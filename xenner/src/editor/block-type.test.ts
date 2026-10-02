@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { blockTypeAt, blockTypesInSelection } from "./block-type.ts";
 import type { BlockAncestor, BlockDocument, BlockPosition } from "./block-type.ts";
-import { EDITOR_BLOCKS } from "../data/editor.ts";
+import { EDITOR_BLOCKS, EDITOR_BLOCK_TYPES } from "../data/editor.ts";
 
 /**
  * El tipo de texto tenía que poder cambiarse sobre un texto seleccionado.
@@ -180,7 +180,7 @@ test("cada tipo de bloque tiene icono y nombre", () => {
     assert.ok(item.label.trim().length > 0, "un bloque sin nombre no se puede elegir");
   }
   assert.deepEqual(
-    EDITOR_BLOCKS.map((item) => item.id),
+    EDITOR_BLOCK_TYPES,
     ["paragraph", "heading1", "heading2", "heading3", "bullet", "ordered", "quote"],
   );
 });

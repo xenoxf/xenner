@@ -327,49 +327,59 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
   la selección está vacía o el editor pierde el foco, que es lo correcto.
   `src/editor/toolbar.test.ts` vigila que nadie vuelva a esconderla.
 - Los botones de esa barra los pone Crepe en su `buildToolbar` (negrita,
-  cursiva, tachado, código, fórmula, enlace) y Xenner **añade** dos grupos al
-  final, `blocks` y `appearance`. El orden importa: Crepe llama a
-  `buildToolbar` después de montar sus propios grupos, así que añadir no quita
-  nada.
-  - El tipo de bloque se cambia **en la misma barra flotante** que el formato, en un
-    grupo `blocks` que recorre `EDITOR_BLOCKS` —la lista que usa el dock—, y
-    **el dock no los repite**. Dos menús para lo mismo obligaban a decidir cuál
-    era el bueno, y acababan siendo dos. Nació de un bug real: Crepe **no** pone
-    ningún botón que cambie el tipo de bloque, así que el tipo solo se podía
-    cambiar con el cursor en una línea. Qué botón va marcado lo dice
-    `editor/block-type.ts` (`blockTypeAt`, `blockTypesInSelection`), que mira los
-    ancestros del bloque y no solo su padre inmediato: el padre de un texto
-    citado es un `paragraph`, y el de un elemento de lista un `list_item`. Con
-    una selección de tipos mezclados no se marca ninguno.
+    cursiva, tachado, código, fórmula, enlace) y Xenner **añade** dos grupos al
+    final, `blocks` y `appearance`. El orden importa: Crepe llama a
+    `buildToolbar` después de montar sus propios grupos, así que añadir no quita
+    nada —y también por eso el tipo de bloque, que es lo que más se usa, queda
+    detrás del formato.
+  - El tipo de bloque se cambia **en la misma barra flotante** que el formato, en
+    un grupo `blocks` que recorre `EDITOR_BLOCKS`, y **el dock no los repite**.
+    Dos menús para lo mismo obligaban a decidir cuál era el bueno. Nació de un bug
+    real: Crepe **no** pone ningún botón que cambie el tipo de bloque, así que el
+    tipo solo se podía cambiar con el cursor en una línea. Qué botón va marcado lo
+    dice `editor/block-type.ts` (`blockTypeAt`, `blockTypesInSelection`), que mira
+    los ancestros del bloque y no solo su padre inmediato: el padre de un texto
+    citado es un `paragraph`, y el de un elemento de lista un `list_item`. Con una
+    selección de tipos mezclados no se marca ninguno.
+- **La barra flotante está en español, y no es opcional.** Sus botones solo
+    llevan un SVG dentro, así que sin `label` no tienen nombre accesible: un
+    lector de pantalla lee «botón» a secas, y con el nombre en inglés de Crepe se
+    lee *Bold* a mitad de una nota en español. Por eso se pasan `boldLabel`,
+    `italicLabel`, `strikethroughLabel`, `codeLabel`, `latexLabel` y `linkLabel`,
+    y también los textos de `ImageBlock`, `LinkTooltip` y `CodeMirror`.
+  - **Lo que queda en inglés y no hay campo para cambiarlo**: el `title` del
+    tooltip de enlaces de `link-tooltip` y el mensaje de error de subida de
+    `image-block`, que están cerrados dentro del paquete. Traducirlos pediría
+    parche o coste por sustitución de texto, y no compensa hasta que molesten.
+- **El dock son tres botones, y no hay un cuarto camino.** Tuvo un botón «Insertar»
+    con un menú *y* los tres botones al lado, y los dos caminos hacían lo mismo.
+    Con tres acciones, iconos solos: un clic en vez de dos, y la barra se ajusta a
+    lo que ocupa. Los tres llevan el mismo indicador `styles.busy` al subir:
+    `aria-busy` solo lo leen los lectores de pantalla, y un PDF de varios megas sin
+    nada que se mueva parece que la app se ha colgado.
+- **Arrastrar un archivo cualquiera lo adjunta.** `onDragOver` y `onDrop` miran
+    lo mismo: `droppedFile()`, que prefiere una imagen si la hay. Antes el
+    `dragover` solo cancelaba el gesto para imágenes mientras el `drop` aceptaba
+    todo, así que soltar un PDF lo abría el WebView en vez de adjuntarlo. Con la
+    pizarra abierta el gesto es del lienzo y el contenedor no lo toca.
 - **El camino del tipo de texto no guarda ni recupera la selección.** Los botones
     de la barra son de Crepe y los dispara en `pointerdown` con `preventDefault`,
     así que nunca le quitan el foco al `contenteditable`: la selección viva *es*
     la que hay que cambiar. Antes había un `selectionOnBlur` que la recordaba al
     perder el foco y la volvía a poner, y era estado defensivo que nadie entendía.
-- **Ningún `catch` sin cuerpo en el editor.** Ese botón dio un resultado
+- **Ningún `catch` sin cuerpo, y ningún fallo mudo.** Ese botón dio un resultado
     imposible de razonar —al cambiar el tipo de un texto seleccionado, el texto
     desaparecía, el editor dejaba de aceptar nada y al reabrir la nota todo
-    estaba bien y sin guardar— y la causa era que los `catch` mudos se comían
-    justo la excepción que lo explica: una transacción que se corta a mitad deja
-    la vista a medias, el serializador de Markdown falla sobre ese documento, no
-    se guarda nada y ProseMirror se queda sin poder despachar. Todos los fallos
-    pasan por `reportEditorFailure()`, y `applyBlockType` deja un `console.debug`
-    con el largo del texto antes y después: si alguna vez no coinciden, ha entrado
-    un comando que borra, y se ve en el momento.
+    estaba bien y sin guardar—. `reportEditorFailure()` avisa por `console.error`
+    **y** por un aviso a quien escribe: un `console.error` no lo ve nadie, y un
+    texto que desaparece sin explicación es un callejón sin salida. Que el comando
+    devuelva `false` sin lanzar también se cuenta como fallo. El `console.debug`
+    con el largo del texto antes y después queda solo en `import.meta.env.DEV`.
 - Con quince botones la barra se aprieta —28 px de botón, 3 px de margen— para
     caber en una fila. El `flex-wrap` queda como red de seguridad para ventanas
     estrechas o temas con otros iconos, no como su forma normal: sin él, el
     `overflow: hidden` de Crepe cortaría los últimos en silencio.
-- Los menús de inserción son **listas cortas y planas**, sin buscador y sin
-    encabezados de grupo: tres entradas de dos palabras se leen de un vistazo, y
-    un filtro solo hace falta cuando hay muchas. El recorrido con teclado
-    —flechas, Inicio, Fin, Escape— se conserva, que es como se usa sin ratón. Por
-    eso `EDITOR_BLOCKS` ya no lleva `keywords`: si algún día hace falta filtrar,
-    el filtro vuelve ahí como dato y no como un `input` metido en el menú.
-  - Los dos botones de color no pueden usar el comando de Crepe porque abren el
-    diálogo de color del sistema, que roba el foco y con él la selección: por eso
-    `captureTextSelection()` la guarda antes y `applyTextStyleValue()` la vuelve a
-    poner.
+
 - **Cambiar el tipo de un texto seleccionado depende de la selección del
   `blur`.** El dock abre un menú que se queda con el foco —para que se pueda
   recorrer con el teclado— y la barra flotante lo conserva con un

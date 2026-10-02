@@ -395,11 +395,20 @@ function closeBlockMenu(): void {
  * Fuera del menú o con Escape se cierra. Se registra al abrirlo y no antes:
  * mientras está cerrado no hay nada que cerrar y un `pointerdown` en cualquier
  * sitio —incluido dentro del editor— se ignora.
+ *
+ * La barra flotante queda excepta, y no por descuido: Crepe dispara sus botones
+ * en `pointerdown`, así que si este menú se cerrara con el clic en la barra, el
+ * `+` se cerraría aquí y su propio `onRun` lo volvería a abrir en el mismo
+ * gesto, así que el botón no cerraría nunca. Los botones de la barra son de
+ * Crepe y cada uno sabe lo que hace; este menú se aparta al hacer clic en el
+ * texto, que es cuando de verdad deja de importar.
  */
 function watchBlockMenuDismissal(): () => void {
   const onPointerDown = (event: PointerEvent): void => {
     const target = event.target;
-    if (target instanceof Node && blockMenuPanel?.contains(target)) return;
+    if (!(target instanceof Node)) return;
+    if (blockMenuPanel?.contains(target)) return;
+    if (target instanceof Element && target.closest(".milkdown-toolbar")) return;
     closeBlockMenu();
   };
   const onKeyDown = (event: KeyboardEvent): void => {

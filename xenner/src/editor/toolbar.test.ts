@@ -122,6 +122,13 @@ test("la barra flotante no se parte en dos filas", () => {
   );
 });
 
+test("el menú de tipos se cierra sin que el `+` se cierre y se abra a la vez", () => {
+  // Crepe dispara sus botones en `pointerdown`. Si el menú se cerrara con un
+  // clic en la barra, el `+` se cerraría en el `pointerdown` y su propio `onRun`
+  // lo abriría otra vez en el mismo gesto: el botón no cerraría nunca.
+  assert.match(COMPONENT, /closest\("\.milkdown-toolbar"\)/);
+});
+
 test("el menú de adjuntos existe en el dock", () => {
   // Adjuntar es insertar un archivo cualquiera en `.assets` y enlazarlo desde la
   // nota. Sin su entrada en el menú solo se llegaba arrastrándolo encima.

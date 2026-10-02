@@ -99,9 +99,16 @@ test("un fallo al aplicar el tipo se le dice a quien escribe", () => {
   // quien escribía no tenía forma de saber si había hecho algo mal.
   assert.match(COMPONENT, /function reportFailure/);
   assert.match(COMPONENT, /reportFailure[\s\S]*?notifyError\(/);
-  // Que el comando devuelva `false` sin lanzar también cuenta como fallo: un
-  // botón que no hace nada en silencio parece roto.
-  assert.match(COMMANDS, /if \(!applied\) report\(/);
+  // Cada camino en el que el cambio **no** se aplica avisa, con su motivo: que el
+  // botón no haga nada en silencio parece roto, y era justo lo que pasaba con las
+  // listas —«Viñetas» sobre un título devolvía `false` sin lanzar excepción y no
+  // había ni rastro. En `block-change.test.ts` está medido, no supuesto.
+  assert.match(COMMANDS, /report\("no hay un cursor en el texto que cambiar"/);
+  assert.match(COMMANDS, /report\("aquí no se puede cambiar el tipo"/);
+  assert.match(COMMANDS, /report\(`el tipo \$\{type\} no se pudo aplicar`, error\)/);
+  // Y que ya esté del tipo pedido **no** cuenta como fallo: es un gesto que ha
+  // funcionado bien.
+  assert.match(COMMANDS, /if \(plan\.yaEsta \|\| !plan\.cambios\.length\) return true/);
 });
 
 test("el editor no guarda ni recupera la selección para cambiar el tipo", () => {

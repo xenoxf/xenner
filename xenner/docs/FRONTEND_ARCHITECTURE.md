@@ -418,37 +418,36 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
 - **Ningún `catch` sin cuerpo, y ningún fallo mudo.** Ese botón dio un resultado
     imposible de razonar —al cambiar el tipo de un texto seleccionado, el texto
     desaparecía, el editor dejaba de aceptar nada y al reabrir la nota todo
-    estaba bien y sin guardar—. `reportEditorFailure()` avisa por `console.error`
+    estaba bien y sin guardar—. `reportFailure()` avisa por `console.error`
     **y** por un aviso a quien escribe: un `console.error` no lo ve nadie, y un
-    texto que desaparece sin explicación es un callejón sin salida. Que el comando
-    devuelva `false` sin lanzar también se cuenta como fallo. El `console.debug`
-    con el largo del texto antes y después queda solo en `import.meta.env.DEV`.
-- **Lo que los tests no pueden cubrir.** Casi todo lo del editor se prueba
+    texto que desaparece sin explicación es un callejón sin salida. Que el
+    comando devuelva `false` sin lanzar también se cuenta como fallo.
+- **El tipo de bloque se rehace; no se envuelve.** Ver `EDITOR_ARCHITECTURE.md`
+    §5.1. Con los comandos `wrapIn*` de Milkdown, «Cita» y luego «Texto» dejaba
+    `> texto`, «Viñetas» sobre un título no hacía nada sin avisar, y pasar una
+    cita de dos párrafos a «Título 2» **perdía el segundo párrafo** porque
+    `tr.replaceWith` solo mira el tercer argumento. `block-change.ts` sustituye
+    el nodo entero y `block-change.test.ts` lo ejecuta contra el Milkdown real.
+- **Lo que los tests todavía no pueden cubrir.** El resto del editor se prueba
     leyendo el código como texto, porque no hay navegador en la comprobación: se
     vigila que la regla siga escrita en el sitio que le toca, no que el editor
-    funcione. Un paseo manual sigue siendo imprescindible para el `+` (que se
-    mide con `coordsAtPos` y depende del scroll), para el ancho real de la barra
-    flotante con quince botones, y para confirmar que el texto ya no desaparece al
-    cambiar el tipo. El `console.debug` de `applyBlockType` está puesto justo para
-    eso: si `caracteresDespues` no es `caracteresAntes`, ha entrado un comando que
-    borra y se ve en el momento.
+    funcione. Un paseo manual sigue siendo imprescindible para la **posición** del
+    menú del `+` —que se ancla al rectángulo del asa y depende del scroll— y para
+    el ancho real de la barra flotante. Lo del tipo de bloque ya no está en esa
+    lista: `editor-harness.ts` monta el Milkdown sin navegador y ejecuta el
+    cambio de verdad.
 - Con quince botones la barra se aprieta —28 px de botón, 3 px de margen— para
     caber en una fila. El `flex-wrap` queda como red de seguridad para ventanas
     estrechas o temas con otros iconos, no como su forma normal: sin él, el
     `overflow: hidden` de Crepe cortaría los últimos en silencio.
 
-- **Cambiar el tipo de un texto seleccionado depende de la selección del
-  `blur`.** El dock abre un menú que se queda con el foco —para que se pueda
-  recorrer con el teclado— y la barra flotante lo conserva con un
-  `onPointerdown`-preventDefault. Aun así el `contenteditable` se queda sin foco,
-  y entre el clic y el comando el tipo acababa puesto en la línea del cursor en
-  vez de en lo seleccionado. Por eso el plugin `xennerTextCursor` guarda la
-  selección en `handleDOMEvents.blur` y `applyBlockType()` la recupera **antes**
-  de llamar al comando. Guardarla solo en el `blur` es lo que evita el
-  envejecimiento: cualquier clic o tecla posterior dentro del editor la borra,
-  así que nunca se aplica un tipo a un texto que se dejó de seleccionar hace
-  rato. `src/editor/toolbar.test.ts` vigila que la recuperación siga antes del
-  comando.
+- **Cambiar el tipo de un texto seleccionado no depende de recordar la selección.**
+  Las filas del menú hacen `preventDefault` en `pointerdown`, así que nunca le
+  quitan el foco al `contenteditable`: la selección viva *es* la que hay que
+  cambiar. Antes `applyBlockType()` recuperaba una selección guardada en el
+  `blur`, y esa recuperación era justo lo que podía aplicar el tipo a un texto
+  que ya no estaba seleccionado. `src/editor/block-change.test.ts` lo ejecuta
+  contra el Milkdown de verdad y vigila que el texto no cambie.
 - KaTeX es `white-space: nowrap`, así que una fórmula larga ensanchaba la
   columna de lectura. `span[data-type="math_inline"]` y `.katex-display` quedan
   acotados a `max-width: 100%` con desplazamiento horizontal interno, más una

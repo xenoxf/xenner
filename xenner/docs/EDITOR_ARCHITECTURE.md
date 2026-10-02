@@ -148,6 +148,42 @@ las tres capas**, así que un test en verde no dice nada sobre permisos. Solo un
 Cada instancia de editor se destruye al cambiar de nota para evitar que un
 listener antiguo escriba sobre el archivo nuevo.
 
+### 5.1 Cambiar el tipo de bloque: se rehace, no se envuelve
+
+El tipo de texto de una línea se cambia con el menú del `+`, y **no** con los
+comandos `wrapIn*` de Milkdown. Esos comandos **envuelven** el bloque en otro en
+vez de sustituirlo, y medido con el editor de pruebas (`block-change.test.ts`)
+salen tres fallos reales:
+
+| Gesto | Con `wrapIn*` | Con `block-change.ts` |
+| --- | --- | --- |
+| «Cita» y luego «Texto» | `> texto` — la cita no se quita | `texto` |
+| «Viñetas» sobre un título | no hace nada, `false` sin excepción | `* texto` |
+| Cualquier tipo dentro de un elemento de lista | ninguno se aplica | todos se aplican |
+| «Título 2» sobre una cita de dos párrafos | un título, **se pierde el segundo párrafo** | dos títulos |
+
+La última fila es la que se parecía al «desaparece todo»: `tr.replaceWith`
+acepta **un** contenido en el tercer argumento, así que al extender los nodos con
+`...nodos` se quedaba solo el primero y el resto del bloque se perdía. Por eso
+`editor-commands.ts` pasa el array entero.
+
+El módulo `block-change.ts` no llama a ningún comando: calcula qué nodo tiene que
+haber donde estaba el que había y lo sustituye. Tres reglas:
+
+- **Se trabaja por bloque de primer nivel.** Una cita son dos niveles, y cambiar
+  su tipo es quitar el `blockquote`, no poner otro dentro.
+- **El texto y sus marcas se llevan tal cual.** Solo se reconstruyen nodos cuyo
+  contenido es texto; si hay una imagen o un separador dentro, el cambio se
+  rechaza y se explica por qué.
+- **Pedir el tipo que ya tiene no es un fallo.** Es un gesto que ha funcionado
+  bien, y antes salía un aviso en una situación normal.
+
+El editor de pruebas (`editor-harness.ts`) monta Milkdown sin navegador —su
+esquema, su gestor de comandos y su serializador de Markdown— para que estos
+casos se **ejecuten** en vez de leerse. Es lo que faltaba para ver el fallo: los
+tests que solo leen el código como texto no pueden ver nada que dependa de lo que
+haga ProseMirror con la transacción.
+
 ## 6. Dibujos visuales
 
 Un dibujo es un bloque visual compuesto dentro de la interfaz que produce un SVG

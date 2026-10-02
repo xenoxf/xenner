@@ -1,13 +1,8 @@
-import { commandsCtx } from "@milkdown/kit/core";
+import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
 import type { Ctx } from "@milkdown/kit/ctx";
 import {
   addBlockTypeCommand,
   linkSchema,
-  turnIntoTextCommand,
-  wrapInBlockquoteCommand,
-  wrapInBulletListCommand,
-  wrapInHeadingCommand,
-  wrapInOrderedListCommand,
 } from "@milkdown/kit/preset/commonmark";
 import { createParagraphNear, splitBlock } from "@milkdown/kit/prose/commands";
 import type { NodeType } from "@milkdown/kit/prose/model";
@@ -15,6 +10,7 @@ import { TextSelection } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
 
 import type { EditorBlockType } from "../types/editor";
+import { ContenidoNoTextual, planearCambioDeTipo } from "./block-change.ts";
 
 /**
  * Lo que el editor **hace** cuando alguien pulsa algo.
@@ -39,35 +35,54 @@ export type ReportFailure = (what: string, error: unknown) => void;
 /**
  * Cambia el tipo de bloque de lo que está seleccionado.
  *
- * Los comandos de Milkdown ya saben aplicar el cambio a **todos** los bloques
- * que toca la selección, así que aquí no hay que recorrerlos: se les llama y
- * ellos hacen lo suyo. Devuelve `false` si el comando no hizo nada, y eso se
- * cuenta como fallo: un botón que no responde en silencio parece roto.
+ * No llama a los comandos de Milkdown: rehace los bloques. El motivo está
+ * escrito en `block-change.ts`, y es que aquellos **envuelven** en vez de
+ * sustituir, con dos consecuencias que se ven desde fuera: cada elección añade
+ * una capa y no hay forma de quitarla, y cuando no saben envolver fallan en
+ * silencio y el botón parece roto.
+ *
+ * Devuelve `true` cuando los bloques quedan del tipo pedido —incluido el caso de
+ * que ya lo estaban, que no es un fallo— y `false` con un aviso cuando no se ha
+ * podido. Un `false` siempre llega con su motivo: un botón que no responde sin
+ * explicación parece estropeado.
  */
 export function applyBlockType(
   ctx: Ctx,
   type: EditorBlockType,
   report: ReportFailure,
 ): boolean {
-  const commands = ctx.get(commandsCtx);
   try {
-    const applied =
-      type === "paragraph"
-        ? commands.call(turnIntoTextCommand.key)
-        : type === "heading1"
-          ? commands.call(wrapInHeadingCommand.key, 1)
-          : type === "heading2"
-            ? commands.call(wrapInHeadingCommand.key, 2)
-            : type === "heading3"
-              ? commands.call(wrapInHeadingCommand.key, 3)
-              : type === "bullet"
-                ? commands.call(wrapInBulletListCommand.key)
-                : type === "ordered"
-                  ? commands.call(wrapInOrderedListCommand.key)
-                  : commands.call(wrapInBlockquoteCommand.key);
-    if (!applied) report(`el tipo ${type} no se pudo aplicar`, "el comando no hizo nada");
-    return applied;
+    const view = ctx.get(editorViewCtx);
+    const { state } = view;
+    const { selection } = state;
+    if (!(selection instanceof TextSelection)) {
+      report("no hay un cursor en el texto que cambiar", "la selección no es de texto");
+      return false;
+    }
+    const plan = planearCambioDeTipo(ctx, state.doc, selection.from, selection.to, type);
+    // Ya estaba como se pedía: no hay nada que hacer y no es un fallo.
+    if (plan.yaEsta || !plan.cambios.length) return true;
+
+    let tr = state.tr;
+    // De atrás hacia delante. Cada `replaceWith` cambia el tamaño de lo que hay
+    // detrás, y yendo al revés las posiciones de los cambios que faltan siguen
+    // valiendo.
+    //
+    // El contenido va **dentro de un array**, no repartido en varios argumentos:
+    // `replaceWith(from, to, content)` solo mira el tercero, así que al extender
+    // los nodos con `...` se quedaba solo el primero y **todo el texto del
+    // bloque se perdía**. Una cita de dos párrafos pasada a «Título 2» salía con
+    // un solo título, y con ella se iba la mitad de la nota.
+    for (const cambio of [...plan.cambios].reverse()) {
+      tr = tr.replaceWith(cambio.desde, cambio.hasta, cambio.nodos);
+    }
+    view.dispatch(tr.scrollIntoView());
+    return true;
   } catch (error) {
+    if (error instanceof ContenidoNoTextual) {
+      report("aquí no se puede cambiar el tipo", error.message);
+      return false;
+    }
     report(`el tipo ${type} no se pudo aplicar`, error);
     return false;
   }

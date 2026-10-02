@@ -501,3 +501,24 @@ Mitigación prevista: conmutador `transparent: false` en `tauri.conf.json`
   (coherente con el alcance de `backdrop-filter` descrito arriba) ?;
   `window-vibrancy` en Windows/macOS sin verificar aún.
 
+
+## 10. Los dos niveles del creador: empezar sin saber nada
+
+El creador de temas tiene dos puertas a lo mismo, y ambas escriben los
+mismos archivos `.txt`:
+
+- **El camino corto sin jerga.** Color principal + modo claro/oscuro
+  (`paletaDesdeColor` en `src/skin/palette.ts` rellena los nueve colores),
+  una imagen de fondo elegida con botón (y `overlay` en `background.txt`),
+  tipografía, redondeo y sombra. No se escribe ninguna clave a mano.
+- **Cada parte por separado**, la edición por archivos y el `custom.css`
+  libre de siempre.
+
+El modo claro/oscuro del camino corto **no** reinicia la paleta: deriva del
+color principal activo, para que cambiar de claro a oscuro conserve el tema
+de la persona.
+
+**Exportar un tema** copia la carpeta del tema con todo (`skin.txt`, los
+`.txt`, `custom.css` y `assets/`) a la carpeta que elija la persona
+(comando `export_skin`). El destino nunca se pisa: si ya hay algo con ese
+nombre, se avisa.

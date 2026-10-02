@@ -234,6 +234,13 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
 - El explorer usa drag-and-drop para mover entradas y un menú contextual para
   copiar Markdown, cortar/pegar, renombrar, crear, eliminar y abrir
   **Últimos cambios** de una nota.
+- Las filas del árbol no llevan botones: con el panel estrecho no cabían y
+  tapaban el nombre. Todo está en el menú contextual —que también se abre con
+  la tecla de menú o `Mayús+F10` sobre la fila enfocada—, en los atajos
+  (`F2` renombrar, `Supr` eliminar, `Ctrl+C/X/V` copiar/cortar/pegar) y en la
+  paleta de comandos (`Ctrl+K`). Las flechas suben y bajan por las filas
+  visibles, `←`/`→` pliegan carpetas y entran en ellas, e `Inicio`/`Fin` van a
+  los extremos.
 - Los nombres de la lista **se parten en varias líneas, no se recortan con
   puntos**. Con el panel estrecho —que ahora se puede estrechar a pulso— la
   mayoría de los nombres largos no cabían y la lista quedaba inútil: había que
@@ -315,34 +322,37 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
   final, `blocks` y `appearance`. El orden importa: Crepe llama a
   `buildToolbar` después de montar sus propios grupos, así que añadir no quita
   nada.
-  - El tipo de bloque entra por **un botón**, el `+` (`block-menu`), no por siete.
-    Es el arreglo de un bug real: Crepe **no** pone ningún botón que cambie el
-    tipo de bloque, así que el tipo solo se podía cambiar con el cursor en una
-    línea. La primera versión del arreglo metió los siete botones en la barra y
-    fue peor: dejó de caber sobre el texto y se partió en dos filas, tapando
-    justo lo que se había seleccionado. El `+` abre `styles/components/
-    MarkdownEditor.module.css` → `.blockMenu`, un panel **de 164 px y sin
-    encabezados** que se ancla **debajo** de la barra flotante —encima está la
-    propia barra— y que se recorta contra el borde de la nota con
-    `BLOCK_MENU_WIDTH`, la misma medida que el CSS, porque los dos tienen que
-    decir lo mismo o el panel se sale por la derecha. Los siete salen de
-    `EDITOR_BLOCKS`, la misma lista que usa el dock. Qué botón va marcado lo dice
+  - El tipo de bloque se cambia **en la misma barra flotante** que el formato, en un
+    grupo `blocks` que recorre `EDITOR_BLOCKS` —la lista que usa el dock—, y
+    **el dock no los repite**. Dos menús para lo mismo obligaban a decidir cuál
+    era el bueno, y acababan siendo dos. Nació de un bug real: Crepe **no** pone
+    ningún botón que cambie el tipo de bloque, así que el tipo solo se podía
+    cambiar con el cursor en una línea. Qué botón va marcado lo dice
     `editor/block-type.ts` (`blockTypeAt`, `blockTypesInSelection`), que mira los
     ancestros del bloque y no solo su padre inmediato: el padre de un texto
     citado es un `paragraph`, y el de un elemento de lista un `list_item`. Con
-    una selección de tipos mezclados no se marca ninguno, porque no hay un único
-    tipo que poner.
-- **El menú de tipos no puede robarle el foco al editor.** Vive dentro de la raíz
-    del editor pero fuera del `contenteditable`, así que sin `keepEditorFocus()`
-    en el `pointerdown` de sus filas, pulsar un tipo movía el foco al botón, el
-    editor se quedaba sin selección y quien escribía veía desaparecer el texto
-    que acababa de seleccionar. Es el mismo truco que el dock lleva usando con su
-    `onMouseDown`, y por el mismo motivo. Además `toggleBlockMenu()` guarda la
-    selección **al abrir**, no solo al perder el foco, para que el comando no
-    dependa de que siga viva por el camino. `src/editor/toolbar.test.ts` vigila las
-    dos cosas.
-- Los menús de bloques son **listas cortas y planas**, sin buscador y sin
-    encabezados de grupo: diez entradas de dos palabras se leen de un vistazo, y
+    una selección de tipos mezclados no se marca ninguno.
+- **El camino del tipo de texto no guarda ni recupera la selección.** Los botones
+    de la barra son de Crepe y los dispara en `pointerdown` con `preventDefault`,
+    así que nunca le quitan el foco al `contenteditable`: la selección viva *es*
+    la que hay que cambiar. Antes había un `selectionOnBlur` que la recordaba al
+    perder el foco y la volvía a poner, y era estado defensivo que nadie entendía.
+- **Ningún `catch` sin cuerpo en el editor.** Ese botón dio un resultado
+    imposible de razonar —al cambiar el tipo de un texto seleccionado, el texto
+    desaparecía, el editor dejaba de aceptar nada y al reabrir la nota todo
+    estaba bien y sin guardar— y la causa era que los `catch` mudos se comían
+    justo la excepción que lo explica: una transacción que se corta a mitad deja
+    la vista a medias, el serializador de Markdown falla sobre ese documento, no
+    se guarda nada y ProseMirror se queda sin poder despachar. Todos los fallos
+    pasan por `reportEditorFailure()`, y `applyBlockType` deja un `console.debug`
+    con el largo del texto antes y después: si alguna vez no coinciden, ha entrado
+    un comando que borra, y se ve en el momento.
+- Con quince botones la barra se aprieta —28 px de botón, 3 px de margen— para
+    caber en una fila. El `flex-wrap` queda como red de seguridad para ventanas
+    estrechas o temas con otros iconos, no como su forma normal: sin él, el
+    `overflow: hidden` de Crepe cortaría los últimos en silencio.
+- Los menús de inserción son **listas cortas y planas**, sin buscador y sin
+    encabezados de grupo: tres entradas de dos palabras se leen de un vistazo, y
     un filtro solo hace falta cuando hay muchas. El recorrido con teclado
     —flechas, Inicio, Fin, Escape— se conserva, que es como se usa sin ratón. Por
     eso `EDITOR_BLOCKS` ya no lleva `keywords`: si algún día hace falta filtrar,

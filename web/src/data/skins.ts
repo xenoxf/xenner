@@ -263,7 +263,6 @@ export const HOOKS: readonly HookDoc[] = [
   { hook: 'tree-row-chevron', name: 'La flechita', sees: 'La que indica si una carpeta está abierta.' },
   { hook: 'tree-row-icon', name: 'El icono', sees: 'El de nota o el de carpeta.' },
   { hook: 'tree-row-label', name: 'El nombre', sees: 'El nombre de la nota o carpeta, en una fila.' },
-  { hook: 'tree-row-actions', name: 'Los botones de la fila', sees: 'Los que aparecen al pasar el ratón por encima.' },
   { hook: 'note', name: 'El editor', sees: 'La superficie grande de la derecha.' },
   { hook: 'note-empty', name: 'Sin nota abierta', sees: 'El estado en el que se pide crear una nota.' },
   { hook: 'note-workspace', name: 'La zona de trabajo', sees: 'La que acepta soltar una imagen.' },

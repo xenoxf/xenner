@@ -119,22 +119,6 @@
   white-space: normal;
 }
 
-.actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 1px;
-  padding-right: 3px;
-  opacity: 0;
-  transition: opacity var(--motion-fast) ease;
-}
-
-.row:hover .actions,
-.row:focus-within .actions,
-.row.active .actions {
-  opacity: 1;
-}
-
 .empty {
   margin: 3px 0 5px;
   padding-left: calc((var(--tree-depth) + 1) * 13px + 31px);

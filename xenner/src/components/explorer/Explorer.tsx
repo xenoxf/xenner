@@ -2,16 +2,7 @@ import { createSignal, For, Show } from "solid-js";
 
 import type { WorkspaceTreeNode } from "../../types/workspace";
 import styles from "../../styles/components/Explorer.module.css";
-import { IconButton } from "../ui/IconButton";
-import {
-  ChevronIcon,
-  FolderIcon,
-  FolderPlusIcon,
-  NoteIcon,
-  PencilIcon,
-  PlusIcon,
-  TrashIcon,
-} from "../ui/Icons";
+import { ChevronIcon, FolderIcon, NoteIcon } from "../ui/Icons";
 import { isDialogPending } from "../../services/dialogs";
 import { CreationRow, type CreationKind } from "./CreationRow";
 import {
@@ -53,6 +44,8 @@ interface NodeProps extends ExplorerProps {
   onDragOver(event: DragEvent, targetParent: string): void;
   onDrop(event: DragEvent, targetParent: string): void;
   onContextMenu(event: MouseEvent, node: WorkspaceTreeNode): void;
+  /** Lo mismo, pero con coordenadas ya calculadas: para abrirlo desde el teclado. */
+  onContextMenuAt(node: WorkspaceTreeNode, x: number, y: number): void;
   draggingPath(): string | null;
   dropTarget(): string | null;
 }
@@ -71,6 +64,15 @@ function findNode(nodes: WorkspaceTreeNode[], path: string): WorkspaceTreeNode |
   return null;
 }
 
+/**
+ * Una fila del árbol: chevron, icono y nombre, nada más.
+ *
+ * Antes cada fila llevaba sus botones encima —crear, renombrar, borrar— que se
+ * veían al pasar el ratón. Con el panel estrecho no cabían y tapaban el nombre,
+ * que es justo lo que se viene a leer a una lista. Todo eso sigue existiendo,
+ * pero en su sitio: el clic derecho (`ExplorerContextMenu`), los atajos
+ * (`F2`, `Supr`, `Ctrl+C/X/V` abajo) y la paleta de comandos (`Ctrl+K`).
+ */
 function ExplorerNode(props: NodeProps) {
   const expanded = () => props.expandedPaths.has(props.node.path);
   const activeCreation = () =>
@@ -80,6 +82,69 @@ function ExplorerNode(props: NodeProps) {
   const selected = () => props.node.path === props.selectedPath;
   const isDropTarget = () => props.dropTarget() === props.node.path;
   const isDragging = () => props.draggingPath() === props.node.path;
+
+  /** Las filas visibles, en orden: las carpetas plegadas no pintan hijas. */
+  function visibleRows(button: HTMLButtonElement): HTMLButtonElement[] {
+    const tree = button.closest('[role="tree"]');
+    if (!tree) return [button];
+    return [...tree.querySelectorAll<HTMLButtonElement>('[data-x="tree-row"] > button')];
+  }
+
+  /**
+   * Moverse por la lista sin ratón. `Enter` y `Espacio` ya los pone el botón
+   * (abren la nota o pliegan la carpeta); aquí van el resto: flechas para
+   * subir, bajar, entrar y salir, e `Inicio`/`Fin` para los extremos.
+   */
+  function onRowKeyDown(event: KeyboardEvent): void {
+    if (isDialogPending()) return;
+    const button = event.currentTarget as HTMLButtonElement;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
+      const rows = visibleRows(button);
+      const current = rows.indexOf(button);
+      let next = current;
+      if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = rows.length - 1;
+      else if (event.key === "ArrowDown") next = Math.min(rows.length - 1, current + 1);
+      else next = Math.max(0, current - 1);
+      event.preventDefault();
+      rows[next]?.focus();
+      return;
+    }
+    if (props.node.kind === "directory" && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
+      const open = expanded();
+      if (event.key === "ArrowRight" && !open) {
+        event.preventDefault();
+        props.onToggle(props.node.path);
+        return;
+      }
+      if (event.key === "ArrowRight" && open) {
+        // La primera hija es la siguiente fila visible.
+        event.preventDefault();
+        const rows = visibleRows(button);
+        rows[rows.indexOf(button) + 1]?.focus();
+        return;
+      }
+      if (event.key === "ArrowLeft" && open) {
+        event.preventDefault();
+        props.onToggle(props.node.path);
+        return;
+      }
+      // Plegada: salir a la carpeta que la contiene.
+      event.preventDefault();
+      const item = button.closest('[data-x="tree-item"]');
+      const parentItem = item?.parentElement?.closest('[data-x="tree-item"]');
+      parentItem
+        ?.querySelector<HTMLButtonElement>(':scope > [data-x="tree-row"] > button')
+        ?.focus();
+      return;
+    }
+    // La tecla de menú contextual —o `Mayús+F10`— abre el menú de esta fila.
+    if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
+      event.preventDefault();
+      const rect = button.getBoundingClientRect();
+      props.onContextMenuAt(props.node, rect.left + 48, rect.bottom + 4);
+    }
+  }
 
   return (
     <div
@@ -123,6 +188,7 @@ function ExplorerNode(props: NodeProps) {
             if (props.node.kind === "directory") props.onToggle(props.node.path);
             else props.onSelect(props.node.path);
           }}
+          onKeyDown={onRowKeyDown}
           onDragStart={(event) => props.onDragStart(event, props.node)}
           onDragEnd={props.onDragEnd}
         >
@@ -140,45 +206,6 @@ function ExplorerNode(props: NodeProps) {
             {label()}
           </span>
         </button>
-        <Show when={props.node.kind === "directory" || !selected()}>
-          <div class={styles.actions} data-x="tree-row-actions">
-            <Show when={props.node.kind === "directory"}>
-              <IconButton
-                size="small"
-                aria-label={`Crear nota en ${label()}`}
-                title="Nueva nota"
-                onClick={() => props.onStartCreation("note", props.node.path)}
-              >
-                <PlusIcon />
-              </IconButton>
-              <IconButton
-                size="small"
-                aria-label={`Crear carpeta en ${label()}`}
-                title="Crear carpeta"
-                onClick={() => props.onStartCreation("folder", props.node.path)}
-              >
-                <FolderPlusIcon />
-              </IconButton>
-            </Show>
-            <IconButton
-              size="small"
-              aria-label={`Renombrar ${label()}`}
-              title="Renombrar"
-              onClick={() => props.onRename(props.node.path)}
-            >
-              <PencilIcon />
-            </IconButton>
-            <IconButton
-              size="small"
-              tone="danger"
-              aria-label={`Eliminar ${label()}`}
-              title="Eliminar"
-              onClick={() => props.onDelete(props.node.path)}
-            >
-              <TrashIcon />
-            </IconButton>
-          </div>
-        </Show>
       </div>
       <Show when={props.node.kind === "directory" && expanded()}>
         <div role="group">
@@ -218,7 +245,15 @@ export function Explorer(props: ExplorerProps) {
   function openContextMenu(event: MouseEvent, node: WorkspaceTreeNode): void {
     event.preventDefault();
     event.stopPropagation();
-    setContextPosition({ x: event.clientX, y: event.clientY });
+    placeContextMenu(node, event.clientX, event.clientY);
+  }
+
+  function openContextMenuAt(node: WorkspaceTreeNode, x: number, y: number): void {
+    placeContextMenu(node, x, y);
+  }
+
+  function placeContextMenu(node: WorkspaceTreeNode, x: number, y: number): void {
+    setContextPosition({ x, y });
     setContextTarget({
       path: node.path,
       kind: node.kind,
@@ -327,6 +362,7 @@ export function Explorer(props: ExplorerProps) {
     onDragOver: handleDragOver,
     onDrop: handleDrop,
     onContextMenu: openContextMenu,
+    onContextMenuAt: openContextMenuAt,
   };
 
   return (

@@ -329,7 +329,6 @@ es contrato: no se renombra sin actualizar este doc y la guía.
 | `tree-row-chevron` | La flechita de carpeta |
 | `tree-row-icon` | El icono de nota o carpeta |
 | `tree-row-label` | El nombre |
-| `tree-row-actions` | Los botones que aparecen al pasar el ratón |
 | `note` | El panel del editor: la superficie de `note.txt` |
 | `note-empty` | El estado «no hay nota abierta» |
 | `note-workspace` | El contenedor que acepta arrastrar una imagen |
@@ -355,6 +354,7 @@ es contrato: no se renombra sin actualizar este doc y la guía.
 | `mobile-note-row` | Una fila de nota, con `data-selected="true"` si es la abierta |
 | `mobile-note-row-icon` | El icono de nota de la fila |
 | `mobile-note-empty` | El estado «no hay nada que enseñar aquí» |
+| `note-empty-icon` | El icono del estado «no hay nada que enseñar aquí» |
 | `mobile-fab` | El botón flotante de nueva nota, abajo a la derecha |
 | `mobile-editor` | La pantalla del editor, a pantalla completa |
 | `mobile-editor-bar` | La barra del editor móvil: la flecha de vuelta y el nombre |

@@ -56,14 +56,24 @@ test("el mini menú no depende de por dónde esté el puntero", () => {
   assert.ok(!COMPONENT.includes("selectionRect"), "el componente vuelve a medir la selección");
 });
 
-test("el tipo de texto se cambia en la barra flotante, no en otro sitio", () => {
-  // Crepe pone negrita, cursiva, tachado, código, fórmula y enlace, pero ningún
-  // botón que cambie el tipo de bloque: sin este grupo el tipo solo se podía
-  // cambiar con el cursor en una línea, nunca sobre el texto seleccionado.
-  assert.match(COMPONENT, /addGroup\("blocks"/);
-  assert.match(COMPONENT, /BLOCK_TYPE_ICONS/);
-  // Y el dock no los repite: dos menús para lo mismo obligaban a decidir cuál
-  // era el bueno.
+test("la barra flotante no ofrece tipos de texto", () => {
+  // La barra flotante es para dar FORMATO a lo seleccionado: negrita, cursiva,
+  // tachado, código, fórmula, enlace y los dos colores. El tipo de texto no va
+  // aquí; su sitio es el `+` del lateral, que está junto al bloque al que se
+  // aplica en vez de encima del texto.
+  assert.ok(
+    !COMPONENT.includes('addGroup("blocks"'),
+    "la barra flotante vuelve a traer botones de tipo de texto",
+  );
+  assert.ok(
+    !COMPONENT.includes("block-${item.id}"),
+    "la barra flotante vuelve a traer un botón por cada tipo",
+  );
+  // Y el tipo se sigue cambiando en algún sitio, que era el bug original: solo
+  // se puede cambiar con el cursor en una línea.
+  assert.match(COMPONENT, /function chooseBlockType/);
+  assert.match(COMPONENT, /runBlockCommand\(ctx, type, reportFailure\)/);
+  // El dock tampoco los tiene: un solo sitio, el `+`.
   assert.ok(!TOOLBAR.includes("BLOCK_TYPE_ICONS"), "el dock vuelve a ofrecer los tipos");
   assert.ok(!TOOLBAR.includes("onApplyBlock"), "el dock vuelve a cambiar el tipo de texto");
 });
@@ -95,11 +105,11 @@ test("un fallo al aplicar el tipo se le dice a quien escribe", () => {
 });
 
 test("el editor no guarda ni recupera la selección para cambiar el tipo", () => {
-  // Los botones de la barra los dispara Crepe en `pointerdown` con
-  // `preventDefault`, así que nunca le quitan el foco al `contenteditable`: la
-  // selección viva *es* la que hay que cambiar. Antes había un `selectionOnBlur`
-  // que la recordaba al perder el foco y la volvía a poner, y era estado
-  // defensivo que nadie entendía.
+  // Los botones del menú los dispara un `pointerdown` con `preventDefault`, así
+  // que nunca le quitan el foco al `contenteditable`: la selección viva *es* la
+  // que hay que cambiar. Antes había un `selectionOnBlur` que la recordaba al
+  // perder el foco y la volvía a poner, y era estado defensivo que nadie
+  // entendía.
   for (const gone of [
     "selectionOnBlur",
     "forgetStaleSelectionOnBlur",
@@ -107,22 +117,54 @@ test("el editor no guarda ni recupera la selección para cambiar el tipo", () =>
     "keepEditorFocus",
     "blockMenuPanel",
     "BLOCK_MENU_WIDTH",
-    "toggleBlockMenu",
+    "prepareInsertionPoint",
   ]) {
+    if (gone === "blockMenuPanel") continue; // sí existe: es el ref del menú
     assert.ok(!COMPONENT.includes(gone), `vuelve \`${gone}\`: el camino ya no lo necesita`);
+  }
+  // Y el punto de inserción tampoco se prepara: el `+` no inserta.
+  assert.ok(!COMMANDS.includes("prepareInsertionPoint"));
+  // Menos código muerto por el mismo motivo: sin inserción no hace falta el
+  // rastro de once piezas que quedaba del camino antiguo.
+  for (const gone of ["selectionOnBlur", "toggleBlockMenu2", "inlineInsert"]) {
+    assert.ok(!COMPONENT.includes(gone), `queda \`${gone}\` del camino antiguo`);
   }
 });
 
-test("el `+` del asa se sustituye por el nuestro", () => {
-  // El de Crepe inserta siempre por debajo del bloque y abre el menú de tipos:
-  // a media frase partía el texto y además metía una línea de más. Su `onAdd` no
-  // es configurable, así que se oculta por CSS y se pone el nuestro al lado.
+test("el `+` solo abre el menú, no crea ninguna línea", () => {
+  // El gesto es «cambiar el tipo de esta línea». Si el `+` además partiera el
+  // bloque, cada pulsación metería un párrafo en blanco que nadie pidió, y con
+  // texto en medio de una frase partiría la frase.
+  assert.match(COMPONENT, /function toggleBlockMenu/);
+  const abrir = COMPONENT.slice(
+    COMPONENT.indexOf("function toggleBlockMenu"),
+    COMPONENT.indexOf("function closeBlockMenu"),
+  );
+  assert.ok(
+    !/splitBlock|createParagraphNear|delete\(/.test(abrir),
+    "el + vuelve a tocar el documento: mete una línea que nadie pidió",
+  );
+  assert.ok(!/insertText/.test(abrir), "el + vuelve a insertar texto en la línea");
+
+  // Elegir un tipo solo aplica el comando; tampoco parte nada.
+  const elegir = COMPONENT.slice(
+    COMPONENT.indexOf("function chooseBlockType"),
+    COMPONENT.indexOf("function watchBlockMenuDismissal"),
+  );
+  assert.ok(!/splitBlock|createParagraphNear|insertText/.test(elegir));
+  assert.match(elegir, /runBlockCommand/);
+
+  // Y el `+` de Crepe, que sí inserta por debajo, sigue escondido.
   assert.match(CSS, /\.milkdown-block-handle \.operation-item:first-child\)\s*\{[^}]*display:\s*none/);
-  assert.match(COMPONENT, /function showInlineInsertMenu/);
-  assert.match(COMPONENT, /prepareInsertionPoint/);
-  // El menú se abre escribiendo `/`, que es lo que hace el menú slash al
-  // teclearlo; `menuAPI` no está exportado por el paquete.
-  assert.match(COMPONENT, /insertText\("\/"\)/);
+});
+
+test("el menú del `+` tiene los siete tipos y uno marcado", () => {
+  assert.match(COMPONENT, /<For each=\{BLOCK_TYPE_ICONS\}>/);
+  assert.match(COMPONENT, /class=\{styles\.blockMenu\}/);
+  assert.match(COMPONENT, /role="menuitemradio"/);
+  // El tipo que ya tiene la línea se marca; con más de uno en la selección no
+  // se marca ninguno, porque no hay un único tipo que poner.
+  assert.match(COMPONENT, /types\.size === 1 \? \[\.\.\.types\]\[0\] : null/);
 });
 
 test("el `+` y el asa aparecen y desaparezcan juntos", () => {
@@ -132,14 +174,12 @@ test("el `+` y el asa aparecen y desaparezcan juntos", () => {
   assert.match(COMPONENT, /Show when=\{insertAnchor\(\)\}/);
 });
 
-test("la barra flotante es compacta para caber en una fila con los 7 tipos", () => {
-  // La barra lleva formato y tipo de texto: quince botones. Para que siga
-  // cabiendo sobre la columna de lectura se aprieta —28 px de botón, 3 px de
-  // margen— y el `flex-wrap` queda solo como red de seguridad.
+test("la barra flotante es compacta con lo que lleva", () => {
+  // Sin los siete botones de tipo son ocho, y caben de sobra. Se aprieta igual
+  // para que un tema con otros iconos no las parta en dos filas.
   const items = /\.milkdown-toolbar \.toolbar-item\)\s*\{([^}]*)\}/.exec(CSS)?.[1] ?? "";
   assert.match(items, /width:\s*28px/);
   assert.match(items, /height:\s*28px/);
-  assert.match(items, /margin:\s*3px/);
   assert.match(CSS, /\.milkdown-toolbar\)\s*\{[^}]*max-width:/);
 });
 

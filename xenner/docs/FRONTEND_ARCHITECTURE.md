@@ -348,20 +348,44 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
     sin explicación es un callejón sin salida. Que un comando devuelva `false`
     sin lanzar también cuenta como fallo, no como un «no-op» silencioso.
 - **Los botones de la barra flotante los pone Crepe** en su `buildToolbar`
-    (negrita, cursiva, tachado, código, fórmula, enlace) y Xenner **añade** dos
-    grupos al final, `blocks` y `appearance`. El orden importa: Crepe llama a
-    `buildToolbar` después de montar sus propios grupos, así que añadir no quita
-    nada —y también por eso el tipo de bloque, que es lo que más se usa, queda
-    detrás del formato.
-  - El tipo de bloque se cambia **en la misma barra flotante** que el formato, en
-    un grupo `blocks` que recorre `EDITOR_BLOCKS`, y **el dock no los repite**.
-    Dos menús para lo mismo obligaban a decidir cuál era el bueno. Nació de un bug
-    real: Crepe **no** pone ningún botón que cambie el tipo de bloque, así que el
-    tipo solo se podía cambiar con el cursor en una línea. Qué botón va marcado lo
-    dice `editor/block-type.ts` (`blockTypeAt`, `blockTypesInSelection`), que mira
-    los ancestros del bloque y no solo su padre inmediato: el padre de un texto
-    citado es un `paragraph`, y el de un elemento de lista un `list_item`. Con una
-    selección de tipos mezclados no se marca ninguno.
+    (negrita, cursiva, tachado, código, fórmula, enlace) y Xenner **añade** un
+    grupo, `appearance`, con los dos colores. La barra es para **formato**: nada
+    de tipos de texto.
+- **El tipo de texto se cambia con el `+` del lateral, no con la barra flotante.**
+    Son dos gestos distintos y van en sitios distintos a propósito. La barra se
+    abre **encima** del texto seleccionado, para darle formato. El tipo de bloque
+    es para cambiar **qué es esta línea**, y su botón va **junto** a la línea. Con
+    los siete botones de tipo dentro de la barra, la barra dejaba de caber sobre
+    la columna de lectura y tapaba justo lo que se acababa de seleccionar.
+  - Qué tipo tiene cada bloque lo dice `editor/block-type.ts` (`blockTypeAt`,
+    `blockTypesInSelection`), que mira los ancestros y no solo el padre inmediato:
+    el padre de un texto citado es un `paragraph`, y el de un elemento de lista
+    un `list_item`. Con más de un tipo en la selección no se marca ninguno, porque
+    no hay un único tipo que poner.
+- **El `+` no inserta nada: abre el menú de tipos.** Su gesto es «cambiar el tipo
+    de esta línea». El documento no se toca hasta que alguien elige un tipo, y
+    entonces el cambio se aplica al bloque del cursor. Antes insertaba por debajo
+    del bloque, que a media frase partía el texto y además metía una línea de más
+    delante de lo que se iba a escribir.
+  - El `+` del asa de Crepe no es configurable —su `onAdd` inserta en
+    `$pos.pos + nodeSize`—, así que se oculta por CSS y se pone el nuestro al
+    lado. El tirador de arrastrar que va justo al lado sí funcionaba y no se toca.
+  - El menú se construye en el componente y no se reutiliza el slash de Crepe,
+    porque el slash se abre escribiendo `/`, que **insertaría ese carácter** en
+    la línea. Aquí no se escribe nada hasta elegir.
+  - El `+` y el tirador comparten `shouldShow`, así que aparecen y desaparecen
+    juntos; un `+` suelto parece un botón a medias. Y el `+` se esconde mientras
+    el menú está abierto, para no quedar un segundo botón diciendo lo mismo al
+    lado del propio menú.
+  - La barra flotante queda excepta del cierre por clic: Crepe dispara sus
+    botones en `pointerdown`, así que si el menú se cerrara con el clic en la
+    barra, el `+` se cerraría ahí y su propio clic lo volvería a abrir en el
+    mismo gesto, y el botón no cerraría nunca.
+- **El camino del tipo de texto no guarda ni recupera la selección.** Los botones
+    del menú se disparan con `pointerdown` y `preventDefault`, así que nunca le
+    quitan el foco al `contenteditable`: la selección viva *es* la que hay que
+    cambiar. Antes había un `selectionOnBlur` que la recordaba al perder el foco y
+    la volvía a poner, y era estado defensivo que nadie entendía.
 - **La barra flotante está en español, y no es opcional.** Sus botones solo
     llevan un SVG dentro, así que sin `label` no tienen nombre accesible: un
     lector de pantalla lee «botón» a secas, y con el nombre en inglés de Crepe se
@@ -371,7 +395,7 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
   - **Lo que queda en inglés y no hay campo para cambiarlo**: el `title` del
     tooltip de enlaces de `link-tooltip` y el mensaje de error de subida de
     `image-block`, que están cerrados dentro del paquete. Traducirlos pediría
-    parche o coste por sustitución de texto, y no compensa hasta que molesten.
+    un parche o coste por sustitución de texto, y no compensa hasta que molesten.
 - **El dock son tres botones, y no hay un cuarto camino.** Tuvo un botón «Insertar»
     con un menú *y* los tres botones al lado, y los dos caminos hacían lo mismo.
     Con tres acciones, iconos solos: un clic en vez de dos, y la barra se ajusta a

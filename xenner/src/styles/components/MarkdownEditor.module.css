@@ -317,17 +317,25 @@
 
 /*
  * El `+` del asa de Crepe se oculta, y no por estilo: su `onAdd` inserta
- * **siempre por debajo** del bloque y abre el menú de tipos, así que pulsar el
- * `+` a media frase partía el texto y encima metía una línea de más. Ese
- * comportamiento no es configurable, se corrige sustituyéndolo por
- * `.inlineInsert`, que sí parte por donde está el cursor. El tirador de
- * arrastrar que va justo al lado sí funciona y se deja como estaba.
+ * **siempre por debajo** del bloque, así que pulsar el `+` a media frase partía
+ * el texto y encima metía una línea de más. Ese comportamiento no es
+ * configurable, se corrige sustituyéndolo por `.blockInsert`, que solo abre el
+ * menú de tipos. El tirador de arrastrar que va justo al lado sí funciona y se
+ * deja como estaba.
  */
 .editor :global(.milkdown-block-handle .operation-item:first-child) {
   display: none;
 }
 
-.inlineInsert {
+/*
+ * El `+` del lateral abre el menú de tipos, y solo eso: no inserta nada.
+ *
+ * Sustituye al de Crepe, que inserta siempre por debajo del bloque y encima
+ * le abre su propio menú. Su `onAdd` no es configurable —`$pos.pos + nodeSize`—,
+ * así que se oculta por CSS y se pone este. El tirador de arrastrar que va justo
+ * al lado sí funcionaba y no se toca.
+ */
+.blockInsert {
   position: absolute;
   z-index: 24;
   display: grid;
@@ -346,26 +354,99 @@
     border-color var(--motion-fast) ease;
 }
 
-.inlineInsert:hover {
+.blockInsert:hover {
   color: var(--skin-toolbar-text);
   background-color: var(--skin-toolbar-backgroundHover, var(--skin-button-backgroundHover));
   border-color: var(--skin-toolbar-border);
 }
 
-.inlineInsert:active {
-  background-color: var(--skin-note-selection);
-}
-
-.inlineInsert:focus-visible {
+.blockInsert:focus-visible {
   outline: 2px solid var(--skin-input-focus);
   outline-offset: 2px;
 }
 
-.inlineInsert svg {
+.blockInsert svg {
   width: 17px;
   height: 17px;
-  fill: currentColor;
   stroke: currentColor;
+}
+
+/*
+ * El menú de tipos. Sale donde estaba el `+`, que es justo lo que se está
+ * mirando, y es deliberadamente pequeño: siete opciones de una palabra no
+ * necesitan encabezado ni separadores.
+ */
+.blockMenu {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  width: 164px;
+  max-width: calc(100% - 16px);
+  flex-direction: column;
+  padding: 4px;
+  color: var(--skin-toolbar-text);
+  font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: 9px;
+  box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
+  backdrop-filter: blur(var(--skin-toolbar-blur));
+}
+
+.blockMenuList {
+  display: flex;
+  flex-direction: column;
+}
+
+.blockMenuItem {
+  display: flex;
+  width: 100%;
+  height: 25px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 6px;
+  color: var(--skin-toolbar-text);
+  font-size: 11.5px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--skin-button-radius) * 0.6);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.blockMenuItem:hover,
+.blockMenuItem:focus-visible {
+  color: var(--skin-toolbar-accent);
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-button-backgroundHover));
+}
+
+/* El tipo que ya tiene la línea. Solo uno: con más de un tipo en la selección
+   no hay un único tipo que poner. */
+.blockMenuItemActive {
+  color: var(--skin-toolbar-accent);
+  font-weight: 600;
+}
+
+.blockMenuIcon {
+  display: grid;
+  width: 15px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--skin-toolbar-textDim);
+}
+
+.blockMenuItem:hover .blockMenuIcon,
+.blockMenuItem:focus-visible .blockMenuIcon,
+.blockMenuItemActive .blockMenuIcon {
+  color: var(--skin-toolbar-accent);
+}
+
+.blockMenuIcon svg {
+  width: 14px;
+  height: 14px;
 }
 
 .editor :global(.milkdown-block-handle .operation-item:hover),

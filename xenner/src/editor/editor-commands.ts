@@ -189,42 +189,6 @@ export function focusTextCursor(
   }
 }
 
-/**
- * Prepara el sitio donde insertar y devuelve la posición, o `null` si no hay
- * sitio claro.
- *
- * Es lo que hace el `+` lateral. El de Crepe inserta **siempre por debajo** del
- * bloque, así que pulsar el `+` a media frase partía el texto y además metía una
- * línea de más delante de lo que se iba a escribir. Aquí el gesto es «aquí»:
- *
- * - bloque vacío → se sustituye, porque no tiene sentido dejar un párrafo en
- *   blanco encima del que se acaba de elegir;
- * - bloque con texto → se parte por el cursor, que es lo que significa «aquí»;
- * - selección activa → no se toca nada, porque ese gesto es de la barra
- *   flotante y partir aquí Surprisearía a quien está resaltando.
- */
-export function prepareInsertionPoint(view: EditorView, report: ReportFailure): number | null {
-  const { selection } = view.state;
-  if (!(selection instanceof TextSelection)) return null;
-  if (!selection.empty || !selection.$from.parent.isTextblock) return null;
-  try {
-    const parent = selection.$from.parent;
-    if (parent.content.size === 0) {
-      const start = selection.from - 1;
-      view.dispatch(view.state.tr.delete(start, selection.from + parent.nodeSize));
-      return start;
-    }
-    // `splitBlock` no hace nada si el cursor ya está al final del bloque, y
-    // entonces no hay línea nueva que crear: se avisa con `null` y quien llama
-    // no abre el menú, porque un menú que se abre y no inserta nada es peor.
-    if (!splitBlock(view.state, view.dispatch)) return null;
-    return selection.from;
-  } catch (error) {
-    report("no se pudo preparar el punto de inserción", error);
-    return null;
-  }
-}
-
 function isEmptyBlock(view: EditorView): boolean {
   const { $from } = view.state.selection;
   return $from.parent.isTextblock && $from.parent.content.size === 0;

@@ -82,6 +82,8 @@ interface MarkdownEditorProps {
 export function MarkdownEditor(props: MarkdownEditorProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  /** Dónde va el `+` de insertar en la línea, en px sobre la raíz del editor. */
+  const [insertAnchor, setInsertAnchor] = createSignal<{ left: number; top: number } | null>(null);
   let root: HTMLDivElement | undefined;
   let crepe: CrepeInstance | null = null;
   let textColorInput: HTMLInputElement | undefined;
@@ -129,6 +131,73 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     textCursorPos = selection.from;
   }
 
+  /**
+   * Dónde se inserta al pedir un bloque nuevo con el `+`.
+   *
+   * El `+` de Crepe inserta **siempre por debajo** del bloque y abre el menú de
+   * tipos: eso convertía cada pulsación en «una línea nueva que elegir», y
+   * pulsar el `+` a media frase partía la frase. Aquí el gesto significa «en esta
+   * línea», así que:
+   *
+   * - con el cursor en un bloque **vacío**, se sustituye ese bloque: no tiene
+   *   sentido dejar un párrafo en blanco encima del que se acaba de elegir;
+   * - con el cursor en un bloque con texto, no se inserta nada todavía. Se
+   *   parte por la mitad del bloque —que es lo que significa «aquí»— y el cursor
+   *   se queda en la parte de abajo, lista para escribir.
+   *
+   * Devuelve `null` cuando no hay un sitio claro donde insertar, y entonces no
+   * se toca el documento: insertar donde no toca sería peor que no hacer nada.
+   */
+  function prepareInlineInsert(view: EditorView): number | null {
+    const { selection } = view.state;
+    // El gesto es de bloque, no de texto: con algo seleccionado manda la
+    // selección y el camino es la barra flotante, no este botón.
+    if (!(selection instanceof TextSelection)) return null;
+    if (!selection.empty || !selection.$from.parent.isTextblock) return null;
+    try {
+      const parent = selection.$from.parent;
+      if (parent.content.size === 0) {
+        // Bloque vacío: se sustituye. No tiene sentido dejar un párrafo en
+        // blanco encima del que se acaba de elegir.
+        const start = selection.from - 1;
+        view.dispatch(
+          view.state.tr.delete(start, selection.from + parent.nodeSize),
+        );
+        return selection.from - 1;
+      }
+      // Bloque con texto: partir por donde está el cursor. `splitBlock` no hace
+      // nada si el cursor ya está al final, y entonces no hay línea que crear.
+      if (!splitBlock(view.state, view.dispatch)) return null;
+      return selection.from;
+    } catch (error) {
+      reportEditorFailure("no se pudo preparar el punto de inserción", error);
+      return null;
+    }
+  }
+
+  /**
+   * El `+` que inserta en la línea del cursor y abre el menú de tipos.
+   *
+   * Va en el mismo sitio que el asa de Crepe pero es nuestro: el de Crepe pone
+   * el bloque siempre por debajo, y por eso el gesto no se podía corregir desde
+   * fuera. El resto del asa —el tirador de arrastrar— sí funciona y se deja.
+   *
+   * El menú se abre escribiendo `/`, que es lo mismo que hace el menú slash al
+   * teclearlo. Se usa ese camino y no el método interno de Crepe porque `menuAPI`
+   * no está exportado: el único subpaquete público es el de la feature entera, y
+   * el tipo es `lib/types/feature/block-edit/index.d.ts`, sin `menuAPI`.
+   */
+  function showInlineInsertButton(): void {
+    if (!crepe || disposed) return;
+    const view = crepe.editor.ctx.get(editorViewCtx);
+    if (!view.hasFocus()) view.focus();
+    if (prepareInlineInsert(view) === null) return;
+    const after = crepe.editor.ctx.get(editorViewCtx);
+    // El `/` dispara la regla de entrada de Crepe, que abre el menú. Va en su
+    // propia transacción para que la regla vea un estado limpio.
+    after.dispatch(after.state.tr.insertText("/"));
+  }
+
   // Recoloca la selección en el cursor de texto conocido. Es idempotente: si
   // ya hay una selección de texto válida, no toca nada.
   //
@@ -164,6 +233,72 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     view.focus();
   }
 
+  /**
+   * El asa lateral solo aparece con el cursor dentro de un bloque de texto.
+   *
+   * Es la condición que usa Crepe para su asa, menos las tablas, las citas y las
+   * fórmulas: dentro de ellas no hay «la línea del cursor» sobre la que
+   * insertar. Se pasa como `shouldShow` del `blockHandle` para que el `+` de
+   * Xenner y el tirador de arrastrar aparezcan y desaparezcan **juntos**; si no,
+   * un `+` sin asa al lado parece un botón suelto.
+   */
+    /**
+   * El asa lateral solo aparece con el cursor dentro de un bloque de texto.
+   *
+   * Es la condición que usa Crepe para su asa, menos las tablas, las citas y las
+   * fórmulas: dentro de ellas no hay «la línea del cursor» sobre la que
+   * insertar. Se pasa como `shouldShow` del `blockHandle` para que el `+` de
+   * Xenner y el tirador de arrastrar aparezcan y desaparezcan **juntos**; si no,
+   * un `+` sin asa al lado parece un botón suelto.
+   */
+  function canShowBlockHandle(view: EditorView): boolean {
+    const { selection } = view.state;
+    if (!(selection instanceof TextSelection) || !selection.$from.parent.isTextblock) return false;
+    for (let depth = selection.$from.depth; depth > 0; depth -= 1) {
+      if (["table", "blockquote", "math_inline"].includes(selection.$from.node(depth).type.name)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function showBlockHandle(): boolean {
+    if (!crepe || disposed) return false;
+    return canShowBlockHandle(crepe.editor.ctx.get(editorViewCtx));
+  }
+
+  /**
+   * Coloca el `+` a la altura del cursor y a la izquierda del bloque, que es
+   * donde Crepe pone su asa. Se mide con `coordsAtPos`, que es síncrono; leer la
+   * posición del asa de Crepe sería una carrera, porque `floating-ui` la aplica
+   * en un `then`.
+   */
+  function updateInsertAnchor(view: EditorView): void {
+    if (!root || !canShowBlockHandle(view)) {
+      setInsertAnchor(null);
+      return;
+    }
+    try {
+      const { selection } = view.state;
+      const bounds = root.getBoundingClientRect();
+      const caret = view.coordsAtPos(selection.from);
+      const dom = view.domAtPos(selection.from).node;
+      const element = dom instanceof HTMLElement ? dom : dom?.parentElement;
+      const blockLeft = element
+        ? element.getBoundingClientRect().left - bounds.left
+        : bounds.left;
+      // El mismo margen que el asa de Crepe (`getOffset`), más el ancho del
+      // botón, para que los dos queden en paralelo.
+      setInsertAnchor({
+        left: Math.max(4, blockLeft - 10 - 26),
+        top: caret.top - bounds.top,
+      });
+    } catch (error) {
+      reportEditorFailure("no se pudo colocar el botón de insertar", error);
+      setInsertAnchor(null);
+    }
+  }
+
   const textCursorTracker = $prose(
     () =>
       new Plugin({
@@ -172,10 +307,18 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           update: (view) => {
             if (disposed) return;
             rememberTextCursor(view);
+            updateInsertAnchor(view);
           },
         }),
       }),
   );
+
+  // El `+` va anclado al bloque, así que tiene que moverse con el scroll: si no,
+  // se queda clavado en el sitio que ocupaba el bloque al moverse el texto.
+  function refreshInsertAnchor(): void {
+    if (disposed || !crepe) return;
+    updateInsertAnchor(crepe.editor.ctx.get(editorViewCtx));
+  }
 
   // --- Barra flotante de formato -------------------------------------------
   // Aquí ya no hay nada que la esconda: se ve cuando Crepe dice que se ve.
@@ -433,6 +576,12 @@ function captureTextSelection(): void {
             blockHandle: {
               root,
               getOffset: () => 10,
+              // El asa solo se usa para arrastrar bloques. Su botón `+` lo
+              // neutraliza `.blockHandleAddHidden` y lo sustituye
+              // `InlineInsertButton`: el de Crepe inserta **inevitablemente**
+              // por debajo del bloque y abre el menú de tipos, así que nunca
+              // podía respetar el gesto. Ver `blockHandleAddHidden` en el CSS.
+              shouldShow: showBlockHandle,
             },
             slashMenu: {
               root,
@@ -624,6 +773,13 @@ function captureTextSelection(): void {
         await instance.destroy();
         return;
       }
+      const surface = root.querySelector<HTMLElement>(".ProseMirror") ?? root;
+      surface.addEventListener("scroll", refreshInsertAnchor, { passive: true });
+      window.addEventListener("resize", refreshInsertAnchor);
+      onCleanup(() => {
+        surface.removeEventListener("scroll", refreshInsertAnchor);
+        window.removeEventListener("resize", refreshInsertAnchor);
+      });
       instance.on((listener) => {
         listener.markdownUpdated((_ctx, markdown) => {
           if (!disposed) props.onChange(serializeMarkdownFromEditor(markdown, prepared.replacements));
@@ -690,6 +846,7 @@ function captureTextSelection(): void {
 
   onCleanup(() => {
     disposed = true;
+    setInsertAnchor(null);
     props.onDispose?.();
     if (crepe) void crepe.destroy();
   });
@@ -701,6 +858,29 @@ function captureTextSelection(): void {
         class={styles.editor}
         data-x="editor-surface"
       >
+        <Show when={insertAnchor()}>
+          {(anchor) => (
+            <button
+              type="button"
+              class={styles.inlineInsert}
+              data-x="inline-insert"
+              style={{ left: `${anchor().left}px`, top: `${anchor().top}px` }}
+              aria-label="Insertar aquí y elegir tipo"
+              title="Insertar aquí y elegir tipo"
+              // Sin esto el botón roba el foco al `contenteditable` y el lugar de
+              // inserción se pierde antes de insertar. El gesto va en
+              // `pointerdown` por la misma razón que en el dock.
+              onPointerDown={(event) => {
+                event.preventDefault();
+                showInlineInsertButton();
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          )}
+        </Show>
       </div>
       <input
         ref={(element) => (textColorInput = element)}

@@ -315,6 +315,59 @@
     border-color var(--motion-fast) ease;
 }
 
+/*
+ * El `+` del asa de Crepe se oculta, y no por estilo: su `onAdd` inserta
+ * **siempre por debajo** del bloque y abre el menú de tipos, así que pulsar el
+ * `+` a media frase partía el texto y encima metía una línea de más. Ese
+ * comportamiento no es configurable, se corrige sustituyéndolo por
+ * `.inlineInsert`, que sí parte por donde está el cursor. El tirador de
+ * arrastrar que va justo al lado sí funciona y se deja como estaba.
+ */
+.editor :global(.milkdown-block-handle .operation-item:first-child) {
+  display: none;
+}
+
+.inlineInsert {
+  position: absolute;
+  z-index: 24;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  padding: 2px;
+  color: var(--skin-toolbar-accent);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.inlineInsert:hover {
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-button-backgroundHover));
+  border-color: var(--skin-toolbar-border);
+}
+
+.inlineInsert:active {
+  background-color: var(--skin-note-selection);
+}
+
+.inlineInsert:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.inlineInsert svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
 .editor :global(.milkdown-block-handle .operation-item:hover),
 .editor :global(.milkdown-block-handle .operation-item.active) {
   color: var(--skin-toolbar-text);

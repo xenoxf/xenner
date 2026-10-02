@@ -3,7 +3,7 @@ import { Show } from "solid-js";
 import type { VaultErrorShape, WorkspaceScan, WorkspaceTreeNode } from "../../types/workspace";
 import { CreationRow, type CreationKind } from "../explorer/CreationRow";
 import { Explorer, type CreationDraft } from "../explorer/Explorer";
-import { FolderOpenIcon, FolderPlusIcon, GearIcon, PlusIcon, RefreshIcon } from "../ui/Icons";
+import { FolderOpenIcon, FolderPlusIcon, PlusIcon, RefreshIcon } from "../ui/Icons";
 import { IconButton } from "../ui/IconButton";
 import styles from "../../styles/components/ExplorerSidebar.module.css";
 
@@ -22,7 +22,6 @@ export interface ExplorerSidebarProps {
   legacyIssue: string | null;
   onChooseWorkspace(): void;
   onRefresh(): void;
-  onOpenSettings(): void;
   onDismissError(): void;
   onImportLegacy(): void;
   onStartCreation(kind: CreationKind, parent?: string): void;
@@ -45,10 +44,16 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
 
   return (
     <aside class={styles.sidebar} data-x="sidebar" aria-label="Explorador de archivos">
+      {/*
+        La cabecera es la del panel: el nombre de la sección a la izquierda y sus
+        acciones a la derecha. El engranaje no vive aquí porque la configuración
+        está al pie de la barra de secciones (`ActivityBar`), que es donde se
+        busca en un editor de código y donde se encuentra aquí.
+      */}
       <header class={styles.header} data-x="sidebar-header">
         <div class={styles.titleRow}>
           <div class={styles.titleCopy}>
-            <strong title={root()}>Notas</strong>
+            <strong>Notas</strong>
           </div>
           <div class={styles.windowActions} data-x="sidebar-window-actions">
             <IconButton
@@ -67,14 +72,6 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
               onClick={props.onRefresh}
             >
               <RefreshIcon />
-            </IconButton>
-            <IconButton
-              size="compact"
-              aria-label="Configuración"
-              title="Configuración"
-              onClick={props.onOpenSettings}
-            >
-              <GearIcon />
             </IconButton>
           </div>
         </div>
@@ -182,6 +179,11 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
 
       <footer class={styles.footer}>
         <strong>xenner</strong>
+        {/* La carpeta de la biblioteca, que antes solo vivía en el `title` del
+            título y no se veía. Aquí se lee sin pasar el ratón por encima. */}
+        <Show when={root()}>
+          <span title={root()}>{root()}</span>
+        </Show>
       </footer>
     </aside>
   );

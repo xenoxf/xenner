@@ -244,9 +244,13 @@ export interface HookDoc {
 
 export const HOOKS: readonly HookDoc[] = [
   { hook: 'app', name: 'La ventana', sees: 'El fondo de todo, detrás de los paneles.' },
-  { hook: 'sidebar', name: 'La lista de notas', sees: 'La columna de la izquierda.' },
-  { hook: 'sidebar-header', name: 'La cabecera', sees: 'El título «Notas» y los tres botones de la esquina.' },
-  { hook: 'sidebar-window-actions', name: 'Los botones de ventana', sees: 'Abrir carpeta, recargar y ajustes.' },
+  { hook: 'activity-bar', name: 'La barra de secciones', sees: 'La columna más estrecha, a la izquierda del todo.' },
+  { hook: 'activity-bar-top', name: 'Las secciones de arriba', sees: 'Donde está el icono de la lista de notas.' },
+  { hook: 'activity-bar-bottom', name: 'La sección de abajo', sees: 'Donde está el engranaje de configuración.' },
+  { hook: 'activity-tip', name: 'El rótulo de un icono', sees: 'El nombre que sale al pasar el ratón por encima.' },
+  { hook: 'sidebar', name: 'La lista de notas', sees: 'La columna de la izquierda, al lado de la barra.' },
+  { hook: 'sidebar-header', name: 'La cabecera', sees: 'El rótulo «Notas» y los botones de su esquina.' },
+  { hook: 'sidebar-window-actions', name: 'Los botones de ventana', sees: 'Abrir carpeta y recargar. Los ajustes están en la barra de secciones.' },
   { hook: 'sidebar-toolbar', name: 'La fila de arriba', sees: '«Nueva nota» y el contador.' },
   { hook: 'sidebar-count', name: 'El contador', sees: 'El número con cuántas notas hay en total.' },
   { hook: 'tree', name: 'El área de la lista', sees: 'Donde se hace scroll, con las notas dentro.' },
@@ -269,7 +273,7 @@ export const HOOKS: readonly HookDoc[] = [
   { hook: 'editor-surface', name: 'El editor por fuera', sees: 'Para poner algo detrás con `::before`.' },
   { hook: 'toolbar', name: 'La barra del editor', sees: 'La flotante sobre el texto.' },
   { hook: 'toolbar-button', name: 'Un botón de la barra', sees: 'Con `data-x-open="true"` si su menú está abierto.' },
-  { hook: 'button', name: 'Cualquier botón', sees: 'Con `data-x-role="primary"`, `"icon"` o `"default"`, y `data-x-size` en los de icono.' },
+  { hook: 'button', name: 'Cualquier botón', sees: 'Con `data-x-role="primary"`, `"icon"`, `"rail"` o `"default"`, y `data-x-size` en los de icono.' },
   { hook: 'modal', name: 'Una ventana emergente', sees: 'Con `data-x-modal="settings"` o `"history"`.' },
 ];
 

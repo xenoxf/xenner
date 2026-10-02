@@ -310,9 +310,13 @@ es contrato: no se renombra sin actualizar este doc y la guía.
 | `data-x` | Qué es |
 |---|---|
 | `app` | La ventana entera: fondo, rejilla, imagen de fondo |
+| `activity-bar` | La columna estrecha de secciones, pegada al borde izquierdo |
+| `activity-bar-top` | Su grupo de arriba, donde vive la lista de notas |
+| `activity-bar-bottom` | Su grupo de abajo, donde vive la configuración |
+| `activity-tip` | El rótulo de un icono, el que sale al pasar por encima |
 | `sidebar` | La columna de la lista de notas |
-| `sidebar-header` | Su cabecera, con el título y los botones de ventana |
-| `sidebar-window-actions` | Los tres botones de la esquina (abrir, recargar, ajustes) |
+| `sidebar-header` | La cabecera del panel: el nombre de la sección y sus acciones |
+| `sidebar-window-actions` | Los dos botones de la esquina (abrir, recargar) |
 | `sidebar-toolbar` | La fila con «Nueva nota» y el contador |
 | `sidebar-count` | El número de notas |
 | `tree` | El área con scroll donde vive la lista |
@@ -335,7 +339,7 @@ es contrato: no se renombra sin actualizar este doc y la guía.
 | `editor-surface` | El nodo que lo monta, para `::before`/`::after` |
 | `toolbar` | La barra flotante del editor |
 | `toolbar-button` | Un botón de la barra, con `data-x-open` si su menú está abierto |
-| `button` | Cualquier botón. `data-x-role`: `primary`, `icon` o `default`. `data-x-size` en los de icono |
+| `button` | Cualquier botón. `data-x-role`: `primary`, `icon`, `rail` o `default`. `data-x-size` en los de icono |
 | `modal` | Una ventana emergente. `data-x-modal`: `settings` o `history` |
 
 Ejemplos:
@@ -349,6 +353,10 @@ Ejemplos:
 
 /* solo el botón principal */
 [data-x="button"][data-x-role="primary"] { border-radius: 0; }
+
+/* los iconos de la barra de secciones */
+[data-x="activity-bar"] { background: #101828; }
+[data-x="button"][data-x-role="rail"][data-x-active="true"] { color: #ffd166; }
 
 /* una marca decorativa, sin tocar el layout */
 [data-x="sidebar-header"]::after {

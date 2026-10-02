@@ -1,7 +1,15 @@
 .sidebar {
   display: flex;
+  /*
+   * El ancho vive aquí y no en la rejilla del shell porque esta columna tiene
+   * que poder desaparecer entera —con el icono de la barra de secciones— y
+   * dejar que el editor ocupe su sitio. Con el ancho puesto en el shell, esconder
+   * el panel dejaría un hueco vacío de 236 px.
+   */
+  width: clamp(236px, 21vw, 272px);
   min-width: 0;
   min-height: 0;
+  flex: 0 0 auto;
   flex-direction: column;
   color: var(--skin-sidebar-text);
   background-color: var(--skin-sidebar-background);
@@ -10,12 +18,19 @@
   backdrop-filter: blur(var(--skin-sidebar-blur));
 }
 
+@media (max-width: 760px) {
+  .sidebar {
+    width: 225px;
+  }
+}
+
 .header {
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
   gap: 8px;
   padding: 11px 9px 8px;
+  border-bottom: var(--skin-sidebar-border);
 }
 
 .titleRow,
@@ -43,12 +58,19 @@
   line-height: 1.25;
 }
 
+/*
+ * El nombre de la sección, en caja alta y atenuado: es el rótulo del panel, no
+ * un título de página. `text-transform` en vez de escribirlo así en el marcado,
+ * para que lo que se lee con el lector de pantalla siga siendo «Notas».
+ */
 .titleCopy strong {
   overflow: hidden;
-  color: var(--skin-sidebar-text);
-  font-size: 14px;
-  font-weight: 620;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 

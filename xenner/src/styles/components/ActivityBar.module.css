@@ -1,0 +1,134 @@
+/*
+ * La barra de secciones, a la izquierda de todo: destinos arriba, configuración
+ * abajo. Es una columna estrecha y fija; el ancho del panel de notas lo pone
+ * `ExplorerSidebar.module.css`, porque si el panel se esconde es su columna —y
+ * no la de esta barra— la que tiene que desaparecer.
+ */
+
+.activityBar {
+  display: flex;
+  width: 52px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  padding: 8px 0;
+  color: var(--skin-sidebar-textDim);
+  background-color: var(--skin-sidebar-background);
+  border-right: var(--skin-sidebar-border);
+  backdrop-filter: blur(var(--skin-sidebar-blur));
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.item {
+  position: relative;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  place-items: center;
+  color: var(--skin-sidebar-textDim);
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--skin-button-radius) * 0.85);
+  cursor: pointer;
+  transition:
+    color var(--motion-standard) ease,
+    background-color var(--motion-standard) ease;
+}
+
+.item svg {
+  width: 24px;
+  height: 24px;
+}
+
+.item:hover {
+  color: var(--skin-sidebar-text);
+  background-color: var(--skin-sidebar-itemHover);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -2px;
+}
+
+/*
+ * La marca de la sección abierta: un filete de acento pegado al borde, que es
+ * lo que dice de un vistazo qué panel se está viendo. Es decorativo, así que
+ * va en `::before` y no en el botón: el estado de verdad está en `data-x-active`
+ * y en `aria-pressed`.
+ */
+.item::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: -4px;
+  width: 2px;
+  background-color: var(--skin-sidebar-accent);
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity var(--motion-standard) ease;
+}
+
+.itemActive {
+  color: var(--skin-sidebar-text);
+}
+
+.itemActive::before {
+  opacity: 1;
+}
+
+/*
+ * El rótulo. Se dibuja a la derecha del icono y solo aparece al pasar por encima
+ * o al llegar con el teclado, que es cuando hace falta. Va por encima del panel
+ * de notas y del editor —de ahí el `z-index`— pero por debajo de los modales.
+ */
+.tip {
+  position: absolute;
+  z-index: var(--z-rail-tip);
+  top: 50%;
+  left: calc(100% - 2px);
+  padding: 4px 9px;
+  color: var(--skin-note-text);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: calc(var(--skin-toolbar-radius, 0px) + var(--skin-button-radius) * 0.4);
+  box-shadow: var(--skin-note-shadow);
+  backdrop-filter: blur(var(--skin-toolbar-blur));
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.item:hover .tip,
+.item:focus-visible .tip {
+  opacity: 1;
+  transition-delay: 260ms;
+}
+
+@media (max-width: 760px) {
+  .activityBar {
+    width: 46px;
+  }
+
+  .item {
+    width: 40px;
+    height: 40px;
+  }
+
+  .item svg {
+    width: 21px;
+    height: 21px;
+  }
+}

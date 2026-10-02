@@ -318,3 +318,20 @@ export function DotsIcon(props: IconProps) {
     </svg>
   );
 }
+
+/**
+ * Dos hojas superpuestas: el icono de la lista de notas en la barra lateral.
+ *
+ * Es el mismo dibujo que usan los editores de código para el explorador, y por
+ * eso se llama `FilesIcon` y no `NoteIcon`: este es el de la sección, el otro es
+ * el de una nota dentro del árbol.
+ */
+export function FilesIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M13 3H7a2 2 0 0 0-2 2v8" />
+      <path d="M14 9h3l3 3v7a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z" />
+      <path d="M17 9v3h3" />
+    </svg>
+  );
+}

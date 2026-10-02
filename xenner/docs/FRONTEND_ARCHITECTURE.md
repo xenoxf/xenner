@@ -95,6 +95,14 @@ convierten en clases globales de aplicación.
 
 ## 4. Estado y servicios
 
+- La vista de escritorio son tres columnas: la barra de secciones
+  (`ActivityBar`), el panel de notas (`ExplorerSidebar`) y el editor. La rejilla
+  de `AppShell.module.css` es `auto auto minmax(0, 1fr)` y el ancho del panel lo
+  pone `ExplorerSidebar.module.css`, no la rejilla: si el ancho estuviera en la
+  rejilla, ocultar el panel dejaría una columna vacía de 236 px. `sidebarOpen` y
+  `toggleSidebar` viven en `useAppController` porque los manejan dos sitios que
+  no son el panel —el icono de la barra y el atajo `Ctrl+E`— y crear una nota
+  desde el editor vuelve a abrirlo, ya que la fila para nombrarla está dentro.
 - `workspace/store.ts` conserva el estado reactivo y la cola de autoguardado; el
   nombre del archivo es la fuente del título y el input superior lo renombra.
   El título se renombra al perder el foco del input, nunca en cada pulsación:

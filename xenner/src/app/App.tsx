@@ -3,6 +3,7 @@ import { createSignal, Show, type JSX } from "solid-js";
 import { ToastRegion } from "../components/feedback/ToastRegion";
 import { AppShell } from "../components/layout/AppShell";
 import { ExplorerSidebar } from "../components/layout/ExplorerSidebar";
+import { ActivityBar } from "../components/layout/ActivityBar";
 import { EditorPane } from "../components/editor/EditorPane";
 import { NoteHistoryPanel } from "../components/editor/NoteHistoryPanel";
 import { SettingsModal } from "../components/settings/SettingsModal";
@@ -124,37 +125,46 @@ export default function App() {
       when={isMobilePlatform()}
       fallback={
         <AppShell>
-          <ExplorerSidebar
-            workspace={getWorkspace()}
-            tree={getWorkspaceTree()}
-            loading={getWorkspaceLoading()}
-            canChooseWorkspace={workspaceSupportsFolderPicker()}
-            error={getWorkspaceError()}
-            selectedPath={getSelectedPath()}
-            expandedPaths={getExpandedPaths()}
-            creation={explorer.creation()}
-            creating={explorer.creating()}
-            canPaste={Boolean(explorer.cutPath())}
-            legacyNoteCount={explorer.legacyNotes().length}
-            legacyIssue={explorer.legacyIssue()}
-            onChooseWorkspace={() => void chooseWorkspace()}
-            onRefresh={() => void refreshWorkspaceTree()}
+          {/* La barra de secciones es solo de escritorio: en móvil los ajustes
+              están en la barra de arriba y la lista ocupa la pantalla entera. */}
+          <ActivityBar
+            explorerOpen={controller.sidebarOpen()}
+            onToggleExplorer={controller.toggleSidebar}
             onOpenSettings={() => controller.setSettingsOpen(true)}
-            onDismissError={closeWorkspaceError}
-            onImportLegacy={() => void explorer.importOldNotes()}
-            onStartCreation={explorer.startCreation}
-            onSubmitCreation={(name) => void explorer.submitCreation(name)}
-            onCancelCreation={() => explorer.setCreation(null)}
-            onSelect={(path) => void selectNote(path)}
-            onToggle={toggleFolder}
-            onRename={(path) => void explorer.rename(path)}
-            onDelete={(path) => void explorer.remove(path)}
-            onMove={(path, parent) => void explorer.move(path, parent)}
-            onCopyMarkdown={(path) => void explorer.copyMarkdown(path)}
-            onCut={(path) => explorer.cut(path)}
-            onPaste={(parent) => void explorer.paste(parent)}
-            onShowHistory={history.open}
           />
+
+          <Show when={controller.sidebarOpen()}>
+            <ExplorerSidebar
+              workspace={getWorkspace()}
+              tree={getWorkspaceTree()}
+              loading={getWorkspaceLoading()}
+              canChooseWorkspace={workspaceSupportsFolderPicker()}
+              error={getWorkspaceError()}
+              selectedPath={getSelectedPath()}
+              expandedPaths={getExpandedPaths()}
+              creation={explorer.creation()}
+              creating={explorer.creating()}
+              canPaste={Boolean(explorer.cutPath())}
+              legacyNoteCount={explorer.legacyNotes().length}
+              legacyIssue={explorer.legacyIssue()}
+              onChooseWorkspace={() => void chooseWorkspace()}
+              onRefresh={() => void refreshWorkspaceTree()}
+              onDismissError={closeWorkspaceError}
+              onImportLegacy={() => void explorer.importOldNotes()}
+              onStartCreation={explorer.startCreation}
+              onSubmitCreation={(name) => void explorer.submitCreation(name)}
+              onCancelCreation={() => explorer.setCreation(null)}
+              onSelect={(path) => void selectNote(path)}
+              onToggle={toggleFolder}
+              onRename={(path) => void explorer.rename(path)}
+              onDelete={(path) => void explorer.remove(path)}
+              onMove={(path, parent) => void explorer.move(path, parent)}
+              onCopyMarkdown={(path) => void explorer.copyMarkdown(path)}
+              onCut={(path) => explorer.cut(path)}
+              onPaste={(parent) => void explorer.paste(parent)}
+              onShowHistory={history.open}
+            />
+          </Show>
 
           <EditorPane
             document={getSelectedDocument()}
@@ -165,7 +175,12 @@ export default function App() {
             error={getWorkspaceError()}
             onChange={updateSelectedDocument}
             onTitleChange={updateSelectedTitle}
-            onCreate={() => explorer.startCreation("note")}
+            onCreate={() => {
+              // La fila para nombrar la nota nueva vive en el panel: si está
+              // escondido, crear desde el editor no enseñaría nada.
+              controller.setSidebarOpen(true);
+              explorer.startCreation("note");
+            }}
             onRetry={() => void retryPendingSave()}
             onReload={() => void reloadSelectedDocument()}
           />

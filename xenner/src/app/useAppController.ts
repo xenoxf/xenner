@@ -21,9 +21,19 @@ export function useAppController() {
   const explorer = useExplorerController();
   const history = useHistoryController();
   const [settingsOpen, setSettingsOpen] = createSignal(false);
+  /*
+   * Si el panel de la lista de notas está desplegado. Vive aquí porque lo
+   * controlan dos sitios —el icono de la barra de secciones y el atajo de
+   * teclado— y ninguno de los dos es el panel.
+   */
+  const [sidebarOpen, setSidebarOpen] = createSignal(true);
   let lastWorkspaceIssue = "";
   let lastLegacyIssue = "";
   let saveShortcutBusy = false;
+
+  function toggleSidebar(): void {
+    setSidebarOpen((open) => !open);
+  }
 
   createEffect(() => {
     const error = getWorkspaceError();
@@ -69,10 +79,31 @@ export function useAppController() {
         });
     };
     document.addEventListener("keydown", saveWithShortcut);
+    /*
+     * Mostrar u ocultar la lista de notas. Es `Ctrl+E` y no `Ctrl+B`, que es lo
+     * que usan los editores de código, porque `Ctrl+B` aquí es negrita en el
+     * editor de Markdown: cambiarlo habría roto algo que ya funcionaba.
+     */
+    const toggleSidebarWithShortcut = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "e") return;
+      event.preventDefault();
+      toggleSidebar();
+    };
+    document.addEventListener("keydown", toggleSidebarWithShortcut);
     onCleanup(() => document.removeEventListener("keydown", saveWithShortcut));
+    onCleanup(() => document.removeEventListener("keydown", toggleSidebarWithShortcut));
     onCleanup(stopWatchingSystem);
     onCleanup(stopWatchingWorkspace);
   });
 
-  return { appearance, explorer, history, settingsOpen, setSettingsOpen };
+  return {
+    appearance,
+    explorer,
+    history,
+    settingsOpen,
+    setSettingsOpen,
+    sidebarOpen,
+    setSidebarOpen,
+    toggleSidebar,
+  };
 }

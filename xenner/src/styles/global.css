@@ -35,6 +35,10 @@
   --z-modal: 50;
   --z-drawing-modal: 70;
   --z-toast: 100;
+  /* El rótulo que aparece al pasar por encima de un icono de la barra de
+     secciones: tiene que verse por encima del panel y del editor, pero no
+     tapar un modal. */
+  --z-rail-tip: 30;
 
   /* ------------------------------------------------- tokens de lectura (Apariencia) */
   --skin-ui-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

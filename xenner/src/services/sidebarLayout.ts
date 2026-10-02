@@ -24,15 +24,34 @@ export const SIDEBAR_WIDTH_MIN = 208;
 export const SIDEBAR_WIDTH_MAX = 480;
 /** Cuánto se mueve con las flechas del teclado. */
 export const SIDEBAR_WIDTH_STEP = 16;
+/** Lo que le queda al editor aunque el panel se estire. */
+const EDITOR_MIN_WIDTH = 320;
 
 const STORAGE_KEY = "xenner:sidebar:v1";
 
 export const DEFAULT_SIDEBAR_LAYOUT: SidebarLayout = { open: true, width: null };
 
+/**
+ * El tope de verdad en una ventana concreta.
+ *
+ * Los 480 px son un máximo absoluto, pero el que importa es el de esta ventana:
+ * en una de 900 px un panel de 480 deja al editor con lo justo y descuadra la
+ * lectura. Aquí nunca baja del mínimo ni sube del máximo absoluto, así que el
+ * arrastre tampoco se queda sin recorrido.
+ */
+export function maxSidebarWidthFor(viewportWidth: number): number {
+  if (!Number.isFinite(viewportWidth)) return SIDEBAR_WIDTH_MAX;
+  return Math.min(
+    SIDEBAR_WIDTH_MAX,
+    Math.max(SIDEBAR_WIDTH_MIN, Math.round(viewportWidth - EDITOR_MIN_WIDTH)),
+  );
+}
+
 /** Un ancho válido y acotado. Lo que no es un número se queda en el mínimo. */
-export function clampSidebarWidth(value: number): number {
+export function clampSidebarWidth(value: number, max = SIDEBAR_WIDTH_MAX): number {
+  const ceiling = Math.max(SIDEBAR_WIDTH_MIN, Math.min(max, SIDEBAR_WIDTH_MAX));
   if (!Number.isFinite(value)) return SIDEBAR_WIDTH_MIN;
-  return Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, Math.round(value)));
+  return Math.min(ceiling, Math.max(SIDEBAR_WIDTH_MIN, Math.round(value)));
 }
 
 /**

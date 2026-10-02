@@ -9,7 +9,7 @@
 ```text
 src/
   app/                 composición y controladores de ciclo de vida
-  components/          UI; agrupada por explorer, editor, settings, etc.
+  components/          UI; agrupada por mobile, explorer, editor, settings, etc.
   data/                catálogos y valores estáticos sin efectos secundarios
   editor/              dominio puro: rutas, color, figuras y drawings
   notes/               modelo y compatibilidad legacy
@@ -93,16 +93,130 @@ su propio módulo. Milkdown y ProseMirror son DOM de terceros: sus selectores
 se limitan con `:global(...)` dentro de `MarkdownEditor.module.css`; no se
 convierten en clases globales de aplicación.
 
-## 4. Estado y servicios
+## 4. Dos vistas: escritorio y móvil
 
+`app/App.tsx` monta una de dos vistas con un solo `Show` sobre
+`isMobilePlatform()`: `components/layout/AppShell` en escritorio,
+`components/mobile/MobileShell` en móvil. Son excluyentes: nunca están las dos
+montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
+
+- **Decide el user agent, no el ancho de la ventana.** La versión móvil es otro
+  diseño, no el de escritorio en una ventana estrecha. Si se mirara el ancho,
+  achicar la ventana en un portátil convertiría la app en la versión móvil, y la
+  vista previa del navegador en un teléfono enseñaría el diseño equivocado.
+- El valor se calcula una vez y se cachea en `services/platform.ts`: se consulta
+  desde el render y `navigator` no cambia durante la sesión.
+- Del mismo servicio salen `platformSupportsFolderPicker()` y
+  `platformSupportsFileReveal()`. En móvil no hay selector de carpetas ni
+  explorador de archivos al que abrir la biblioteca: Ajustes esconde el botón con
+  `Show` y pone debajo la explicación, el panel de notas lo deja deshabilitado, y
+  en los dos casos el backend devuelve un motivo escrito en vez de abrir un
+  diálogo que en esa plataforma no existe.
+
+### `components/mobile/`
+
+| Componente | Qué pinta |
+|---|---|
+| `MobileShell` | Las dos pantallas y el estado que las separa |
+| `MobileTopBar` | Título de la lista y sus dos iconos |
+| `MobileSearchBar` | El buscador |
+| `MobileFolderStrip` | La tira horizontal de carpetas |
+| `MobileNoteList` | Las filas de notas y su menú de acciones |
+| `MobileEditorBar` | La barra del editor con la flecha de vuelta |
+
+- `MobileShell` tiene dos estados y no una rejilla: la lista y el editor a
+  pantalla completa, separados por el signal `editing`. A pantalla completa
+  porque en un teléfono las dos no caben y el editor necesita el ancho entero.
+- Reutiliza piezas del escritorio a propósito: `EditorPane`, `CreationRow` y
+  `ExplorerContextMenu`. Del menú solo cambia el ancla, que es el rectángulo del
+  botón `⋯` porque no hay clic derecho; `ExplorerContextMenu` sigue recolocando
+  el panel dentro de la pantalla.
+- Sin pulsación larga ni arrastrar: lo que con un dedo era ambiguo pasa a un
+  botón `⋯` por fila.
+- La búsqueda pliega con `normalize("NFD")` y quita los diacríticos, así que
+  `viaje` encuentra `Viaje`. Busca en toda la biblioteca e ignora el filtro de
+  carpeta, que es lo que hace útil un buscador cuando hay muchas carpetas.
+- La tira de carpetas es plana y trae todas las carpetas a cualquier nivel, así
+  que la etiqueta de cada chip es su ruta completa dentro de la biblioteca:
+  `Trabajo` y `Trabajo/2026` conviven y dos `2026` en sitios distintos se
+  distinguen solos. Tocar un chip filtra por las notas que tiene directamente
+  dentro; volver a tocarlo quita el filtro. No hay migaja ni pantalla de carpeta:
+  no es navegación.
+- Crear una carpeta no da su ruta antes de existir, así que `MobileShell` guarda
+  el censo de carpetas de antes y espera a que aparezca una nueva: esa es la
+  creada, y queda seleccionada.
+- `env(safe-area-inset-*)` en todo lo que toca un borde, porque el `MainActivity`
+  de Tauri llama a `enableEdgeToEdge()` y la ventana llega hasta debajo de la
+  barra del sistema.
+- El botón atrás de Android se resuelve con el historial del WebView: entrar en
+  el editor empuja una entrada con `history.pushState` y el `popstate` devuelve
+  a la lista. Cerrar con la flecha gasta esa entrada con `history.back()`, para
+  no tener que pulsarlo dos veces para salir. Por eso no hace falta escuchar el
+  evento `back-button` de Tauri ni pedir el permiso `core:event`.
+- Para poner el foco en la nota recién creada, `MobileShell` busca
+  `[data-x="note-title"]` dentro de `EditorPane`: `EditorPane` no expone un ref,
+  y el gancho público es lo que ata los dos sitios sin tocar el componente.
+
+### Los modales: la prop `overlays` y por qué son un componente
+
+- Los modales globales —`NoteHistoryPanel`, `SettingsModal`, `ToastRegion` y
+  `DialogHost`— llegan a las dos vistas por la prop `overlays`, no por props
+  propias: su estado vive en el controlador de la aplicación y quien los abre y
+  quien los cierra es el mismo sitio, así que atravesar el árbol con callbacks
+  no aportaba nada. En `MobileShell` se renderizan al final del shell para que su
+  `Portal` y su `position: fixed` queden por encima de las dos pantallas.
+- `Overlays` es un componente y no un `JSX.Element` guardado en una variable,
+  porque en Solid el JSX crea el DOM en cuanto se evalúa: guardado en una
+  variable, sus nodos nacerían aunque la rama que lo contiene no llegara a
+  pintarse. Como componente, cada rama crea los suyos cuando le toca.
+- `DialogHost` va siempre montado y en las dos vistas, porque sustituye a
+  `window.prompt` y `window.confirm` (§5).
+
+## 5. Estado y servicios
+
+- `services/dialogs.ts` es la frontera de las preguntas: sustituye a
+  `window.prompt` y `window.confirm`. El motivo es Android: en su WebView esos
+  dos no existen de forma utilizable, el anfitrión tiene que implementar
+  `onJsPrompt` y `onJsConfirm`, y si no lo hace la llamada vuelve como cancelada,
+  o sea que en Android no se podía renombrar ni borrar nada. Un solo camino para
+  las dos plataformas quita el problema de raíz y el diálogo pasa a parecerse al
+  resto de la app.
+- Quien pregunta es hoy `useExplorerController` (importar las notas antiguas,
+  renombrar, eliminar), pero el estado vive en `services/dialogs.ts` y no en un
+  componente para que cualquier capa pueda preguntar sin recibir un `ref` del
+  árbol. Pinta solo `DialogHost`, que no recibe props a propósito: pregunta al
+  servicio.
+- Solo se pregunta de una en una, con cola FIFO. `settled` se marca antes de
+  entregar la respuesta para que un doble clic o un segundo `Enter` no la
+  entreguen dos veces ni contesten a la pregunta de en cola, que nadie ha visto.
+- El turno se da con `queueMicrotask` para que el modal saliente se desmonte antes
+  de entrar el entrante, y se comprueba al encadenar, no antes: al contestar una
+  pregunta se reanuda a quien esperaba, y ese código puede abrir ya la siguiente,
+  que es lo que la persona acaba de pedir y por eso gana la pantalla.
+- `isDialogPending()` lo consulta el explorador para no disparar sus atajos
+  (`F2`, `Supr`) con un diálogo encima: sin eso, abrir «Renombrar» con `F2` y
+  pulsar `Supr` encolaba detrás una pregunta de borrar que nadie había pedido, y
+  el siguiente `Escape` la hacía aparecer.
 - La vista de escritorio son tres columnas: la barra de secciones
-  (`ActivityBar`), el panel de notas (`ExplorerSidebar`) y el editor. La rejilla
-  de `AppShell.module.css` es `auto auto minmax(0, 1fr)` y el ancho del panel lo
-  pone `ExplorerSidebar.module.css`, no la rejilla: si el ancho estuviera en la
-  rejilla, ocultar el panel dejaría una columna vacía de 236 px. `sidebarOpen` y
-  `toggleSidebar` viven en `useAppController` porque los manejan dos sitios que
-  no son el panel —el icono de la barra y el atajo `Ctrl+E`— y crear una nota
-  desde el editor vuelve a abrirlo, ya que la fila para nombrarla está dentro.
+  (`ActivityBar`), el panel de notas (`ExplorerSidebar`) y el editor. El ancho del
+  panel lo pone `ExplorerSidebar.module.css`, no la rejilla: si el ancho estuviera
+  en la rejilla, ocultar el panel dejaría una columna vacía de 236 px.
+  `sidebarOpen` y `toggleSidebar` viven en `useAppController` porque los manejan
+  dos sitios que no son el panel —el icono de la barra y el atajo `Ctrl+E`— y
+  crear una nota desde el editor vuelve a abrirlo, ya que la fila para nombrarla
+  está dentro.
+- **`AppShell` recibe `rail`, `sidebar`, `editor` y `overlays` en vez de `children`,
+  y cada zona va en su propia casilla con su `grid-column`.** No es una
+  formalidad: la rejilla coloca en orden de llegada, así que al desmontarse el
+  panel —que es justo lo que pasa al esconderlo— el editor corría a la columna del
+  panel, la `auto`, y se quedaba con el ancho justo de su contenido en vez de
+  estirarse. Con las columnas declaradas, esconder el panel solo hace que su
+  casilla valga cero. La casilla del editor es una celda de rejilla que lo estira
+  a lo ancho y a lo alto, igual que hace la vista móvil con `EditorPane`.
+- La barra de secciones necesita `position: relative` y `z-index`, no por gusto:
+  su `backdrop-filter` crea un contexto de apilamiento, y el panel y el editor
+  crean el suyo. Sin subirla de nivel —que es lo natural en una barra que es la
+  primera en el DOM— su rótulo se quedaba debajo de los dos.
 - El ancho del panel llega como la variable `--sidebar-width`, no como un `width`
   en la hoja: si no se ha arrastrado el tirador no se escribe nada y manda el
   `clamp()` de `ExplorerSidebar.module.css`, que es lo que lo adapta a una
@@ -110,7 +224,9 @@ convierten en clases globales de aplicación.
   la ventana, no de Apariencia, y viven en `services/sidebarLayout.ts`. El
   tirador (`SidebarResizer`) es un `separator` con su papel: se arrastra con el
   puntero y también con las flechas, con `Shift` a saltos grandes y con
-  `Inicio`/`Fin` a los topes; dos clics lo devuelven al ancho de la hoja.
+  `Inicio`/`Fin` a los topes; dos clics lo devuelven al ancho de la hoja. El tope
+  del arrastre sale de `maxSidebarWidthFor()`, que deja al editor
+  `--layout-editor-min` de ancho: estirar el panel no puede comerse la nota.
 - `workspace/store.ts` conserva el estado reactivo y la cola de autoguardado; el
   nombre del archivo es la fuente del título y el input superior lo renombra.
   El título se renombra al perder el foco del input, nunca en cada pulsación:
@@ -278,7 +394,7 @@ convierten en clases globales de aplicación.
 - `notes/store.ts` permanece como compatibilidad del CRUD antiguo y no se
   mezcló con `NoteDocument`.
 
-## 5. Verificación
+## 6. Verificación
 
 ```bash
 pnpm test
@@ -286,10 +402,29 @@ pnpm typecheck
 pnpm build
 ```
 
-Los tests siguen enumerados en `package.json` porque usan el ejecutor nativo de
-Node. Si se añade un test puro nuevo, debe incorporarse también a ese script.
+Los tests siguen enumerados uno a uno en `package.json` porque usan el ejecutor
+nativo de Node con `--experimental-strip-types`. Si se añade un test puro nuevo,
+debe incorporarse también a ese script; si se olvida, `pnpm check` pasa sin
+ejecutarlo y el test no vigila nada.
 
-## 6. Fuentes oficiales consultadas
+- Viven junto al código que prueban: `src/editor/*.test.ts`, `src/skin/*.test.ts`,
+  `src/services/*.test.ts`, `src/workspace/*.test.ts` y `src/notes/model.test.ts`.
+  No hay runner de DOM: lo que depende del navegador se vigila leyendo su
+  código y sus CSS desde el propio test.
+- Los de `skin/` y `editor/` vigilan datos que están duplicados y ya se habían
+  desincronizado: la lista de claves por idioma, los valores por defecto del
+  creador contra `global.css`, y los tokens de selección. Son los tests los que
+  mantienen esas copias honestas, no la disciplina.
+- `src/services/dialogs.test.ts` (13 casos) no monta nada: prueba la cola, el
+  turno y la respuesta de la promesa. Lo que motivó el módulo no se puede probar
+  desde el frontend, porque depende del anfitrión no implementar
+  `onJsPrompt`/`onJsConfirm`; lo que sí comprueba es que ya no se depende de
+  ellos.
+- La vista móvil solo se ejercita de verdad en Android:
+  `pnpm android:dev` la compila y la levanta en un teléfono o emulador. En el
+  navegador de escritorio no se monta nunca, porque la decisión es el user agent.
+
+## 7. Fuentes oficiales consultadas
 
 - SolidJS, CSS Modules: <https://docs.solidjs.com/guides/styling-components/css-modules>
 - Vite 6, CSS Modules: <https://v6.vite.dev/guide/features#css-modules>

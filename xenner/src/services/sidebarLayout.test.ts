@@ -6,6 +6,7 @@ import {
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
   clampSidebarWidth,
+  maxSidebarWidthFor,
   sanitizeSidebarLayout,
   sidebarWidthStyle,
   sidebarWidthVariable,
@@ -23,6 +24,20 @@ test("el ancho se acota entre el mínimo y el máximo", () => {
   assert.equal(clampSidebarWidth(99999), SIDEBAR_WIDTH_MAX);
   assert.equal(clampSidebarWidth(280), 280);
   assert.equal(clampSidebarWidth(280.4), 280, "los píxeles son enteros");
+});
+
+test("el tope depende de lo que mide la ventana, no del máximo de siempre", () => {
+  // Con el panel estirado, al editor le quedan 320 px como mínimo.
+  assert.equal(maxSidebarWidthFor(1400), SIDEBAR_WIDTH_MAX);
+  assert.equal(maxSidebarWidthFor(700), 380);
+  // En una ventana tan estrecha que no cabe ni el mínimo, manda el mínimo.
+  assert.equal(maxSidebarWidthFor(300), SIDEBAR_WIDTH_MIN);
+  assert.equal(maxSidebarWidthFor(Number.NaN), SIDEBAR_WIDTH_MAX);
+});
+
+test("arrastrar en una ventana estrecha no aplasta el editor", () => {
+  assert.equal(clampSidebarWidth(99999, maxSidebarWidthFor(700)), 380);
+  assert.equal(clampSidebarWidth(400, maxSidebarWidthFor(700)), 380);
 });
 
 test("un ancho que no es un número no mueve el panel de sitio", () => {

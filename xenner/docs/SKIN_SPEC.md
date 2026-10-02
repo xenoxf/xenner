@@ -310,6 +310,9 @@ es contrato: no se renombra sin actualizar este doc y la guía.
 | `data-x` | Qué es |
 |---|---|
 | `app` | La ventana entera: fondo, rejilla, imagen de fondo |
+| `app-rail` | La casilla que aloja la barra de secciones |
+| `app-notes` | La casilla que aloja la lista de notas |
+| `app-editor` | La casilla que aloja el editor |
 | `activity-bar` | La columna estrecha de secciones, pegada al borde izquierdo |
 | `activity-bar-top` | Su grupo de arriba, donde vive la lista de notas |
 | `activity-bar-bottom` | Su grupo de abajo, donde vive la configuración |
@@ -342,6 +345,37 @@ es contrato: no se renombra sin actualizar este doc y la guía.
 | `toolbar-button` | Un botón de la barra, con `data-x-open` si su menú está abierto |
 | `button` | Cualquier botón. `data-x-role`: `primary`, `icon`, `rail` o `default`. `data-x-size` en los de icono |
 | `modal` | Una ventana emergente. `data-x-modal`: `settings` o `history` |
+| `mobile` | La raíz de la vista móvil, la de los teléfonos. En el escritorio no existe |
+| `mobile-topbar` | La barra de arriba de la lista: el título y sus dos iconos |
+| `mobile-search` | El bloque del buscador. El campo de dentro lleva `data-x="input"` |
+| `input` | Un campo de texto: la región de `input.txt`. Hoy, el buscador del móvil |
+| `mobile-folder-strip` | La tira horizontal con todas las carpetas de la biblioteca |
+| `mobile-folder-chip` | Una carpeta de la tira, con `data-selected="true"` si está filtrando la lista |
+| `mobile-note-list` | El área con scroll donde están las notas |
+| `mobile-note-row` | Una fila de nota, con `data-selected="true"` si es la abierta |
+| `mobile-note-row-icon` | El icono de nota de la fila |
+| `mobile-note-empty` | El estado «no hay nada que enseñar aquí» |
+| `mobile-fab` | El botón flotante de nueva nota, abajo a la derecha |
+| `mobile-editor` | La pantalla del editor, a pantalla completa |
+| `mobile-editor-bar` | La barra del editor móvil: la flecha de vuelta y el nombre |
+
+Los ganchos `mobile-*` solo existen en la vista móvil, que es una vista propia y
+no el escritorio estrecho. Dos superficies reutilizan a propósito un gancho de
+escritorio:
+
+- `[data-x="sidebar"]` es la pantalla de la lista del móvil, porque es la misma
+  superficie que la columna del explorador: el sitio donde vive la lista de
+  notas. Las filas y los chips beben de los mismos tokens `--skin-sidebar-*`,
+  así que una skin de la columna llega al móvil sin escribir una regla más. Lo
+  que no se reutiliza son los ganchos del árbol (`tree-row` y compañía): en el
+  móvil las filas son `mobile-note-row`.
+- El editor del móvil es el `EditorPane` del escritorio, así que dentro valen
+  `note`, `note-title`, `editor`, `editor-surface` y `toolbar` tal cual. Una skin
+  escrita para el escritorio ya llega al móvil sin escribir nada más.
+
+Los atributos `data-x-mobile` que acompañan a varios de ellos no forman parte
+del vocabulario: son para el CSS Modules de la vista y pueden cambiar. Para
+escribir una skin, `data-x`.
 
 Ejemplos:
 
@@ -365,6 +399,10 @@ Ejemplos:
   float: right;
   color: #ffd166;
 }
+
+/* en el móvil: la fila abierta y la carpeta que está filtrando */
+[data-x="mobile-note-row"][data-selected] { background: #ffd166; }
+[data-x="mobile-folder-chip"][data-selected] { border-color: #7dd3fc; }
 ```
 
 Dentro de `[data-x="editor"]` hay HTML normal, así que además de `data-x` valen

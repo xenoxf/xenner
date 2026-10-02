@@ -12,6 +12,15 @@
    */
   position: relative;
   width: var(--sidebar-width, clamp(236px, 21vw, 272px));
+  /*
+   * Un ancho elegido en una ventana grande no puede quedar ahí al achicar la
+   * ventana: sin este tope el panel se lleva la mitad de la pantalla y el
+   * editor se queda en una columna de texto. El `max()` de fuera es para que en
+   * una ventana diminuta sea el editor el que se apriete: el panel, mientras
+   * pueda, sigue mostrando nombres de nota. La barra y el mínimo del editor
+   * salen de tokens, que es donde vive el resto de las medidas del layout.
+   */
+  max-width: max(236px, calc(100vw - var(--layout-rail-width) - var(--layout-editor-min)));
   min-width: 0;
   min-height: 0;
   flex: 0 0 auto;

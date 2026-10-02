@@ -6,8 +6,16 @@
  */
 
 .activityBar {
+  /*
+   * `position` y `z-index` no son adorno: el `backdrop-filter` de abajo ya crea
+   * un contexto de apilamiento, y sin subir esta barra de nivel su rótulo se
+   * quedaba debajo del panel y del editor, que también crean contexto. La barra
+   * es la primera en el DOM, así que por defecto es la primera en pintarse.
+   */
+  position: relative;
+  z-index: var(--z-rail);
   display: flex;
-  width: 52px;
+  width: var(--layout-rail-width);
   flex: 0 0 auto;
   flex-direction: column;
   align-items: stretch;
@@ -17,6 +25,7 @@
   background-color: var(--skin-sidebar-background);
   border-right: var(--skin-sidebar-border);
   backdrop-filter: blur(var(--skin-sidebar-blur));
+  height: 100vh;
 }
 
 .group {
@@ -24,6 +33,14 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
+}
+
+/* La caja de cada icono: es lo que se posiciona para que el rótulo salga hacia
+   el panel sin depender de nada dentro del botón. */
+.slot {
+  position: relative;
+  display: grid;
+  place-items: center;
 }
 
 .item {
@@ -69,9 +86,9 @@
   position: absolute;
   top: 9px;
   bottom: 9px;
-  /* El icono está centrado en una barra de 52 px y mide 46, así que quedan
-     tres píxeles a cada lado: con `-3px` el filete cae justo contra el borde de
-     la ventana, que es donde lo pone un editor de código. */
+  /* El icono está centrado en la barra y mide 46, así que quedan tres píxeles a
+     cada lado: con `-3px` el filete cae justo contra el borde de la ventana,
+     que es donde lo pone un editor de código. */
   left: -3px;
   width: 2px;
   background-color: var(--skin-sidebar-accent);
@@ -95,7 +112,6 @@
  */
 .tip {
   position: absolute;
-  z-index: var(--z-rail-tip);
   top: 50%;
   left: calc(100% - 2px);
   padding: 4px 9px;
@@ -114,8 +130,14 @@
   transition: opacity var(--motion-fast) ease;
 }
 
-.item:hover .tip,
-.item:focus-visible .tip {
+/*
+ * Se muestra al pasar por encima o al llegar con el teclado. El rótulo es
+ * hermano del botón y no un hijo suyo: dentro de un `<button>`, el navegador
+ * lo recorta en cuanto necesita salirse de la caja, y esto tiene que salir
+ * justo hacia el panel.
+ */
+.slot:hover .tip,
+.slot:focus-within .tip {
   opacity: 1;
   transition-delay: 260ms;
 }

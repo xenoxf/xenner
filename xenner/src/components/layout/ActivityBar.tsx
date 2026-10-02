@@ -31,44 +31,48 @@ export function ActivityBar(props: ActivityBarProps): JSX.Element {
   return (
     <nav class={styles.activityBar} data-x="activity-bar" aria-label="Secciones de la aplicación">
       <div class={styles.group} data-x="activity-bar-top">
-        <button
-          type="button"
-          class={`${styles.item} ${props.explorerOpen ? styles.itemActive : ""}`}
-          data-x="button"
-          data-x-role="rail"
-          data-x-action="explorer"
-          data-x-active={props.explorerOpen ? "true" : "false"}
-          aria-label="Lista de notas"
-          aria-pressed={props.explorerOpen}
-          title="Lista de notas"
-          onClick={props.onToggleExplorer}
-        >
-          <FilesIcon />
+        <div class={styles.slot}>
+          <button
+            type="button"
+            class={`${styles.item} ${props.explorerOpen ? styles.itemActive : ""}`}
+            data-x="button"
+            data-x-role="rail"
+            data-x-action="explorer"
+            data-x-active={props.explorerOpen ? "true" : "false"}
+            aria-label="Lista de notas"
+            aria-pressed={props.explorerOpen}
+            title="Lista de notas"
+            onClick={props.onToggleExplorer}
+          >
+            <FilesIcon />
+          </button>
           {/* El rótulo se ve al pasar por encima, como el globo de los editores
-              de código. Es decoración: el nombre accesible ya está arriba. */}
+              de código. Es decoración: el nombre accesible ya está en el botón. */}
           <span class={styles.tip} data-x="activity-tip" aria-hidden="true">
             Lista de notas
           </span>
-        </button>
+        </div>
       </div>
 
       <div class={styles.group} data-x="activity-bar-bottom">
-        <button
-          type="button"
-          class={styles.item}
-          data-x="button"
-          data-x-role="rail"
-          data-x-action="settings"
-          data-x-active="false"
-          aria-label="Configuración"
-          title="Configuración"
-          onClick={props.onOpenSettings}
-        >
-          <GearIcon />
+        <div class={styles.slot}>
+          <button
+            type="button"
+            class={styles.item}
+            data-x="button"
+            data-x-role="rail"
+            data-x-action="settings"
+            data-x-active="false"
+            aria-label="Configuración"
+            title="Configuración"
+            onClick={props.onOpenSettings}
+          >
+            <GearIcon />
+          </button>
           <span class={styles.tip} data-x="activity-tip" aria-hidden="true">
             Configuración
           </span>
-        </button>
+        </div>
       </div>
     </nav>
   );

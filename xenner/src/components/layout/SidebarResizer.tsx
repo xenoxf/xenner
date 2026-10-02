@@ -1,5 +1,6 @@
 import {
   clampSidebarWidth,
+  maxSidebarWidthFor,
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
   SIDEBAR_WIDTH_STEP,
@@ -36,16 +37,29 @@ export function SidebarResizer(props: SidebarResizerProps) {
 
   const applied = (): number => props.width ?? panelWidth();
 
+  /**
+   * El tope de esta ventana, no el de siempre. Se lee al usar el tirador y no al
+   * montar: la ventana se puede cambiar de tamaño con el panel abierto, y un
+   * tope calculado una vez dejaría poder estirar el panel hasta comerse el
+   * editor.
+   */
+  const ceiling = (): number =>
+    typeof window === "undefined" ? SIDEBAR_WIDTH_MAX : maxSidebarWidthFor(window.innerWidth);
+
+  function moveTo(width: number): void {
+    props.onWidthChange(clampSidebarWidth(width, ceiling()));
+  }
+
   function nudge(delta: number): void {
-    props.onWidthChange(clampSidebarWidth(applied() + delta));
+    moveTo(applied() + delta);
   }
 
   function onKeyDown(event: KeyboardEvent): void {
     const step = event.shiftKey ? SIDEBAR_WIDTH_STEP * 3 : SIDEBAR_WIDTH_STEP;
     if (event.key === "ArrowLeft") nudge(-step);
     else if (event.key === "ArrowRight") nudge(step);
-    else if (event.key === "Home") props.onWidthChange(SIDEBAR_WIDTH_MIN);
-    else if (event.key === "End") props.onWidthChange(SIDEBAR_WIDTH_MAX);
+    else if (event.key === "Home") moveTo(SIDEBAR_WIDTH_MIN);
+    else if (event.key === "End") moveTo(SIDEBAR_WIDTH_MAX);
     else return;
     event.preventDefault();
   }
@@ -57,6 +71,7 @@ export function SidebarResizer(props: SidebarResizerProps) {
     if (!target) return;
     const startX = event.clientX;
     const startWidth = panelWidth();
+    const top = ceiling();
 
     // Mientras se arrastra, el puntero se vuelve una flecha y no se selecciona
     // texto: sin esto, un arrastre rápido acaba pintando la lista de notas.
@@ -66,7 +81,7 @@ export function SidebarResizer(props: SidebarResizerProps) {
     document.body.style.userSelect = "none";
 
     const move = (moveEvent: PointerEvent): void => {
-      props.onWidthChange(clampSidebarWidth(startWidth + moveEvent.clientX - startX));
+      props.onWidthChange(clampSidebarWidth(startWidth + moveEvent.clientX - startX, top));
     };
     const stop = (): void => {
       target.removeEventListener("pointermove", move);
@@ -96,7 +111,7 @@ export function SidebarResizer(props: SidebarResizerProps) {
          hoja CSS y aquí no se ha medido todavía. Antes callar que mentir. */
       aria-valuenow={props.width ?? undefined}
       aria-valuemin={SIDEBAR_WIDTH_MIN}
-      aria-valuemax={SIDEBAR_WIDTH_MAX}
+      aria-valuemax={ceiling()}
       tabindex={0}
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}

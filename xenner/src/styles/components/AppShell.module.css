@@ -1,8 +1,13 @@
 .appShell {
   display: grid;
-  /* Tres columnas: la barra de secciones, el panel de notas —que puede
-     desaparecer y dejar su hueco en cero— y el editor, que se lleva el resto. */
+  /*
+   * Tres columnas —barra de secciones, panel de notas y editor— y una sola
+   * fila. El ancho de cada una lo pone su contenido, menos el del editor, que
+   * se lleva lo que sobra. La barra y el panel pueden desaparecer: su columna
+   * pasa entonces a valer cero.
+   */
   grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   width: 100vw;
   height: 100vh;
   overflow: hidden;
@@ -12,4 +17,34 @@
   font-family: var(--skin-ui-font, var(--skin-background-font));
   font-size: 14px;
   line-height: 1.5;
+}
+
+/*
+ * Cada zona dice en qué columna está. Sin esto la rejilla las coloca en orden
+ * de llegada y, al desmontarse el panel, el editor corría a la columna del
+ * panel y se quedaba con el ancho de su contenido en vez de estirarse.
+ */
+.rail,
+.notes,
+.editor {
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.rail {
+  grid-column: 1;
+}
+
+.notes {
+  grid-column: 2;
+  display: flex;
+}
+
+/* La celda que estira el editor a lo ancho y a lo alto, como en la vista móvil. */
+.editor {
+  display: grid;
+  grid-column: 3;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }

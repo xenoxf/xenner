@@ -35,10 +35,18 @@
   --z-modal: 50;
   --z-drawing-modal: 70;
   --z-toast: 100;
-  /* El rótulo que aparece al pasar por encima de un icono de la barra de
-     secciones: tiene que verse por encima del panel y del editor, pero no
-     tapar un modal. */
-  --z-rail-tip: 30;
+  /* La capa de la barra de secciones, y la de su rótulo: tiene que verse por
+     encima del panel y del editor —los dos crean contexto de apilamiento por su
+     `backdrop-filter` y sin esto se la come el primero que llega— pero por
+     debajo de los modales. */
+  --z-rail: 30;
+
+  /* ----------------------------------------------------------------- medidas */
+  /* El ancho de la barra de secciones y el editor más estrecho que se acepta
+     antes de que el panel lo aplaste. Son medidas del layout de escritorio y
+     viven aquí para que el panel y la barra hablen el mismo idioma. */
+  --layout-rail-width: 52px;
+  --layout-editor-min: 320px;
 
   /* ------------------------------------------------- tokens de lectura (Apariencia) */
   --skin-ui-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

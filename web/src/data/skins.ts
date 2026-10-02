@@ -244,6 +244,9 @@ export interface HookDoc {
 
 export const HOOKS: readonly HookDoc[] = [
   { hook: 'app', name: 'La ventana', sees: 'El fondo de todo, detrás de los paneles.' },
+  { hook: 'app-rail', name: 'La casilla de la barra', sees: 'La franja más estrecha del todo, a la izquierda.' },
+  { hook: 'app-notes', name: 'La casilla de la lista', sees: 'Donde vive la lista de notas.' },
+  { hook: 'app-editor', name: 'La casilla del editor', sees: 'Donde vive la nota abierta.' },
   { hook: 'activity-bar', name: 'La barra de secciones', sees: 'La columna más estrecha, a la izquierda del todo.' },
   { hook: 'activity-bar-top', name: 'Las secciones de arriba', sees: 'Donde está el icono de la lista de notas.' },
   { hook: 'activity-bar-bottom', name: 'La sección de abajo', sees: 'Donde está el engranaje de configuración.' },

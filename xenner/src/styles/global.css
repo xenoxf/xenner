@@ -112,6 +112,91 @@
   --skin-toolbar-accent: #2383e2;
 }
 
+/*
+ * ------------------------------------------------------- texto seleccionado
+ *
+ * Se declaran **una sola vez**, aquí fuera de los dos bloques de arriba, y se
+ * derivan de tokens que ya cambian con el modo. Una propiedad personalizada se
+ * sustituye al usarla, no al declararla, así que estas siguen al acento y al
+ * texto del modo activo sin duplicar nada.
+ *
+ * Por qué hace falta: sin esto el navegador pinta la selección con su color de
+ * fábrica, que depende del `color-scheme` del sistema y no de la skin. En un
+ * tema oscuro con el sistema en claro salía una banda azul clarísima encima del
+ * texto y se dejaba de leer. Aquí manda la skin; y si un tema no dice nada, sale
+ * un tinte del propio acento sobre el propio fondo, que conserva el contraste
+ * porque el texto seleccionado es el texto del tema.
+ */
+:root {
+  --skin-background-selection: color-mix(in srgb, var(--skin-background-accent) 30%, transparent);
+  --skin-background-selectionText: var(--skin-background-text);
+  --skin-button-selection: color-mix(in srgb, var(--skin-button-accent) 30%, transparent);
+  --skin-button-selectionText: var(--skin-button-text);
+  --skin-note-selection: color-mix(in srgb, var(--skin-note-accent) 30%, transparent);
+  --skin-note-selectionText: var(--skin-note-text);
+  --skin-sidebar-selection: color-mix(in srgb, var(--skin-sidebar-accent) 30%, transparent);
+  --skin-sidebar-selectionText: var(--skin-sidebar-text);
+  --skin-input-selection: color-mix(in srgb, var(--skin-input-accent) 30%, transparent);
+  --skin-input-selectionText: var(--skin-input-text);
+  --skin-toolbar-selection: color-mix(in srgb, var(--skin-toolbar-accent) 30%, transparent);
+  --skin-toolbar-selectionText: var(--skin-toolbar-text);
+}
+
+/*
+ * La regla de la selección. Se escribe por región con `data-x`, que es el
+ * vocabulario público de la app (SKIN_SPEC §5.0.2), para que un tema con una
+ * lista clara y una nota oscura tenga una selección que case con cada una. La
+ * regla suelta de abajo es la red de seguridad para lo que no cuelgue de
+ * ninguna: usa los tokens de la nota.
+ */
+::selection {
+  background-color: var(--skin-note-selection);
+  color: var(--skin-note-selectionText);
+}
+
+::-moz-selection {
+  background-color: var(--skin-note-selection);
+  color: var(--skin-note-selectionText);
+}
+
+[data-x="background"] ::selection,
+[data-x="background"]::selection,
+[data-x="app"] ::selection,
+[data-x="app"]::selection {
+  background-color: var(--skin-background-selection);
+  color: var(--skin-background-selectionText);
+}
+
+[data-x="button"] ::selection,
+[data-x="button"]::selection {
+  background-color: var(--skin-button-selection);
+  color: var(--skin-button-selectionText);
+}
+
+[data-x="sidebar"] ::selection,
+[data-x="sidebar"]::selection {
+  background-color: var(--skin-sidebar-selection);
+  color: var(--skin-sidebar-selectionText);
+}
+
+[data-x="input"] ::selection,
+[data-x="input"]::selection {
+  background-color: var(--skin-input-selection);
+  color: var(--skin-input-selectionText);
+}
+
+[data-x="toolbar"] ::selection,
+[data-x="toolbar"]::selection {
+  background-color: var(--skin-toolbar-selection);
+  color: var(--skin-toolbar-selectionText);
+}
+
+/*
+ * El editor tiene su propia hoja (la de Milkdown/Crepe) y gana en especificidad
+ * al fondo de la selección; el texto seleccionado lo pone Xenner, porque la
+ * de Crepe no lo pone. Ver `styles/components/MarkdownEditor.module.css`.
+ */
+
 :root[data-color-scheme="dark"] {
   color-scheme: dark;
 

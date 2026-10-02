@@ -152,6 +152,8 @@ const VALORES_POR_DEFECTO: Record<string, Record<string, string>> = {
     // La pila de fábrica, la misma que declara `--skin-background-font` en
     // `styles/global.css`. Un test lo comprueba clave por clave.
     font: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    selection: "color-mix(in srgb, var(--skin-background-accent) 30%, transparent)",
+    selectionText: "var(--skin-background-text)",
   },
   button: {
     background: "transparent",
@@ -164,6 +166,8 @@ const VALORES_POR_DEFECTO: Record<string, Record<string, string>> = {
     blur: "0px",
     shadow: "none",
     accent: "#2383e2",
+    selection: "color-mix(in srgb, var(--skin-button-accent) 30%, transparent)",
+    selectionText: "var(--skin-button-text)",
   },
   note: {
     background: "#ffffff",
@@ -174,6 +178,8 @@ const VALORES_POR_DEFECTO: Record<string, Record<string, string>> = {
     blur: "0px",
     shadow: "0 8px 28px rgba(15, 15, 15, 0.1)",
     accent: "#2383e2",
+    selection: "color-mix(in srgb, var(--skin-note-accent) 30%, transparent)",
+    selectionText: "var(--skin-note-text)",
   },
   sidebar: {
     background: "#f7f7f5",
@@ -186,6 +192,8 @@ const VALORES_POR_DEFECTO: Record<string, Record<string, string>> = {
     blur: "0px",
     shadow: "none",
     accent: "#2383e2",
+    selection: "color-mix(in srgb, var(--skin-sidebar-accent) 30%, transparent)",
+    selectionText: "var(--skin-sidebar-text)",
   },
   input: {
     background: "#ffffff",
@@ -197,6 +205,8 @@ const VALORES_POR_DEFECTO: Record<string, Record<string, string>> = {
     blur: "0px",
     shadow: "none",
     accent: "#2383e2",
+    selection: "color-mix(in srgb, var(--skin-input-accent) 30%, transparent)",
+    selectionText: "var(--skin-input-text)",
   },
   toolbar: {
     background: "#ffffff",
@@ -208,6 +218,8 @@ const VALORES_POR_DEFECTO: Record<string, Record<string, string>> = {
     blur: "0px",
     shadow: "none",
     accent: "#2383e2",
+    selection: "color-mix(in srgb, var(--skin-toolbar-accent) 30%, transparent)",
+    selectionText: "var(--skin-toolbar-text)",
   },
 };
 

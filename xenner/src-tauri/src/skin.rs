@@ -388,6 +388,8 @@ fn allowed_component_keys(file: &str) -> Option<&'static [&'static str]> {
             "shadow",
             "accent",
             "font",
+            "selection",
+            "selectionText",
             "overlay",
         ]),
         "button" => Some(&[
@@ -402,6 +404,8 @@ fn allowed_component_keys(file: &str) -> Option<&'static [&'static str]> {
             "shadow",
             "accent",
             "font",
+            "selection",
+            "selectionText",
         ]),
         "note" => Some(&[
             "background",
@@ -413,6 +417,8 @@ fn allowed_component_keys(file: &str) -> Option<&'static [&'static str]> {
             "shadow",
             "accent",
             "font",
+            "selection",
+            "selectionText",
         ]),
         "sidebar" => Some(&[
             "background",
@@ -426,6 +432,8 @@ fn allowed_component_keys(file: &str) -> Option<&'static [&'static str]> {
             "shadow",
             "accent",
             "font",
+            "selection",
+            "selectionText",
         ]),
         "input" => Some(&[
             "background",
@@ -438,6 +446,8 @@ fn allowed_component_keys(file: &str) -> Option<&'static [&'static str]> {
             "shadow",
             "accent",
             "font",
+            "selection",
+            "selectionText",
         ]),
         "toolbar" => Some(&[
             "background",
@@ -450,6 +460,8 @@ fn allowed_component_keys(file: &str) -> Option<&'static [&'static str]> {
             "shadow",
             "accent",
             "font",
+            "selection",
+            "selectionText",
         ]),
         _ => None,
     }

@@ -36,7 +36,7 @@ export interface SkinComponentDoc {
   keys: readonly SkinKeyDoc[];
 }
 
-/** Las ocho claves que valen en cualquier archivo de componente. */
+/** Las claves que valen en cualquier archivo de componente. */
 export const SHARED_KEYS: readonly SkinKeyDoc[] = [
   {
     key: 'background',
@@ -92,6 +92,20 @@ export const SHARED_KEYS: readonly SkinKeyDoc[] = [
     type: 'una pila de tipografías, de la más preferida a la de reserva',
     example: '"Georgia, \\"Noto Serif\\", serif"',
     note: 'Se escribe de la que más te gusta a la que peor te parece: la primera que encuentre el ordenador gana y la última es el plan B. Sin comillas: serif, sans-serif, monospace.',
+  },
+  {
+    key: 'selection',
+    sees: 'La marca que deja el texto seleccionado con el ratón.',
+    type: 'un color',
+    example: '"#3d5a80"',
+    note: 'Si no escribes nada, Xenner la deduce: un tinte del `accent` de ese mismo trozo. Sale bien sola en cualquier tema, oscuro o claro, y por eso no hace falta tocarla.',
+  },
+  {
+    key: 'selectionText',
+    sees: 'La letra de lo que está seleccionado: la que se lee sobre `selection`.',
+    type: 'un color',
+    example: '"#ffffff"',
+    note: 'También se deduce sola, y sale igual que el texto del trozo. Ponla solo si cambias `selection` a un color fuerte: con un color claro de fondo y la letra clara, lo seleccionado no se lee.',
   },
 ];
 

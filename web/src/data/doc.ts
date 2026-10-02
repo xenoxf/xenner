@@ -144,7 +144,7 @@ export const DOC_PAGES: readonly DocPage[] = [
         label: 'La lista y cada archivo',
         subs: [
           { id: 'como-se-escribe', label: 'Cómo se escribe' },
-          { id: 'las-ocho-que-valen-en-todas-partes', label: 'Las ocho que valen en todas partes' },
+          { id: 'las-ocho-que-valen-en-todas-partes', label: 'Las que valen en todas partes' },
           { id: 'las-claves-de-cada-archivo', label: 'Las claves de cada archivo' },
           { id: 'componente-background', label: 'background.txt — El fondo' },
           { id: 'componente-sidebar', label: 'sidebar.txt — La lista de notas' },

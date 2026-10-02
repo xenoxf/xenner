@@ -89,6 +89,58 @@ function readToken(css: string, token: string): string | null {
   return css.slice(at + token.length, hasta === -1 ? undefined : hasta).trim();
 }
 
+/**
+ * El texto seleccionado lo tiene que pintar la skin.
+ *
+ * Esto nació de un bug real: no había ninguna regla `::selection` en Xenner, así
+ * que la selección la ponía el navegador, que la elige según el `color-scheme`
+ * del sistema y no según la skin. En el tema oscuro con el sistema en claro
+ * salía una banda clarísima y el texto se dejaba de leer.
+ *
+ * El test vigila las tres piezas que lo arreglan, porque las tres se pueden
+ * borrar sin que nada se rompa: los tokens, las reglas que los consumen y el
+ * puente con la hoja del editor, que es la que gana en especificidad.
+ */
+test("la selección del texto la manda la skin, no el navegador", () => {
+  const global = readFileSync(new URL("../styles/global.css", import.meta.url), "utf-8");
+  const editorCss = readFileSync(
+    new URL("../styles/components/MarkdownEditor.module.css", import.meta.url),
+    "utf-8",
+  );
+
+  assert.ok(global.includes("::selection"), "global.css no tiene ninguna regla ::selection");
+
+  for (const component of COMPONENTES) {
+    const token = `--skin-${component}-selection`;
+    assert.ok(
+      global.includes(`${token}:`),
+      `global.css no declara ${token}: la skin no podría cambiar la selección`,
+    );
+    assert.ok(
+      global.includes(`var(${token})`),
+      `${token} se declara pero nadie lo usa: el texto seleccionado no lo pintaría`,
+    );
+    assert.ok(
+      global.includes(`var(--skin-${component}-selectionText)`),
+      `falta --skin-${component}-selectionText: el texto seleccionado lo elegiría el navegador`,
+    );
+  }
+
+  // El editor trae su propia hoja, que pone el fondo de la selección con más
+  // especificidad que la global. Si su variable deja de apuntar al token, la
+  // selección del editor vuelve a ser la de fábrica.
+  assert.match(
+    editorCss,
+    /--crepe-color-selected:\s*var\(--skin-note-selection\)/,
+    "el editor no usa el token de selección de la nota",
+  );
+  assert.match(
+    editorCss,
+    /\.ProseMirror[^{]*::selection[^{]*\{[^}]*color:\s*var\(--skin-note-selectionText\)/,
+    "el editor no dice de qué color va el texto seleccionado",
+  );
+});
+
 test("las referencias a imágenes se resuelven para la previsualización", () => {
   // Antes de guardar, `assets/fondo.svg` no existe en ningún sitio. La
   // previsualización tiene que poner el contenido en su lugar o el panel

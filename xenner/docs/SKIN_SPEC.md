@@ -196,8 +196,39 @@ accent="#7dd3fc"
 ## 4. Claves por componente
 
 Compartidas por todos: `background`, `text`, `border`, `radius`, `blur`,
-`shadow`, `accent`, `font`. `textDim` está permitido en `background`,
-`sidebar` y `toolbar`, donde la interfaz lo consume.
+`shadow`, `accent`, `font`, `selection` y `selectionText`. `textDim` está
+permitido en `background`, `sidebar` y `toolbar`, donde la interfaz lo consume.
+
+### 4.1 `selection` y `selectionText` — lo que se ve al seleccionar texto
+
+Son las dos claves que se añadieron después de encontrar que **la selección del
+texto la pintaba el navegador**. No hay ninguna regla `::selection` propia del
+sistema de skins, así que el motor usaba su color de fábrica, que depende del
+`color-scheme` del **sistema**, no de la skin. En un tema oscuro con el sistema
+en claro salía una banda clarísima encima del texto y la nota se dejaba de leer.
+
+- `selection` es el color de fondo de lo seleccionado.
+- `selectionText` es el color del texto que queda seleccionado.
+
+Si una skin no dice nada, Xenner las deduce de sus propias claves, y por eso
+**toda skin, incluidas las escritas a mano antes de que existieran, quedan bien
+sin tocar una línea**:
+
+```css
+--skin-<componente>-selection: color-mix(in srgb, var(--skin-<componente>-accent) 30%, transparent);
+--skin-<componente>-selectionText: var(--skin-<componente>-text);
+```
+
+Un tinte del propio acento sobre el propio fondo conserva el contraste, porque
+el texto seleccionado es el texto del tema. Una skin que pone un color fuerte
+en `selection` tiene que poner también `selectionText`, o el texto lo seguirá
+eligiendo el navegador: con `selection` sí gana la skin, con el texto no.
+
+Cada componente usa el suyo en su región (`data-x`), así que una skin con la
+lista clara y la nota oscura tiene una selección que casa con cada una. El
+editor es el caso aparte: Milkdown/Crepe pone el fondo de la selección con más
+especificidad que la regla global, y Xenner le pasa el token por
+`--crepe-color-selected` (`styles/components/MarkdownEditor.module.css`).
 
 | Fichero          | Claves propias extra                              |
 |------------------|---------------------------------------------------|
@@ -227,6 +258,12 @@ tests en vez de con disciplina: `parse.test.ts` comprueba que el aviso de
 compara los valores por defecto contra `styles/global.css` clave por clave. Las
 dos listas ya se habían desincronizado una vez, y el test de los valores ya ha
 encontrado una falta.
+
+La cuarta copia es el CSS que consume esas variables, y también está vigilada: el
+test «la selección del texto la manda la skin, no el navegador» comprueba que los
+tokens existen, que alguna regla los usa y que el editor los recibe. Ya pasó:
+los tokens estaban declarados, la regla `::selection` no existía, y nada se
+enteró.
 
 ### 4.2 Assets (`assets/`)
 

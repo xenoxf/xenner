@@ -31,7 +31,12 @@
   --crepe-color-inline-code: var(--skin-note-accent);
   --crepe-color-error: var(--skin-note-accent);
   --crepe-color-hover: var(--skin-sidebar-itemHover);
-  --crepe-color-selected: var(--skin-sidebar-itemActive);
+  /* La selección del editor la pone Crepe, y su regla gana en especificidad a
+     la global de `global.css`. Antes esta variable apuntaba a `itemActive`, que
+     es un gris casi del color del fondo: apenas se veía qué estaba
+     seleccionado. Ahora es el token de selección de la nota, que además un tema
+     puede cambiar con `selection=` en `note.txt`. */
+  --crepe-color-selected: var(--skin-note-selection);
   --crepe-color-inline-area: var(--skin-input-background);
   --crepe-base-font-size: var(--skin-editor-size, 16px);
   --crepe-font-title: var(--skin-editor-font, var(--skin-background-font));
@@ -63,6 +68,19 @@
 
 .editor :global(.ProseMirror > :first-child) {
   margin-top: 0;
+}
+
+/*
+ * El color del texto seleccionado dentro del editor.
+ *
+ * La hoja de Crepe pone el fondo de la selección y **no** el texto, así que ese
+ * se lo queda el navegador, que lo elige según el `color-scheme` del sistema: en
+ * un tema oscuro con el sistema en claro, texto oscuro sobre la banda de
+ * selección. Aquí se dice explícitamente, y es el texto del propio tema.
+ */
+.editor :global(.ProseMirror ::selection),
+.editor :global(.ProseMirror *)::selection {
+  color: var(--skin-note-selectionText);
 }
 
 .editor :global(.ProseMirror h1),

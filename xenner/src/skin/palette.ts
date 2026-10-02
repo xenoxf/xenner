@@ -22,6 +22,34 @@ function parseHex(color: string): [number, number, number] | null {
   ];
 }
 
+/**
+ * Un color a sus tres canales, venga como venga.
+ *
+ * Los `#rgb` y los `#rrggbbaa` salen en los temas escritos a mano, y los
+ * `rgba(…)` son lo habitual en los que llevan una imagen de fondo: sin esto,
+ * «¿es claro este tema?» solo entendería una de las tres formas y Contestaría
+ * que sí a un `#00000080`, que es transparente.
+ */
+export function aRgb(color: string): [number, number, number] | null {
+  const hex = parseHex(color);
+  if (hex) return hex;
+
+  const corto = /^#([0-9a-f])([0-9a-f])([0-9a-f])[0-9a-f]?$/i.exec(color.trim());
+  if (corto) {
+    return [corto[1], corto[2], corto[3]].map((d) => parseInt(`${d}${d}`, 16)) as [
+      number,
+      number,
+      number,
+    ];
+  }
+
+  const rgb = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(color.trim());
+  if (rgb) {
+    return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+  }
+  return null;
+}
+
 function toHex([r, g, b]: [number, number, number]): string {
   const parte = (n: number) =>
     Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
@@ -30,8 +58,8 @@ function toHex([r, g, b]: [number, number, number]): string {
 
 /** Mezcla dos colores: `t` es cuánto pesa el segundo. */
 export function mezclar(a: string, b: string, t: number): string {
-  const ca = parseHex(a);
-  const cb = parseHex(b);
+  const ca = aRgb(a);
+  const cb = aRgb(b);
   if (!ca || !cb) return a;
   return toHex([
     ca[0] + (cb[0] - ca[0]) * t,
@@ -42,10 +70,31 @@ export function mezclar(a: string, b: string, t: number): string {
 
 /** Brillo relativo, más o menos: lo bastante para distinguir claro de oscuro. */
 export function esClaro(color: string): boolean {
-  const rgb = parseHex(color);
+  const rgb = aRgb(color);
   if (!rgb) return false;
   const [r, g, b] = rgb;
   return 0.299 * r + 0.587 * g + 0.114 * b > 140;
+}
+
+/**
+ * Si un color es de tema claro u oscuro, o si no lo dice.
+ *
+ * Lo usa el cargador para decidir el `color-scheme`, que es lo que le dice al
+ * motor qué colores son los de fábrica —barras de desplazamiento, controles y
+ * el texto de la selección que pinta el navegador—. Devuelve `null` en vez de
+ * adivinar cuando el color no se entiende: un degradado, un `var()`, o un
+ * `rgba()` tan transparente que deja ver el fondo que tiene debajo y su color
+ * no dice nada. Adivinar ahí es peor que no decidir.
+ */
+export function esquemaDe(color: string): "light" | "dark" | null {
+  const bruto = color.trim();
+  if (!bruto) return null;
+  if (!aRgb(bruto)) return null;
+
+  const alfa = /rgba?\([^)]*?[,/]\s*([\d.]+)\s*\)/i.exec(bruto);
+  if (alfa && Number(alfa[1]) < 0.5) return null;
+
+  return esClaro(bruto) ? "light" : "dark";
 }
 
 /**
@@ -57,7 +106,7 @@ export function esClaro(color: string): boolean {
  * así el ojo ve una sola familia.
  */
 export function paletaDesdeColor(mode: ColorScheme, principal: string): SkinPalette {
-  const seguro = parseHex(principal) ? principal.trim() : "#5b9bd5";
+  const seguro = aRgb(principal) ? principal.trim() : "#5b9bd5";
   if (mode === "light") {
     return {
       background: mezclar("#ffffff", seguro, 0.06),

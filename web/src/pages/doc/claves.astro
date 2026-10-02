@@ -52,6 +52,8 @@ function sampleFile(doc: SkinComponentDoc): string {
       'shadow="0 8px 24px rgba(0,0,0,0.28)"',
       'accent="#5b9bd5"',
       'font="system-ui, sans-serif"',
+      'selection="#3d5a80"',
+      'selectionText="#ffffff"',
     ])
     .join('\n');
 }
@@ -61,7 +63,7 @@ function seccion(doc: SkinComponentDoc): string {
     '<h3 id="componente-' + doc.file.replace('.txt', '') + '">' +
       '<code>' + esc(doc.file) + '</code> &mdash; ' + esc(doc.name) + '</h3>',
     '<p>' + md(doc.sees) + '</p>',
-    '<p>Además de las ocho de arriba, en este archivo valen:</p>',
+    '<p>Además de las compartidas de arriba, en este archivo valen:</p>',
     '<div class="keygrid">' + doc.keys.map(card).join('') + '</div>',
     '<h4>Un ejemplo entero</h4>',
     '<pre><code>' + esc(sampleFile(doc)) + '</code></pre>',
@@ -84,9 +86,9 @@ const hookRows = HOOKS.map(
   <h2 id="claves">La lista y cada archivo</h2>
 
   <p>
-    Hay {totalClaves} claves en total. Las ocho primeras valen en cualquier
-    archivo de componente; el resto dependen del trozo de pantalla que estés
-    cambiando.
+    Hay {totalClaves} claves en total. Las {SHARED_KEYS.length} primeras valen en
+    cualquier archivo de componente; el resto dependen del trozo de pantalla que
+    estés cambiando.
   </p>
 
   <h3 id="como-se-escribe">Cómo se escribe</h3>
@@ -138,7 +140,7 @@ const hookRows = HOOKS.map(
     </tbody>
   </table>
 
-  <h3 id="las-ocho-que-valen-en-todas-partes">Las ocho que valen en todas partes</h3>
+  <h3 id="las-ocho-que-valen-en-todas-partes">Las que valen en todas partes</h3>
 
   <p>
     Sirven en <code>background.txt</code>, <code>sidebar.txt</code>,

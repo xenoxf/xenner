@@ -33,6 +33,7 @@ import {
   parseSkinManifest,
 } from "../skin/parse";
 import { resolveSkinUrls, tauriAssetFetcher } from "../skin/assets";
+import { esquemaDe } from "../skin/palette";
 
 export const SKIN_COMPONENTS: readonly SkinComponent[] = [
   "background",
@@ -222,6 +223,40 @@ function applyVars(vars: Record<string, Record<string, string>>): void {
 }
 
 /**
+ * Que el `color-scheme` siga al tema y no al sistema.
+ *
+ * `color-scheme` le dice al motor qué colores son los de fábrica: las barras de
+ * desplazamiento, los controles de formulario y el texto de la selección que
+ * pinta el navegador cuando nadie dice nada. Con el tema de Xenner lo decide
+ * Apariencia, y está bien. Con una skin puesta no: sus colores son los que son,
+ * y un tema oscuro con el sistema en claro se llevaba una barra clara y un texto
+ * de selección equivocado. Se lee el color que ha quedado de verdad —ya con la
+ * cascada entera aplicada— y se le dice al motor qué es.
+ *
+ * Sin skin se limpia, para que la decisión vuelva a ser de Apariencia. Un color
+ * que no se entiende (un `url()`, un `linear-gradient()`) no decide nada: es
+ * mejor dejar lo que hubiera que inventarse el modo de un tema que dice
+ * «transparente con foto».
+ */
+function syncColorScheme(): void {
+  const root = document.documentElement;
+  if (!root.dataset.skinId) {
+    root.style.removeProperty("color-scheme");
+    return;
+  }
+  try {
+    const fondo = getComputedStyle(root).getPropertyValue("--skin-note-background").trim();
+    const deducido = esquemaDe(fondo);
+    // `null` es «este color no lo dice claro»: un `url()`, un degradado o algo
+    // transparente. Entonces no se toca lo que hubiera, que es mejor que
+    // inventar el modo de un tema que se ve a medias.
+    if (deducido) root.style.colorScheme = deducido;
+  } catch {
+    // Sin `getComputedStyle` no hay nada que decidir: se deja como estaba.
+  }
+}
+
+/**
  * Publica `custom.css` en un <style> propio.
  *
  * Va en su propio elemento, y no en un `textContent` sobre los estilos globales,
@@ -314,6 +349,7 @@ export async function loadSkin(preferredId?: string): Promise<LoadedSkin> {
     // (`:root[data-skin-id="miskin"] .algo { ... }`) sin tener que confiar en que
     // el cargador solo la aplica a ella.
     document.documentElement.dataset.skinId = activeId;
+    syncColorScheme();
 
     // `custom.css` va después de los TXT a propósito: así puede sobrescribirlos,
     // y separarse por `data-color-scheme` da las variantes clara y oscura sin

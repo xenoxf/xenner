@@ -24,6 +24,13 @@ const SHARED_KEYS = [
   "shadow",
   "accent",
   "font",
+  // Lo que se ve al seleccionar texto. Antes no existía, y el navegador ponía su
+  // color de fábrica, que depende del sistema y no de la skin: en un tema oscuro
+  // con el sistema en claro salía una banda clarísima y el texto se dejaba de
+  // leer. Si un tema no dice nada, se deriva de su propio acento y su propio
+  // texto, así que sale bien sin escribir una línea.
+  "selection",
+  "selectionText",
 ] as const;
 
 export const COMPONENT_KEYS = {

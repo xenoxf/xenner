@@ -3,7 +3,7 @@ import type {
   ImportedEditorAsset,
   PreparedMarkdown,
 } from "../types/editor";
-import type { AssetPayload, ImportedAsset } from "../types/workspace";
+import type { AssetPayload, ImportedAsset, ImportedAttachment } from "../types/workspace";
 import { getWorkspaceGateway } from "./workspace/gateway";
 
 export { resolveAssetReference } from "../editor/asset-paths";
@@ -137,4 +137,32 @@ export async function importImageForEditor(
     revision: imported.revision,
     fileName: imported.fileName,
   };
+}
+
+/**
+ * Adjunta un archivo a la nota y devuelve dónde quedó y con qué nombre.
+ *
+ * A diferencia de una imagen, un adjunto no se convierte en `data:` ni se
+ * previsualiza: es un enlace a un archivo de `.assets`, y su contenido no vuelve
+ * a JavaScript porque pesa y porque no hay nada que enseñar en línea. El nombre
+ * original es el que se escribe en la nota, que es lo que uno espera reconocer
+ * dentro de un mes.
+ */
+export async function importAttachmentForEditor(
+  notePath: string,
+  file: File,
+): Promise<ImportedAttachment> {
+  const dataBase64 = await fileToBase64(file);
+  return getWorkspaceGateway().importAttachment(notePath, file.name, dataBase64);
+}
+
+/** Igual, pero dejando que sea el diálogo del sistema el que elija el archivo. */
+export async function chooseAttachmentForEditor(
+  notePath: string,
+): Promise<ImportedAttachment | null> {
+  return getWorkspaceGateway().chooseAttachment(notePath);
+}
+
+export function editorSupportsNativeAttachmentPicker(): boolean {
+  return getWorkspaceGateway().canChooseAttachment;
 }

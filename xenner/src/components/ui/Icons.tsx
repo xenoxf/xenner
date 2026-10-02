@@ -294,6 +294,14 @@ export function CloseIcon(props: IconProps) {
   );
 }
 
+export function PaperclipIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M17.5 10.5 11 17a3.5 3.5 0 0 1-5-5l7-7a2.5 2.5 0 0 1 3.5 3.5l-6.5 6.5a1.5 1.5 0 0 1-2-2.2l5.5-5.5" />
+    </svg>
+  );
+}
+
 export function SearchIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

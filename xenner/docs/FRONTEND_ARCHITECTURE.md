@@ -141,7 +141,23 @@ convierten en clases globales de aplicación.
 - `services/toastService.ts` contiene estado y timers; `ToastRegion` solo
   renderiza y coordina animaciones de layout.
 - `services/editorAssets.ts` es la única frontera usada por el editor para
-  importar, leer, actualizar y eliminar assets.
+  importar, leer, actualizar y eliminar assets. También trae los adjuntos, que
+  son assets que no se previsualizan: `importAttachmentForEditor` y
+  `chooseAttachmentForEditor` devuelven la ruta y el nombre, nunca el contenido.
+- **Un adjunto es un enlace, no una imagen incrustada.** `insertAttachment` escribe
+  `[Informe.pdf](./.assets/ab12….pdf)` usando la marca `link` de commonmark, en su
+  propia línea: si el cursor estaba a media frase, `createParagraphNear` —o
+  `splitBlock` al final del documento, donde `createParagraphNear` no hace nada—
+  deja la frase arriba y el adjunto debajo. Por eso no pasa por
+  `prepared.replacements`: ahí solo se sustituyen los `data:` que no caben en el
+  archivo. El nombre y la extensión los decide `attachment_extension` en Rust y
+  los necesita el frontend antes de que el archivo exista, así que la regla está
+  también en `editor/attachment-paths.ts` y `src/editor/attachment-paths.test.ts`
+  fija los dos lados. La vista previa del navegador guarda solo nombre y tamaño:
+  los bytes de un PDF en `localStorage` tirarían la biblioteca entera.
+- Adjuntar está en el menú del dock y también en el arrastre y el pegado: un
+  archivo que no es imagen se adjunta, y uno que sí lo es se inserta como imagen,
+  que es lo que se espera al soltar una foto en una nota.
 - `services/editorSession.ts` coordina el modo texto/pizarra, el autoguardado
   del whiteboard y la protección al cambiar de nota.
 - La pizarra es un nodo `whiteboard` de Milkdown con NodeView embebido en el
@@ -169,17 +185,22 @@ convierten en clases globales de aplicación.
   final, `blocks` y `appearance`. El orden importa: Crepe llama a
   `buildToolbar` después de montar sus propios grupos, así que añadir no quita
   nada.
-  - El grupo `blocks` —Texto, Título 1 a 3, Lista, Numerada, Cita— es el arreglo
-    de un bug real: Crepe **no** pone ningún botón que cambie el tipo de bloque,
-    así que el tipo de texto solo se podía cambiar con el cursor en una línea y
-    nunca sobre el texto que se acababa de seleccionar. Se recorre
-    `EDITOR_BLOCKS`, la misma lista que usa el dock, para que las dos superficies
-    no se separen. Qué botón se marca de activo lo dice
-    `editor/block-type.ts` (`blockTypeAt`, `blockTypesInSelection`), que mira los
-    ancestros del bloque y no solo su padre inmediato: el padre de un texto
-    citado es un `paragraph`, y el de un elemento de lista un `list_item`.
-    Con una selección de tipos mezclados no se marca ninguno, porque no hay un
-    único tipo que poner.
+  - El tipo de bloque entra por **un botón**, el `+` (`block-menu`), no por siete.
+    Es el arreglo de un bug real: Crepe **no** pone ningún botón que cambie el
+    tipo de bloque, así que el tipo solo se podía cambiar con el cursor en una
+    línea. La primera versión del arreglo metió los siete botones en la barra y
+    fue peor: dejó de caber sobre el texto y se partió en dos filas, tapando
+    justo lo que se había seleccionado. El `+` abre `styles/components/
+    MarkdownEditor.module.css` → `.blockMenu`, un panel de 196 px con los siete
+    tipos que se ancla **debajo** de la barra flotante —encima está la propia
+    barra— y que se recorta contra el borde de la nota con `BLOCK_MENU_WIDTH`, la
+    misma medida que el CSS, porque los dos tienen que decir lo mismo o el panel
+    se sale por la derecha. Los siete salen de `EDITOR_BLOCKS`, la misma lista que
+    usa el dock. Qué botón va marcado lo dice `editor/block-type.ts`
+    (`blockTypeAt`, `blockTypesInSelection`), que mira los ancestros del bloque y
+    no solo su padre inmediato: el padre de un texto citado es un `paragraph`, y
+    el de un elemento de lista un `list_item`. Con una selección de tipos
+    mezclados no se marca ninguno, porque no hay un único tipo que poner.
   - Los dos botones de color no pueden usar el comando de Crepe porque abren el
     diálogo de color del sistema, que roba el foco y con él la selección: por eso
     `captureTextSelection()` la guarda antes y `applyTextStyleValue()` la vuelve a

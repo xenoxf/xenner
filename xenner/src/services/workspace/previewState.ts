@@ -1,5 +1,6 @@
 import type {
   AssetPayload,
+  ImportedAttachment,
   VaultEntry,
   WorkspaceScan,
 } from "../../types/workspace";
@@ -17,17 +18,28 @@ export interface PreviewDocument {
   updatedAt: number;
 }
 
+/**
+ * Un adjunto en la vista previa.
+ *
+ * Sin los bytes: en el navegador no hay a dónde escribir un archivo, y meter el
+ * contenido de un PDF en `localStorage` lo llenaría y tiraría la biblioteca
+ * entera. Se guarda lo justo para que el enlace de la nota apunte a un nombre y
+ * un tamaño de verdad.
+ */
+export type PreviewAttachment = Pick<ImportedAttachment, "fileName" | "size" | "revision">;
+
 export interface PreviewState {
   version: 1;
   entries: VaultEntry[];
   documents: Record<string, PreviewDocument>;
   assets: Record<string, AssetPayload>;
+  attachments: Record<string, PreviewAttachment>;
 }
 
-let memoryState: PreviewState = { version: 1, entries: [], documents: {}, assets: {} };
+let memoryState: PreviewState = emptyPreviewState();
 
 function emptyPreviewState(): PreviewState {
-  return { version: 1, entries: [], documents: {}, assets: {} };
+  return { version: 1, entries: [], documents: {}, assets: {}, attachments: {} };
 }
 
 function sanitizePreviewState(value: unknown): PreviewState {
@@ -67,7 +79,7 @@ function sanitizePreviewState(value: unknown): PreviewState {
     paths.add(entry.path);
     return true;
   });
-  return { version: 1, entries, documents, assets: candidate.assets ?? {} };
+  return { version: 1, entries, documents, assets: candidate.assets ?? {}, attachments: candidate.attachments ?? {} };
 }
 
 export function readPreviewState(): PreviewState {

@@ -42,6 +42,8 @@ pub fn run() {
             vault::read_note,
             vault::import_asset,
             vault::choose_image_asset,
+            vault::import_attachment,
+            vault::choose_attachment,
             vault::read_asset,
             vault::update_asset,
             vault::delete_asset,

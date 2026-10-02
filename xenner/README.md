@@ -10,6 +10,8 @@ Xenner trabaja con una biblioteca local de archivos Markdown:
   apertura automática de una nota sin título cuando la biblioteca está vacía;
 - editor visual Milkdown/Crepe con encabezados, listas, tareas, tablas, código,
   enlaces, imágenes y LaTeX;
+- adjuntar archivos a una nota: se copian a su carpeta `.assets` y quedan
+  enlazados desde el texto;
 - guardado Markdown atómico con detección de cambios externos;
 - biblioteca local elegible mediante el diálogo nativo de Tauri;
 - drawings visuales guardados como SVG relativo;

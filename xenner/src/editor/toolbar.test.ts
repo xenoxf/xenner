@@ -25,6 +25,10 @@ const COMPONENT = readFileSync(
   new URL("../components/editor/MarkdownEditor.tsx", import.meta.url),
   "utf-8",
 );
+const TOOLBAR = readFileSync(
+  new URL("../components/editor/EditorToolbar.tsx", import.meta.url),
+  "utf-8",
+);
 
 test("el mini menú no se esconde", () => {
   // Ni transparente, ni con `visibility`, ni apagado por un atributo propio.
@@ -65,22 +69,35 @@ test("el mini menu conserva los dos botones propios de Xenner", () => {
   assert.match(COMPONENT, /addItem\(\s*"text-background"/);
 });
 
-test("el mini menu tiene botones para el tipo de texto", () => {
+test("el mini menu cambia el tipo de texto desde un botón, no desde siete", () => {
   // Nació de un bug real: Crepe pone en su barra negrita, cursiva, tachado,
-  // código, fórmula y enlace, pero ningún botón que cambie el bloque. Sin este
-  // grupo el tipo de texto solo se podía cambiar con el cursor en una línea, y
-  // nunca sobre el texto que se acababa de seleccionar.
+  // código, fórmula y enlace, pero ningún botón que cambie el bloque. Con un
+  // botón por tipo, la barra dejó de caber sobre el texto y se partió en dos
+  // filas, tapando justo lo que se había seleccionado. Ahora hay un `+` que
+  // abre un menú con los siete tipos.
   assert.match(COMPONENT, /addGroup\(\s*"blocks"/);
-  assert.match(COMPONENT, /EDITOR_BLOCKS/);
-  // Todos los tipos del dock tienen que estar también aquí: es el mismo
-  // `EDITOR_BLOCKS`, así que basta con que se recorra entero.
-  assert.match(COMPONENT, /for \(const item of EDITOR_BLOCKS\)/);
+  assert.match(COMPONENT, /addItem\(\s*"block-menu"/);
+  assert.match(COMPONENT, /toggleBlockMenu/);
+  // Ni un botón por tipo en la barra: es lo que la hacía más ancha que el texto.
+  assert.ok(
+    !/addItem\(\s*`block-/.test(COMPONENT),
+    "vuelve un botón por cada tipo de texto en la barra flotante",
+  );
+});
+
+test("el menú de tipos se ancla bajo la barra, no encima de la selección", () => {
+  // Encima de la selección está la propia barra flotante: dos superficies
+  // superpuestas sobre el texto es justo lo que se quería evitar.
+  assert.match(COMPONENT, /anchor\.bottom - bounds\.top/);
+  assert.match(CSS, /\.blockMenu\s*\{[^}]*position:\s*absolute/);
+  // Y se recorta contra el borde de la nota para no salirse por la derecha.
+  assert.match(COMPONENT, /bounds\.width - BLOCK_MENU_WIDTH/);
 });
 
 test("cambiar el tipo de bloque no pierde el texto seleccionado", () => {
-  // El dock y la barra se quedan con el foco al abrir el menú. Si no se
-  // recupera la selección del `blur` antes de aplicar el comando, el tipo acaba
-  // puesto en la línea del cursor en vez de en lo seleccionado.
+  // El dock y el menú se quedan con el foco al abrir. Si no se recupera la
+  // selección del `blur` antes de aplicar el comando, el tipo acaba puesto en
+  // la línea del cursor en vez de en lo seleccionado.
   assert.match(COMPONENT, /function applyBlockType/);
   const apply = COMPONENT.slice(
     COMPONENT.indexOf("function applyBlockType"),
@@ -94,8 +111,20 @@ test("cambiar el tipo de bloque no pierde el texto seleccionado", () => {
   assert.match(COMPONENT, /handleDOMEvents:\s*\{\s*blur:/);
 });
 
-test("la barra flotante no se corta por tener más botones", () => {
-  // Trece botones en una fila con `overflow: hidden` salían fuera sin aviso.
-  assert.match(CSS, /\.milkdown-toolbar\)\s*\{[^}]*flex-wrap:\s*wrap/);
+test("la barra flotante no se parte en dos filas", () => {
+  // Con los siete botones de tipo tenía que partirse; ahora cabe en una fila.
+  // El tope de ancho sigue estando por si un tema cambia el tamaño de los
+  // botones, pero sin `flex-wrap` no hay una segunda fila.
   assert.match(CSS, /\.milkdown-toolbar\)\s*\{[^}]*max-width:/);
+  assert.ok(
+    !/\.milkdown-toolbar\)\s*\{[^}]*flex-wrap:\s*wrap/.test(CSS),
+    "la barra flotante vuelve a partirse en dos filas",
+  );
+});
+
+test("el menú de adjuntos existe en el dock", () => {
+  // Adjuntar es insertar un archivo cualquiera en `.assets` y enlazarlo desde la
+  // nota. Sin su entrada en el menú solo se llegaba arrastrándolo encima.
+  assert.match(TOOLBAR, /id:\s*"attachment"/);
+  assert.match(TOOLBAR, /onChooseAttachment/);
 });

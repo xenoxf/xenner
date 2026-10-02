@@ -5,6 +5,7 @@ import type {
   CreateNoteResult,
   CreatedEntry,
   ImportedAsset,
+  ImportedAttachment,
   NoteDocument,
   WorkspaceGateway,
   WorkspaceScan,
@@ -23,6 +24,7 @@ async function invokeWorkspace<T>(command: string, args?: Record<string, unknown
 export class TauriWorkspaceGateway implements WorkspaceGateway {
   readonly canChooseWorkspace = true;
   readonly canChooseImageAsset = true;
+  readonly canChooseAttachment = true;
 
   scan(): Promise<WorkspaceScan> {
     return invokeWorkspace("scan_workspace");
@@ -42,6 +44,18 @@ export class TauriWorkspaceGateway implements WorkspaceGateway {
 
   chooseImageAsset(notePath: string): Promise<ImportedAsset | null> {
     return invokeWorkspace("choose_image_asset", { notePath });
+  }
+
+  importAttachment(
+    notePath: string,
+    fileName: string,
+    dataBase64: string,
+  ): Promise<ImportedAttachment> {
+    return invokeWorkspace("import_attachment", { notePath, fileName, dataBase64 });
+  }
+
+  chooseAttachment(notePath: string): Promise<ImportedAttachment | null> {
+    return invokeWorkspace("choose_attachment", { notePath });
   }
 
   readAsset(notePath: string, assetPath: string): Promise<AssetPayload> {

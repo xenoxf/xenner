@@ -16,21 +16,24 @@ import {
   HeadingIcon,
   ImageIcon,
   OrderedListIcon,
+  PaperclipIcon,
   PencilIcon,
   QuoteIcon,
   TextIcon,
 } from "../ui/Icons";
 
-type InsertId = EditorBlockType | "image" | "whiteboard";
+type InsertId = EditorBlockType | "image" | "whiteboard" | "attachment";
 
 interface EditorToolbarProps {
   loading: boolean;
   ready: boolean;
   imageBusy: boolean;
   whiteboardBusy: boolean;
+  attachmentBusy: boolean;
   status: string;
   onApplyBlock(type: EditorBlockType): void;
   onChooseImage(): void;
+  onChooseAttachment(): void;
   onInsertWhiteboard(tool: DrawingTool): void;
 }
 
@@ -60,6 +63,12 @@ const INSERT_ITEMS: readonly InsertItem[] = [
     group: "Insertar",
     keywords: "pizarra dibujo lienzo trazo formas svg",
   },
+  {
+    id: "attachment",
+    label: "Adjuntar archivo",
+    group: "Insertar",
+    keywords: "adjuntar archivo documento pdf zip csv docx descargar papelera clip",
+  },
 ];
 
 function ItemIcon(props: { id: InsertId }) {
@@ -69,6 +78,7 @@ function ItemIcon(props: { id: InsertId }) {
   if (props.id === "ordered") return <OrderedListIcon />;
   if (props.id === "quote") return <QuoteIcon />;
   if (props.id === "image") return <ImageIcon />;
+  if (props.id === "attachment") return <PaperclipIcon />;
   return <PencilIcon />;
 }
 
@@ -113,6 +123,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
   function runItem(item: InsertItem): void {
     closeMenu(false);
     if (item.id === "image") props.onChooseImage();
+    else if (item.id === "attachment") props.onChooseAttachment();
     else if (item.id === "whiteboard") props.onInsertWhiteboard("pen");
     else props.onApplyBlock(item.id);
   }
@@ -257,6 +268,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
                               <span class={styles.menuIcon}><ItemIcon id={item.id} /></span>
                               <span>{item.label}</span>
                               {item.id === "whiteboard" && <small>Dibuja con el lápiz</small>}
+                              {item.id === "attachment" && <small>PDF, hoja de cálculo…</small>}
                             </button>
                           );
                         }}
@@ -291,6 +303,17 @@ export function EditorToolbar(props: EditorToolbarProps) {
         onClick={() => props.onInsertWhiteboard("pen")}
       >
         <PencilIcon />
+      </button>
+      <button
+        type="button"
+        class={styles.iconButton}
+        disabled={props.loading || props.attachmentBusy || !props.ready}
+        aria-label="Adjuntar archivo"
+        aria-busy={props.attachmentBusy}
+        title="Adjuntar archivo"
+        onClick={props.onChooseAttachment}
+      >
+        <PaperclipIcon />
       </button>
       <span class="sr-only" role="status" aria-live="polite">{props.status}</span>
     </div>

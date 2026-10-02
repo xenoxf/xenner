@@ -43,6 +43,19 @@ export interface ImportedAsset {
   fileName: string;
 }
 
+/**
+ * Un archivo adjunto a la nota.
+ *
+ * No trae el contenido: un adjunto puede pesar megas y la nota solo necesita
+ * saber dónde quedó guardado y con qué nombre reconocerlo.
+ */
+export interface ImportedAttachment {
+  relativePath: string;
+  fileName: string;
+  size: number;
+  revision: string;
+}
+
 export interface AssetPayload {
   mime: string;
   dataBase64: string;
@@ -74,11 +87,19 @@ export interface VaultErrorShape {
 export interface WorkspaceGateway {
   readonly canChooseWorkspace: boolean;
   readonly canChooseImageAsset: boolean;
+  /** Adjuntar usa el diálogo nativo del sistema, igual que las imágenes. */
+  readonly canChooseAttachment: boolean;
   scan(): Promise<WorkspaceScan>;
   chooseWorkspace(): Promise<WorkspaceScan | null>;
   readNote(relativePath: string): Promise<NoteDocument>;
   importAsset(notePath: string, fileName: string, dataBase64: string): Promise<ImportedAsset>;
   chooseImageAsset(notePath: string): Promise<ImportedAsset | null>;
+  importAttachment(
+    notePath: string,
+    fileName: string,
+    dataBase64: string,
+  ): Promise<ImportedAttachment>;
+  chooseAttachment(notePath: string): Promise<ImportedAttachment | null>;
   readAsset(notePath: string, assetPath: string): Promise<AssetPayload>;
   updateAsset(
     notePath: string,

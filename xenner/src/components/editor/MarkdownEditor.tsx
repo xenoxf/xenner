@@ -2,18 +2,19 @@ import type { Crepe as CrepeInstance } from "@milkdown/crepe";
 import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
 import {
   addBlockTypeCommand,
+  linkSchema,
   turnIntoTextCommand,
   wrapInBlockquoteCommand,
   wrapInBulletListCommand,
   wrapInHeadingCommand,
   wrapInOrderedListCommand,
 } from "@milkdown/kit/preset/commonmark";
-import { createParagraphNear } from "@milkdown/kit/prose/commands";
+import { createParagraphNear, splitBlock } from "@milkdown/kit/prose/commands";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { $prose, replaceAll } from "@milkdown/kit/utils";
 import { imageBlockSchema } from "@milkdown/kit/component/image-block";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
 import { blockTypesInSelection } from "../../editor/block-type";
 import { EDITOR_BLOCKS } from "../../data/editor";
@@ -69,6 +70,26 @@ const TEXT_BACKGROUND_TOOLBAR_ICON = `
   </svg>
 `;
 
+/**
+ * Ancho del menú de tipos, en píxeles. Va en una constante y no solo en el CSS
+ * porque el cálculo de dónde ponerlo tiene que decir lo mismo que el ancho
+ * real: si el menú fuera más ancho de lo que el cálculo asume, se saldría por el
+ * borde de la nota.
+ */
+const BLOCK_MENU_WIDTH = 196;
+
+interface BlockMenuPlacement {
+  left: number;
+  top: number;
+}
+
+const BLOCK_MENU_TOOLBAR_ICON = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+`;
+
 interface MarkdownEditorProps {
   notePath: string;
   initialValue: string;
@@ -81,7 +102,11 @@ interface MarkdownEditorProps {
 export function MarkdownEditor(props: MarkdownEditorProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [blockMenu, setBlockMenu] = createSignal<BlockMenuPlacement | null>(null);
+  /** El tipo que ya tienen lo seleccionado, para marcarlo en el menú. */
+  const [activeBlock, setActiveBlock] = createSignal<EditorBlockType | null>(null);
   let root: HTMLDivElement | undefined;
+  let blockMenuPanel: HTMLDivElement | undefined;
   let crepe: CrepeInstance | null = null;
   let textColorInput: HTMLInputElement | undefined;
   let textBackgroundInput: HTMLInputElement | undefined;
@@ -285,7 +310,113 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     return applied;
   }
 
-  function captureTextSelection(): void {
+  /**
+ * Escribe en la nota un enlace al archivo adjunto.
+ *
+ * Se inserta como un enlace de commonmark —`[Informe.pdf](./.assets/…)`— y no
+ * como un bloque propio: así el Markdown sigue siendo legible desde cualquier
+ * editor, y la referencia es un archivo al lado de la nota en vez de una imagen
+ * incrustada. No necesita ir en `prepared.replacements` porque ahí solo se
+ * sustituyen los `data:` que no caben en el archivo.
+ *
+ * El enlace va en su propia línea: si el cursor estaba a media frase, partir el
+ * bloque deja la frase intacta arriba y el adjunto debajo, que es como se lee.
+ */
+function insertAttachmentLink(relativePath: string, label: string): void {
+  if (!crepe) return;
+  const view = crepe.editor.ctx.get(editorViewCtx);
+  restoreTextCursor(view);
+  const text = label.trim() || "Archivo";
+  const mark = linkSchema.type(crepe.editor.ctx).create({ href: relativePath, title: null });
+
+  // Con texto seleccionado se sustituye: adjuntar encima de un texto
+  // seleccionado significa que ese texto era el nombre del archivo.
+  if (!view.state.selection.empty) view.dispatch(view.state.tr.deleteSelection());
+
+  const $from = view.state.selection.$from;
+  const blockIsEmpty = $from.parent.isTextblock && $from.parent.content.size === 0;
+  if (!blockIsEmpty) {
+    // `createParagraphNear` no hace nada al final del documento; ahí lo que
+    // abre la línea de abajo es `splitBlock`.
+    if (!createParagraphNear(view.state, view.dispatch)) splitBlock(view.state, view.dispatch);
+  }
+
+  const from = view.state.selection.from;
+  const transaction = view.state.tr
+    .insertText(text, from)
+    .addMark(from, from + text.length, mark);
+  view.dispatch(transaction.scrollIntoView());
+  view.focus();
+}
+
+/**
+ * Abre o cierra el menú de tipos de texto, el que cuelga del `+` de la barra.
+ *
+ * Se ancla **debajo de la barra flotante**, no encima de la selección: encima
+ * está la propia barra, y dos superficies superpuestas sobre el texto es
+ * exactamente lo que se quiere evitar. Se mide la barra de verdad —es un
+ * elemento del DOM, y Crepe la coloca con `floating-ui`— así que el menú sale
+ * pegado a ella aunque la selección esté en cualquier parte de la nota.
+ */
+function toggleBlockMenu(): void {
+  if (blockMenu()) {
+    closeBlockMenu();
+    return;
+  }
+  if (!crepe || !root) return;
+  const toolbar = root.querySelector<HTMLElement>(".milkdown-toolbar");
+  const bounds = root.getBoundingClientRect();
+  if (!toolbar) return;
+  const anchor = toolbar.getBoundingClientRect();
+  // El `left` se recorta contra el ancho real de la nota para que un menú
+  // abierto cerca del borde derecho no quede medio fuera.
+  const left = Math.max(
+    8,
+    Math.min(anchor.left - bounds.left, bounds.width - BLOCK_MENU_WIDTH - 8),
+  );
+  const view = crepe.editor.ctx.get(editorViewCtx);
+  const { selection } = view.state;
+  const active = blockTypesInSelection(
+    view.state.doc,
+    selection.from,
+    selection.to,
+  );
+  // Con más de un tipo en la selección no hay uno que poner de relieve.
+  setActiveBlock(active.size === 1 ? [...active][0] : null);
+  setBlockMenu({ left, top: anchor.bottom - bounds.top + 6 });
+}
+
+function closeBlockMenu(): void {
+  setBlockMenu(null);
+  setActiveBlock(null);
+}
+
+/**
+ * Fuera del menú o con Escape se cierra. Se registra al abrirlo y no antes:
+ * mientras está cerrado no hay nada que cerrar y un `pointerdown` en cualquier
+ * sitio —incluido dentro del editor— se ignora.
+ */
+function watchBlockMenuDismissal(): () => void {
+  const onPointerDown = (event: PointerEvent): void => {
+    const target = event.target;
+    if (target instanceof Node && blockMenuPanel?.contains(target)) return;
+    closeBlockMenu();
+  };
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    closeBlockMenu();
+    crepe?.editor.ctx.get(editorViewCtx).focus();
+  };
+  document.addEventListener("pointerdown", onPointerDown, true);
+  document.addEventListener("keydown", onKeyDown, true);
+  return () => {
+    document.removeEventListener("pointerdown", onPointerDown, true);
+    document.removeEventListener("keydown", onKeyDown, true);
+  };
+}
+
+function captureTextSelection(): void {
     if (!crepe) return;
     const { from, to } = crepe.editor.ctx.get(editorViewCtx).state.selection;
     pendingTextSelection = from === to ? null : { from, to };
@@ -446,29 +577,18 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           },
           [Crepe.Feature.Toolbar]: {
             buildToolbar(builder) {
-              // El tipo de bloque va PRIMERO en su propio grupo, antes que
-              // Apariencia. Es lo que más se echa de menos cuando hay texto
-              // seleccionado: el resto de la barra es lo que ya se sabe de
-              // memoria. Crepe llama a `buildToolbar` después de montar sus
-              // grupos, así que añadir aquí no quita la negrita ni el enlace.
-              const blocks = builder.addGroup("blocks", "Bloque");
-              for (const item of EDITOR_BLOCKS) {
-                blocks.addItem(`block-${item.id}`, {
-                  icon: item.icon,
-                  label: item.label,
-                  active: (ctx) => {
-                    const view = ctx.get(editorViewCtx);
-                    const { selection } = view.state;
-                    const active = blockTypesInSelection(
-                      view.state.doc,
-                      selection.from,
-                      selection.to,
-                    );
-                    return active.has(item.id);
-                  },
-                  onRun: () => applyBlockType(item.id),
-                });
-              }
+              // El tipo de bloque entra por UN botón, no por siete. Con los
+              // siete la barra dejaba de caber sobre el texto y se partía en dos
+              // filas: una barra de formato que tapa lo que está seleccionado es
+              // justo lo que hay que evitar. El `+` abre un menú pequeño con los
+              // siete tipos, que es el orden que se espera: primero elegir, luego
+              // aplicar.
+              builder.addGroup("blocks", "Bloque").addItem("block-menu", {
+                icon: BLOCK_MENU_TOOLBAR_ICON,
+                label: "Tipo de texto",
+                active: () => false,
+                onRun: () => toggleBlockMenu(),
+              });
               builder
                 .addGroup("appearance", "Apariencia")
                 .addItem("text-color", {
@@ -589,6 +709,9 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           createParagraphNear(view.state, view.dispatch);
           settleAfterInsertion(view);
         },
+        insertAttachment(relativePath, label) {
+          insertAttachmentLink(relativePath, label);
+        },
       });
       setReady(true);
     } catch (cause) {
@@ -617,8 +740,15 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     })();
   });
 
+  createEffect(() => {
+    if (!blockMenu()) return;
+    const stop = watchBlockMenuDismissal();
+    onCleanup(stop);
+  });
+
   onCleanup(() => {
     disposed = true;
+    closeBlockMenu();
     props.onDispose?.();
     if (crepe) void crepe.destroy();
   });
@@ -629,7 +759,46 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         ref={(element) => (root = element)}
         class={styles.editor}
         data-x="editor-surface"
-      />
+      >
+        <Show when={blockMenu()}>
+          {(placement) => (
+            <div
+              ref={(element) => (blockMenuPanel = element)}
+              class={styles.blockMenu}
+              data-x="block-menu"
+              style={{ left: `${placement().left}px`, top: `${placement().top}px` }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  closeBlockMenu();
+                  crepe?.editor.ctx.get(editorViewCtx).focus();
+                }
+              }}
+            >
+              <p class={styles.blockMenuTitle}>Tipo de texto</p>
+              <div class={styles.blockMenuList} role="menu" aria-label="Tipos de texto">
+                <For each={EDITOR_BLOCKS}>
+                  {(item) => (
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={activeBlock() === item.id}
+                      class={`${styles.blockMenuItem} ${activeBlock() === item.id ? styles.blockMenuItemActive : ""}`}
+                      onClick={() => {
+                        closeBlockMenu();
+                        applyBlockType(item.id);
+                      }}
+                    >
+                      <span class={styles.blockMenuIcon} innerHTML={item.icon} />
+                      {item.label}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </div>
+          )}
+        </Show>
+      </div>
       <input
         ref={(element) => (textColorInput = element)}
         class="sr-only"

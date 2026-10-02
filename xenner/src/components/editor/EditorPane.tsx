@@ -1,8 +1,11 @@
 import { createEffect, createSignal, Show } from "solid-js";
 
 import {
+  chooseAttachmentForEditor,
   chooseImageForEditor,
+  editorSupportsNativeAttachmentPicker,
   editorSupportsNativeImagePicker,
+  importAttachmentForEditor,
   importImageForEditor,
 } from "../../services/editorAssets";
 import { notifyError, notifySuccess } from "../../services/toastService";
@@ -66,10 +69,12 @@ export function EditorPane(props: EditorPaneProps) {
   const [imageBusy, setImageBusy] = createSignal(false);
   const [editorReady, setEditorReady] = createSignal(false);
   const [whiteboardBusy, setWhiteboardBusy] = createSignal(false);
+  const [attachmentBusy, setAttachmentBusy] = createSignal(false);
   const [titleDraft, setTitleDraft] = createSignal("");
   const [titleFocused, setTitleFocused] = createSignal(false);
   let editorHandle: MarkdownEditorHandle | null = null;
   let imageInput: HTMLInputElement | undefined;
+  let attachmentInput: HTMLInputElement | undefined;
   let lastDocumentPath: string | undefined;
   let lastDocumentTitle: string | undefined;
   let titleCommitTask: Promise<void> = Promise.resolve();
@@ -183,25 +188,82 @@ export function EditorPane(props: EditorPaneProps) {
     }
   }
 
+  async function chooseAttachment(): Promise<void> {
+    const document = props.document;
+    if (!document || attachmentBusy() || !editorReady()) return;
+    if (!editorSupportsNativeAttachmentPicker()) {
+      attachmentInput?.click();
+      return;
+    }
+
+    setAttachmentBusy(true);
+    try {
+      const imported = await chooseAttachmentForEditor(document.path);
+      if (!imported || !editorHandle) return;
+      editorHandle.insertAttachment(imported.relativePath, imported.fileName);
+      notifySuccess("Archivo adjuntado", imported.fileName);
+    } catch (error) {
+      notifyError("No se pudo adjuntar el archivo", error);
+    } finally {
+      setAttachmentBusy(false);
+    }
+  }
+
+  async function insertAttachment(file: File): Promise<void> {
+    const document = props.document;
+    if (!document || !editorHandle || attachmentBusy() || !editorReady()) return;
+    setAttachmentBusy(true);
+    try {
+      const imported = await importAttachmentForEditor(document.path, file);
+      editorHandle.insertAttachment(imported.relativePath, imported.fileName);
+      notifySuccess("Archivo adjuntado", imported.fileName);
+    } catch (error) {
+      notifyError("No se pudo adjuntar el archivo", error);
+    } finally {
+      setAttachmentBusy(false);
+      // Vaciar el input es lo que permite volver a elegir el mismo archivo dos
+      // veces seguidas: sin esto el `change` no vuelve a dispararse.
+      if (attachmentInput) attachmentInput.value = "";
+    }
+  }
+
   function imageFileFromDataTransfer(data: DataTransfer | null): File | null {
     const file = [...(data?.files ?? [])].find((candidate) => candidate.type.startsWith("image/"));
     return file ?? null;
   }
 
+  /**
+   * Arrastrar o pegar un archivo cualquiera lo adjunta; si es una imagen, se
+   * inserta como imagen, que es lo que se espera al soltar una foto en una nota.
+   */
+  function droppedFile(data: DataTransfer | null): File | null {
+    const files = [...(data?.files ?? [])];
+    return files.find((candidate) => candidate.type.startsWith("image/")) ?? files[0] ?? null;
+  }
+
+  function isImageFile(file: File): boolean {
+    return file.type.startsWith("image/");
+  }
+
+  function sendFile(file: File): void {
+    if (isImageFile(file)) void insertImage(file);
+    else void insertAttachment(file);
+  }
+
   function handleImageDrop(event: DragEvent): void {
-    const file = imageFileFromDataTransfer(event.dataTransfer);
+    const file = droppedFile(event.dataTransfer);
     if (!file) return;
     event.preventDefault();
     if (getEditorMode() === "whiteboard") return;
-    void insertImage(file);
+    sendFile(file);
   }
 
   function handlePaste(event: ClipboardEvent): void {
     if (getEditorMode() === "whiteboard") return;
-    const file = [...(event.clipboardData?.files ?? [])].find((candidate) => candidate.type.startsWith("image/"));
+    const file = droppedFile(event.clipboardData);
     if (!file) return;
     event.preventDefault();
-    void insertImage(file);
+    sendFile(file);
   }
 
   /**
@@ -332,15 +394,31 @@ export function EditorPane(props: EditorPaneProps) {
                   }}
                 />
 
+                {/* Sin `accept`: adjuntar es poder guardar el archivo que sea, y
+                    un filtro solo esconde los que nadie adivina. */}
+                <input
+                  ref={(element) => (attachmentInput = element)}
+                  class="sr-only"
+                  type="file"
+                  aria-label="Seleccionar archivo para adjuntar"
+                  tabIndex={-1}
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    if (file) void insertAttachment(file);
+                  }}
+                />
+
                 <Show when={getEditorMode() !== "whiteboard"}>
                   <EditorToolbar
                     loading={props.loading}
                     ready={editorReady()}
                     imageBusy={imageBusy()}
                     whiteboardBusy={whiteboardBusy()}
+                    attachmentBusy={attachmentBusy()}
                     status={statusLabel(props.status)}
                     onApplyBlock={applyBlockType}
                     onChooseImage={() => void chooseImage()}
+                    onChooseAttachment={() => void chooseAttachment()}
                     onInsertWhiteboard={(tool) => void insertWhiteboard(tool)}
                   />
                 </Show>

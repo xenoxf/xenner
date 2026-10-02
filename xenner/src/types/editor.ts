@@ -32,4 +32,6 @@ export interface MarkdownEditorHandle {
     alt?: string,
     revision?: string,
   ): void | Promise<void>;
+  /** Escribe un enlace al archivo adjunto, con su nombre como texto del enlace. */
+  insertAttachment(relativePath: string, label: string): void;
 }

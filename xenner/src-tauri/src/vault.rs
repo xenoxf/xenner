@@ -142,6 +142,22 @@ pub struct ImportedAsset {
     pub file_name: String,
 }
 
+/// Un archivo adjunto a una nota.
+///
+/// A diferencia de `ImportedAsset` **no** vuelve el contenido en base64: un
+/// adjunto puede ser un PDF o un CSV de varios megas, y mandar eso por el puente
+/// de Tauri para decodificarlo en el navegador es trabajo para nada. La nota
+/// solo necesita la ruta donde quedó guardado y el nombre con el que se lo
+/// reconoce.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedAttachment {
+    pub relative_path: String,
+    pub file_name: String,
+    pub size: u64,
+    pub revision: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WriteAcknowledgement {
@@ -659,6 +675,81 @@ fn asset_extension(file_name: &str) -> Result<&'static str, VaultError> {
     } else {
         Err(invalid_path("solo se admiten PNG, JPEG, GIF, WebP y SVG"))
     }
+}
+
+/// La extensión de un adjunto, o `bin` si el nombre no trae una utilizable.
+///
+/// A diferencia de `asset_extension` aquí no hay una lista cerrada: un adjunto es
+/// lo que sea que alguien quiera guardar con la nota, y un PDF rechazado por no
+/// estar en la lista es un adjuntador que no hace su trabajo. Solo se exige que
+/// la extensión sea un nombre de archivo de verdad —letras, dígitos y hasta
+/// dieciséis caracteres— porque acaba formando parte de la ruta dentro de
+/// `.assets` y esa ruta se resuelve contra el disco.
+fn attachment_extension(file_name: &str) -> String {
+    let extension = Path::new(file_name)
+        .extension()
+        .and_then(OsStr::to_str)
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    let usable = !extension.is_empty()
+        && extension.len() <= 16
+        && extension
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-' || character == '_');
+    if usable {
+        extension
+    } else {
+        "bin".to_string()
+    }
+}
+
+/// Copia un archivo de fuera de la biblioteca a `.assets` de la nota.
+///
+/// El destino es `./.assets/<hash>.<ext>`, el mismo sitio que las imágenes y las
+/// pizarras, y con el mismo nombre por contenido: volver a adjuntar el mismo
+/// archivo dos veces no llena la carpeta de copias. El hash va primero, así que
+/// los bytes de dos archivos distintos nunca chocan.
+fn import_attachment_blocking(
+    root: PathBuf,
+    note_path: String,
+    file_name: String,
+    data_base64: String,
+) -> Result<ImportedAttachment, VaultError> {
+    if data_base64.len() > MAX_ASSET_BYTES.saturating_mul(2) {
+        return Err(VaultError::new("tooLarge", "el archivo es demasiado grande"));
+    }
+    let bytes = BASE64
+        .decode(data_base64.as_bytes())
+        .map_err(|_| invalid_path("el archivo no contiene base64 válido"))?;
+    if bytes.is_empty() || bytes.len() > MAX_ASSET_BYTES {
+        return Err(VaultError::new("tooLarge", "el archivo es demasiado grande"));
+    }
+    validate_name(&file_name)?;
+    let extension = attachment_extension(&file_name);
+    let _note = safe_existing_note(&root, &note_path)?;
+    let revision = revision_for(&bytes);
+    let relative_path = format!("./{ASSET_DIRECTORY}/{}.{extension}", &revision[..24]);
+    // Adjuntar dos veces el mismo archivo es normal, no un error. Como el nombre
+    // sale del contenido, la segunda vez el sitio ya lo ocupan esos mismos
+    // bytes: se comprueba y se deja como está. La comprobación la hace
+    // `asset_file_path` con `must_exist`, que es la que se encarga de validar
+    // que lo que hay ahí sea un archivo normal dentro de `.assets`, así que el
+    // atajo no se salta ninguna de esas Protecciones.
+    match asset_file_path(&root, &note_path, &relative_path, true) {
+        Ok(_) => {}
+        Err(error) if error.code == "notFound" => {
+            let path = asset_file_path(&root, &note_path, &relative_path, false)?;
+            write_bytes_atomically(&path, &bytes)?;
+        }
+        Err(error) => return Err(error),
+    }
+    Ok(ImportedAttachment {
+        relative_path,
+        file_name,
+        size: bytes.len() as u64,
+        revision,
+    })
 }
 
 fn detect_asset_mime(bytes: &[u8], extension: &str) -> Result<&'static str, VaultError> {
@@ -1570,6 +1661,70 @@ pub async fn choose_image_asset(
 }
 
 #[tauri::command]
+pub async fn import_attachment(
+    state: State<'_, VaultState>,
+    note_path: String,
+    file_name: String,
+    data_base64: String,
+) -> Result<ImportedAttachment, VaultError> {
+    let root = root_from_state(&state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        import_attachment_blocking(root, note_path, file_name, data_base64)
+    })
+    .await
+    .map_err(|_| join_error())?
+}
+
+#[tauri::command]
+pub async fn choose_attachment(
+    app: AppHandle,
+    state: State<'_, VaultState>,
+    note_path: String,
+) -> Result<Option<ImportedAttachment>, VaultError> {
+    let root = root_from_state(&state)?;
+    let dialog_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        // Sin filtro de extensión: adjuntar es justamente poder guardar el
+        // archivo que sea, y un filtro solo esconde los que nadie adivina.
+        let selected = dialog_app
+            .dialog()
+            .file()
+            .set_title("Adjuntar archivo a la nota")
+            .blocking_pick_file()
+            .map(|file| {
+                file.into_path()
+                    .map_err(|error| invalid_path(format!("ruta de archivo inválida: {error}")))
+            })
+            .transpose()?;
+        let Some(selected) = selected else {
+            return Ok(None);
+        };
+        if !is_plain_file(&selected) {
+            return Err(invalid_path(
+                "lo seleccionado no es un archivo normal",
+            ));
+        }
+        let metadata = fs::metadata(&selected)?;
+        if metadata.len() > MAX_ASSET_BYTES as u64 {
+            return Err(VaultError::new(
+                "tooLarge",
+                format!("el archivo supera el límite de {MAX_ASSET_BYTES} bytes"),
+            ));
+        }
+        let file_name = selected
+            .file_name()
+            .and_then(OsStr::to_str)
+            .filter(|name| !name.is_empty())
+            .ok_or_else(|| invalid_path("el archivo no tiene un nombre válido"))?
+            .to_string();
+        let data_base64 = BASE64.encode(fs::read(&selected)?);
+        import_attachment_blocking(root, note_path, file_name, data_base64).map(Some)
+    })
+    .await
+    .map_err(|_| join_error())?
+}
+
+#[tauri::command]
 pub async fn read_asset(
     state: State<'_, VaultState>,
     note_path: String,
@@ -1944,6 +2099,61 @@ mod tests {
             .join(".assets")
             .join(imported.relative_path.trim_start_matches("./.assets/"))
             .exists());
+    }
+
+    #[test]
+    fn adjunta_cualquier_archivo_a_los_assets_de_la_nota() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let root = directory.path().to_path_buf();
+        let note =
+            create_note_blocking(root.clone(), String::new(), Some("Nota".into())).expect("create");
+
+        let pdf = b"%PDF-1.7\ncontenido del informe\n";
+        let imported = import_attachment_blocking(
+            root.clone(),
+            note.entry.path.clone(),
+            "Informe.pdf".into(),
+            BASE64.encode(pdf),
+        )
+        .expect("attach");
+
+        // El nombre que se conserva es el del archivo de la persona, con su
+        // extensión original en minúsculas: es lo que se ve en la nota.
+        assert_eq!(imported.file_name, "Informe.pdf");
+        assert_eq!(imported.size, pdf.len() as u64);
+        assert_eq!(
+            normalized_asset_path(&imported.relative_path).unwrap(),
+            format!(
+                ".assets/{}.pdf",
+                &imported.revision[..24]
+            )
+        );
+        let stored = fs::read(root.join(imported.relative_path.trim_start_matches("./"))).expect("stored");
+        assert_eq!(stored, pdf);
+
+        // Adjuntar lo mismo dos veces no llena la carpeta de copias: el nombre
+        // viene del contenido, no del archivo de origen.
+        let again = import_attachment_blocking(
+            root.clone(),
+            note.entry.path,
+            "otro-nombre.pdf".into(),
+            BASE64.encode(pdf),
+        )
+        .expect("attach again");
+        assert_eq!(again.relative_path, imported.relative_path);
+    }
+
+    #[test]
+    fn la_extension_de_un_adjunto_siempre_es_un_nombre_de_archivo() {
+        assert_eq!(attachment_extension("Informe.PDF"), "pdf");
+        assert_eq!(attachment_extension("datos.CSV"), "csv");
+        assert_eq!(attachment_extension("archivo.tar.gz"), "gz");
+        assert_eq!(attachment_extension("sin-extension"), "bin");
+        assert_eq!(attachment_extension("punto."), "bin");
+        // Una extensión con una barra o un separador podría salirse de
+        // `.assets` al construir la ruta.
+        assert_eq!(attachment_extension("trampa.p/d"), "bin");
+        assert_eq!(attachment_extension("larga.abcdefghijklmnopqrstuvwxyz"), "bin");
     }
 
     #[test]

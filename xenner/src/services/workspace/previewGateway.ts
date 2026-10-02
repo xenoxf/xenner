@@ -3,12 +3,14 @@ import type {
   CreateNoteResult,
   CreatedEntry,
   ImportedAsset,
+  ImportedAttachment,
   NoteDocument,
   VaultEntry,
   WorkspaceGateway,
   WorkspaceScan,
   WriteAcknowledgement,
 } from "../../types/workspace";
+import { attachmentExtension, base64ByteLength } from "../../editor/attachment-paths";
 import { isPathInside, joinPath, replacePathName } from "../../workspace/tree";
 import { noteTitleFromPath, serializeNoteContent, splitNoteContent } from "../../workspace/note";
 import { vaultError } from "./errors";
@@ -29,6 +31,7 @@ import {
 export class PreviewWorkspaceGateway implements WorkspaceGateway {
   readonly canChooseWorkspace = false;
   readonly canChooseImageAsset = false;
+  readonly canChooseAttachment = false;
 
   async scan(): Promise<WorkspaceScan> {
     return previewScan(readPreviewState());
@@ -81,6 +84,33 @@ export class PreviewWorkspaceGateway implements WorkspaceGateway {
   }
 
   async chooseImageAsset(): Promise<ImportedAsset | null> {
+    return null;
+  }
+
+  /**
+   * En la vista previa del navegador no hay sistema de archivos de dónde traer
+   * un archivo, pero el `<input type="file">` que usa la propia vista previa sí
+   * entrega los bytes. Se guarda en el almacén igual que una imagen para que el
+   * enlace que se inserta en la nota apunte a algo que existe.
+   */
+  async importAttachment(
+    notePath: string,
+    fileName: string,
+    dataBase64: string,
+  ): Promise<ImportedAttachment> {
+    assertSafeRelativePath(notePath);
+    if (!fileName.trim()) throw vaultError("invalidPath", "El archivo no tiene nombre");
+    const state = readPreviewState();
+    const revision = previewRevision(dataBase64);
+    const extension = attachmentExtension(fileName);
+    const relativePath = `./.assets/${revision.slice(-16)}.${extension}`;
+    const size = base64ByteLength(dataBase64);
+    state.attachments[relativePath] = { fileName, size, revision };
+    writePreviewState(state);
+    return { relativePath, fileName, size, revision };
+  }
+
+  async chooseAttachment(): Promise<ImportedAttachment | null> {
     return null;
   }
 

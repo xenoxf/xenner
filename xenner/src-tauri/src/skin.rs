@@ -39,9 +39,14 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
+// Los diálogos de carpeta solo existen en `export_skin` e `import_skin`, que son
+// de escritorio. En Android el plugin no trae selector de carpetas y el trait no
+// está implementado, así que ni se importa.
+#[cfg(not(target_os = "android"))]
 use tauri_plugin_dialog::DialogExt;
 
 use crate::config;
+use crate::embedded_skins;
 
 const ALLOWED_FILES: &[&str] = &[
     "skin",
@@ -476,6 +481,13 @@ fn canonical_dir(candidate: PathBuf) -> Option<PathBuf> {
 
 /// Localiza la carpeta de skins sistémicas. El CWD solo participa en debug;
 /// en release se usan roots conocidos del ejecutable y del bundle.
+///
+/// El último recurso es la copia que instala `embedded_skins` dentro de la
+/// carpeta de datos de la aplicación. Existe por el móvil: en Android
+/// `resource_dir()` no es una ruta del sistema de archivos sino un URI de assets
+/// (`asset://tauri/resources`), así que los recursos del bundle no se pueden leer
+/// con `std::fs` y todo lo de arriba falla. Como los bytes de las skins también
+/// van dentro del binario, esa copia sí es un directorio de verdad.
 fn system_skins_dir(app: &AppHandle) -> Option<PathBuf> {
     if let Ok(resource_dir) = app.path().resource_dir() {
         if let Some(path) = canonical_dir(resource_dir.join("skins")) {
@@ -502,7 +514,31 @@ fn system_skins_dir(app: &AppHandle) -> Option<PathBuf> {
         }
     }
 
+    if let Ok(config_root) = config::config_root(app) {
+        if let Some(path) = canonical_dir(config_root.join(embedded_skins::DIRECTORY)) {
+            return Some(path);
+        }
+    }
+
     None
+}
+
+/// Copia las skins que vienen dentro del binario a la carpeta de datos de la
+/// aplicación, que es donde las busca `system_skins_dir` cuando el bundle no se
+/// puede leer. Se llama al arrancar, antes de que nada pregunte por los temas.
+///
+/// Infallible a propósito: que no haya copia de las skins es un tema feo, pero es
+/// un motivo mucho peor para no abrir la aplicación. Si algo falla, se avisa por
+/// el log y se sigue; el resto de búsquedas de `system_skins_dir` siguen
+/// intentándolo por si acaso.
+pub fn install_embedded_skins(app: &AppHandle) -> bool {
+    match embedded_skins::install(app) {
+        Ok(instaladas) => instaladas,
+        Err(error) => {
+            eprintln!("xenner: no se pudieron instalar las skins incluidas: {error}");
+            false
+        }
+    }
 }
 
 /// Dónde viven las skins de la persona usuaria. La resuelve `config.rs`, que
@@ -1099,6 +1135,10 @@ pub async fn create_skin(app: AppHandle, request: CreateSkinRequest) -> Result<S
 
 /// Copia entera y real, para exportar: a diferencia de `copy_tree_if_absent`,
 /// aquí se copia todo a una carpeta nueva que no puede existir ya.
+///
+/// Solo la usan `export_skin` e `import_skin`, que en Android no compilan: ver
+/// sus notas.
+#[cfg(not(target_os = "android"))]
 fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
     let metadata = fs::symlink_metadata(from)?;
     if metadata.is_dir() && !metadata.file_type().is_symlink() {
@@ -1117,6 +1157,7 @@ fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
 
 /// Exporta un tema a la carpeta que elija la persona, listo para compartir o
 /// guardar. Devuelve la ruta del destino, o `None` si canceló el diálogo.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub async fn export_skin(app: AppHandle, skin: String) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -1155,6 +1196,9 @@ pub async fn export_skin(app: AppHandle, skin: String) -> Result<Option<String>,
 }
 
 /// Lee el manifiesto de una carpeta de tema, para enseñar el nombre correcto.
+///
+/// Solo la usa `import_skin`, que es de escritorio.
+#[cfg(not(target_os = "android"))]
 fn manifest_field(manifest: &str, key: &str) -> Option<String> {
     for line in manifest.lines() {
         let line = line.trim();
@@ -1171,6 +1215,7 @@ fn manifest_field(manifest: &str, key: &str) -> Option<String> {
 
 /// Importa un tema desde una carpeta que la persona eligió: valida que tenga
 /// `skin.txt`, la copia a la carpeta de temas y la deja lista para usar.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub async fn import_skin(app: AppHandle) -> Result<Option<SkinInfo>, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -1186,7 +1231,7 @@ pub async fn import_skin(app: AppHandle) -> Result<Option<SkinInfo>, String> {
             .into_path()
             .map_err(|error| format!("no se pudo leer la carpeta: {error}"))?;
 
-        if !is_plain_file(&origen.join("skin.txt")) {
+        if !is_regular_file(&origen.join("skin.txt")) {
             return Err("esa carpeta no es un tema de Xenner: falta su skin.txt".into());
         }
 
@@ -1224,6 +1269,30 @@ pub async fn import_skin(app: AppHandle) -> Result<Option<SkinInfo>, String> {
     .await
     .map_err(|_| "no se pudo importar el tema".to_string())?
 }
+
+/// En Android no hay dónde poner ni de dónde sacar un tema: los dos comandos son
+/// elegir una carpeta, y `tauri-plugin-dialog` no tiene selector de carpetas en
+/// móvil (`Error::FolderPickerNotImplemented`).
+///
+/// Se contesta con un error escrito, no con un `None` de «cancelado»: si
+/// devolvieran `None`, el botón parecería no funcionar. Con el motivo, la
+/// interfaz puede decir por qué.
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub async fn export_skin(_skin: String) -> Result<Option<String>, String> {
+    Err(NO_FOLDER_PICKER.to_string())
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub async fn import_skin() -> Result<Option<SkinInfo>, String> {
+    Err(NO_FOLDER_PICKER.to_string())
+}
+
+#[cfg(target_os = "android")]
+const NO_FOLDER_PICKER: &str =
+    "en Android no se puede elegir una carpeta: comparte el tema desde «Añadir un tema», \
+     que usa los archivos de la biblioteca, o pasa el tema a mano";
 
 #[cfg(test)]
 mod tests {

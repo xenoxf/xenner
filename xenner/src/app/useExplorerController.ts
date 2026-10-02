@@ -1,6 +1,7 @@
 import { createSignal } from "solid-js";
 
 import { notifyError, notifySuccess } from "../services/toastService";
+import { confirmDialog, promptDialog } from "../services/dialogs";
 import { saveActiveWhiteboard } from "../services/editorSession";
 import { getWorkspaceGateway } from "../services/workspace/gateway";
 import { readLegacyNotes } from "../services/legacyNotes";
@@ -124,9 +125,13 @@ export function useExplorerController() {
   async function importOldNotes(): Promise<void> {
     const notes = legacyNotes();
     if (!notes.length) return;
-    const confirmed = window.confirm(
-      `Se importarán ${notes.length} notas antiguas a la carpeta Importadas. La copia local original se conserva. ¿Continuar?`,
-    );
+    const confirmed = await confirmDialog({
+      title: "Importar notas antiguas",
+      message:
+        `Se importarán ${notes.length} notas antiguas a la carpeta Importadas. ` +
+        `La copia local original se conserva.`,
+      confirmLabel: "Importar",
+    });
     if (!confirmed) return;
     const imported = await importLegacyNotes(notes);
     if (imported > 0) {
@@ -183,7 +188,11 @@ export function useExplorerController() {
 
   async function rename(path: string): Promise<void> {
     const currentName = path.slice(path.lastIndexOf("/") + 1);
-    const nextName = window.prompt("Nuevo nombre", currentName)?.trim();
+    const nextName = await promptDialog({
+      title: "Renombrar",
+      label: "Nombre nuevo",
+      value: currentName,
+    });
     if (!nextName || nextName === currentName) return;
     const renamed = await renameEntry(path, nextName);
     if (renamed) {
@@ -194,11 +203,15 @@ export function useExplorerController() {
 
   async function remove(path: string): Promise<void> {
     const name = path.slice(path.lastIndexOf("/") + 1);
-    const confirmed = window.confirm(
-      path.toLocaleLowerCase("es").endsWith(".md")
-        ? `¿Eliminar “${name}”? Esta acción no se puede deshacer.`
-        : `¿Eliminar la carpeta “${name}”? Solo se puede eliminar si está vacía.`,
-    );
+    const isNote = path.toLocaleLowerCase("es").endsWith(".md");
+    const confirmed = await confirmDialog({
+      title: isNote ? `¿Eliminar “${name}”?` : `¿Eliminar la carpeta “${name}”?`,
+      message: isNote
+        ? "Esta acción no se puede deshacer."
+        : "Solo se puede eliminar si está vacía.",
+      confirmLabel: "Eliminar",
+      danger: true,
+    });
     if (confirmed) {
       const deleted = await deleteEntry(path);
       if (deleted) {

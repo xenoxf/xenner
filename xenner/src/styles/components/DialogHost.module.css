@@ -1,0 +1,96 @@
+/*
+ * Las dos preguntas que puede hacer la app: «¿seguro?» y «¿qué nombre?».
+ *
+ * Sustituyen a `window.confirm` y `window.prompt`, que en el WebView de Android
+ * nunca se muestran porque el anfitrión no implementa `onJsConfirm` ni
+ * `onJsPrompt`. Al ser un modal propio, además se parece al resto de la app y
+ * respeta los tokens de skin en vez de salirse del tema.
+ */
+
+.card {
+  display: flex;
+  width: min(400px, calc(100vw - 2 * env(safe-area-inset-left) - 2 * env(safe-area-inset-right)));
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  border: var(--skin-note-border);
+  border-radius: calc(var(--skin-note-radius) * 1.1);
+  box-shadow: var(--skin-note-shadow);
+  outline: none;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.message {
+  margin: 0;
+  color: var(--skin-toolbar-textDim);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------- campo */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.label {
+  color: var(--skin-toolbar-textDim);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.input {
+  width: 100%;
+  height: 34px;
+  padding: 0 9px;
+  color: var(--skin-input-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-input-radius) * 0.8);
+  outline: none;
+  font-size: 14px;
+}
+
+.input:focus,
+.input:focus-visible {
+  border-color: var(--skin-input-focus);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 1px;
+}
+
+.hint {
+  color: var(--skin-toolbar-textDim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* ----------------------------------------------------------------- botones */
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* El mismo tratamiento que el «Eliminar» del menú contextual: el acento de la
+ * skin, sin inventar un color rojo que las skins no pueden cambiar. */
+.danger {
+  color: var(--skin-note-accent);
+}

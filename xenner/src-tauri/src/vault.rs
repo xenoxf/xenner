@@ -27,6 +27,9 @@ const NOTE_TITLE_MAX_CHARS: usize = 240;
 const MAX_ASSET_BYTES: usize = 8_000_000;
 const ASSET_DIRECTORY: &str = ".assets";
 const MAX_RELATIVE_PATH_BYTES: usize = 1_024;
+/// Solo lo usa `choose_workspace` al guardar la biblioteca elegida, y en
+/// Android ese comando no abre ningún diálogo: ver su nota.
+#[cfg(not(target_os = "android"))]
 const MAX_WORKSPACE_PATH_BYTES: usize = 32_768;
 const MAX_PATH_COMPONENTS: usize = 64;
 const MAX_NAME_BYTES: usize = 180;
@@ -235,6 +238,9 @@ fn read_limited_text(path: &Path, max_bytes: u64) -> Result<String, VaultError> 
     Ok(content)
 }
 
+/// Guarda un texto en disco de forma atómica. Solo la biblioteca elegida con
+/// `choose_workspace` lo usa, así que en Android no se compila.
+#[cfg(any(not(target_os = "android"), test))]
 fn write_atomically(path: &Path, content: &str) -> Result<(), VaultError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -1402,6 +1408,11 @@ fn delete_entry_blocking(root: PathBuf, relative_path: String) -> Result<(), Vau
     Ok(())
 }
 
+/// Cambia la biblioteca activa y lo apunta en el archivo de preferencia.
+///
+/// Desktop únicamente: es la mitad de `choose_workspace` que guarda lo que la
+/// persona eligió, y en Android no hay elección.
+#[cfg(not(target_os = "android"))]
 fn activate_workspace_blocking(app: AppHandle, path: String) -> Result<PathBuf, VaultError> {
     if path.is_empty() || path.len() > MAX_WORKSPACE_PATH_BYTES {
         return Err(invalid_path("la ruta de biblioteca no es válida"));
@@ -1416,6 +1427,7 @@ fn join_error() -> VaultError {
     internal("la tarea de filesystem no terminó correctamente")
 }
 
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub async fn choose_workspace(
     app: AppHandle,
@@ -1459,6 +1471,23 @@ pub async fn choose_workspace(
         .await
         .map_err(|_| join_error())??;
     Ok(Some(scan))
+}
+
+/// En Android no se puede elegir carpeta, así que no se intenta.
+///
+/// `tauri-plugin-dialog` no tiene selector de carpetas en móvil: el diálogo de
+/// Android no sabe hacerlo y el plugin responde con un error interno, no con
+/// «cancelado». Abrirlo solo para recibir un fallo es peor que no abrir nada.
+///
+/// Sin diálogo, `None`: nadie eligió nada. La biblioteca es la que ya tenga, que
+/// al arrancar es `AppLocalData/workspace` y se puede seguir usando.
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub async fn choose_workspace(
+    _app: AppHandle,
+    _state: State<'_, VaultState>,
+) -> Result<Option<WorkspaceScan>, VaultError> {
+    Ok(None)
 }
 
 #[tauri::command]

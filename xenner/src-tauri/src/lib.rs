@@ -2,6 +2,7 @@
 use tauri::Manager;
 
 mod config;
+mod embedded_skins;
 mod skin;
 mod vault;
 
@@ -10,6 +11,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            // Primero las skins del binario. En el escritorio son una copia de
+            // respaldo de las del bundle, pero en Android son la única fuente:
+            // los recursos del bundle no se pueden leer desde Rust y, sin esta
+            // copia, la app no encuentra ningún tema.
+            skin::install_embedded_skins(app.handle());
             // Antes que nada, que exista la carpeta de Xenner. La biblioteca de
             // notas la elige la persona y vive donde ella quiera, así que va
             // después: si `initialize` falla, la app no arranca, y no tiene

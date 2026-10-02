@@ -293,3 +293,28 @@ export function CloseIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m15.8 15.8 4.7 4.7" />
+    </svg>
+  );
+}
+
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M20 12H4M10.5 5.5 4 12l6.5 6.5" />
+    </svg>
+  );
+}
+
+export function DotsIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M12 6h.01M12 12h.01M12 18h.01" stroke-width="2.4" />
+    </svg>
+  );
+}

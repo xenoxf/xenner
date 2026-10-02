@@ -1,0 +1,97 @@
+/*
+ * Tira horizontal de carpetas.
+ *
+ * El scroller se queda con el gesto horizontal (`touch-action: pan-x`) y con el
+ * desbordamiento contenido, para que al deslizar los chips no se mueva la
+ * página entera ni la lista de notas que hay debajo. La barra se oculta porque
+ * los chips ya indican que hay más, y el desplazamiento con inercia es el que
+ * espera el dedo.
+ */
+.strip {
+  flex: 0 0 auto;
+  padding:
+    8px
+    calc(14px + env(safe-area-inset-right, 0px))
+    8px
+    calc(14px + env(safe-area-inset-left, 0px));
+  overflow-x: auto;
+  overflow-y: hidden;
+  background-color: var(--skin-sidebar-background);
+  border-top: var(--skin-sidebar-border);
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-left: calc(14px + env(safe-area-inset-left, 0px));
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.chip {
+  display: inline-flex;
+  max-width: 62vw;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  color: var(--skin-sidebar-text);
+  background-color: var(--skin-sidebar-background);
+  border: var(--skin-sidebar-border);
+  border-radius: calc(var(--skin-button-radius) * 1.6);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.chip svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--skin-sidebar-textDim);
+}
+
+.chip:hover {
+  background-color: var(--skin-sidebar-itemHover);
+}
+
+/* La carpeta que está filtrando: fondo activo y borde con el acento. */
+.chipActive {
+  color: var(--skin-sidebar-accent);
+  background-color: var(--skin-sidebar-itemActive);
+  border-color: var(--skin-sidebar-accent);
+}
+
+.chipActive svg {
+  color: var(--skin-sidebar-accent);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

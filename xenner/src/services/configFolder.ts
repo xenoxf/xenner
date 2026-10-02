@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { ConfigInfo } from "../types/config";
+import { platformSupportsFileReveal } from "./platform";
 
 /**
  * Dónde está la carpeta de Xenner, y cómo abrirla.
@@ -33,6 +34,12 @@ export async function readConfigInfo(): Promise<ConfigInfo | null> {
  * dejar un botón que no hace nada y parece roto.
  */
 export async function revealConfigDir(): Promise<string | null> {
+  if (!platformSupportsFileReveal()) {
+    // Android no tiene explorador de archivos al que lanzar nada. Se dice aquí y
+    // no se invoca: el botón no se pinta (ver `ConfigFolder`), pero si algún día
+    // se llama, el motivo es este y no un error de Rust.
+    return "En Android no hay explorador de archivos. La carpeta está dentro de la app.";
+  }
   try {
     await invoke<void>("reveal_config_dir");
     return null;

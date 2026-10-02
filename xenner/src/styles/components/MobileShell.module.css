@@ -1,0 +1,143 @@
+/*
+ * Raíz de la vista móvil.
+ *
+ * Los insets seguros (la barra de estado y la de navegación de Android, que
+ * `enableEdgeToEdge()` deja detrás del contenido) se reparten así, sin repetir
+ * ninguno:
+ *
+ * - abajo, en la raíz, una sola vez: el FAB y la barra flotante del editor son
+ *   `position: absolute` dentro de esta caja, así que heredan el hueco sin
+ *   tener que volver a sumarlo;
+ * - arriba y a los lados, en las dos barras (`MobileTopBar` y
+ *   `MobileEditorBar`), que son lo único pegado a esos bordes;
+ * - los que van dentro del área con scroll, en el `padding` de su scroller.
+ *
+ * Los cuatro usan el valor de reserva `0px`: en un WebView que no soporte
+ * `env()` sin reserva, la declaración sería inválida y el `padding` no se
+ * aplicaría entero.
+ */
+
+.shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  color: var(--skin-background-text);
+  background-color: var(--skin-background-background);
+  background-image: var(--skin-background-overlay);
+  font-family: var(--skin-ui-font, var(--skin-background-font));
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Las dos pantallas: lista y editor. Solo una existe a la vez. */
+.listScreen,
+.editorScreen {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+/*
+ * `EditorPane` es una fila flexible con su propio ancho de contenido, así que
+ * se monta en una celda de rejilla: un solo elemento estirado a lo ancho y a lo
+ * alto, sin tener que tocar sus clases.
+ */
+.editorPane {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+/* Botón flotante de «nueva nota». */
+.fab {
+  position: absolute;
+  z-index: 30;
+  right: calc(18px + env(safe-area-inset-right, 0px));
+  bottom: 18px;
+  display: grid;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  place-items: center;
+  /* Acento de la nota de fondo con la tinta de la propia nota: en claro sale
+     azul con glifo blanco y en oscuro, azul claro con glifo oscuro. Los dos
+     casos mantienen el contraste sin inventar un color nuevo. */
+  color: var(--skin-note-background);
+  background-color: var(--skin-note-accent);
+  border: 0;
+  border-radius: 50%;
+  box-shadow: var(--skin-note-shadow);
+  cursor: pointer;
+  transition:
+    transform var(--motion-standard) ease,
+    opacity var(--motion-standard) ease;
+}
+
+.fab svg {
+  width: 24px;
+  height: 24px;
+}
+
+.fab:hover {
+  opacity: 0.92;
+}
+
+.fab:active {
+  transform: translateY(1px);
+}
+
+.fab:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 3px;
+}
+
+/* Error de biblioteca: el mismo aviso que el explorador de escritorio. */
+.workspaceAlert {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px calc(14px + env(safe-area-inset-right, 0px)) 0 calc(14px + env(safe-area-inset-left, 0px));
+  padding: 9px;
+  font-size: 12px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  border: 1px solid var(--skin-note-accent);
+  border-radius: calc(var(--skin-note-radius) * 0.55);
+}
+
+.workspaceAlert > div {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.workspaceAlert span {
+  color: var(--skin-sidebar-textDim);
+}
+
+.textButton {
+  padding: 2px 4px;
+  color: var(--skin-button-text);
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.textButton:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}

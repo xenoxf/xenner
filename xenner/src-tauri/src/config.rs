@@ -269,6 +269,10 @@ pub fn ensure(app: &AppHandle) -> bool {
 /// pero en una sesión de Wayland sin `xdg-utils` están `gio` y los de KDE, y en
 /// WSL `wslview`. Se acepta el primero que arranca, que es el que el sistema
 /// acaba usando aunque no quede ninguno.
+///
+/// Fuera de Android, que no tiene explorador de archivos y donde ni siquiera
+/// existe un `Command` con el que lanzar nada.
+#[cfg(any(not(target_os = "android"), test))]
 fn open_in_file_manager(path: &Path) -> Result<(), String> {
     if !is_plain_directory(path) {
         return Err("esa carpeta no existe todavía".into());
@@ -327,6 +331,7 @@ pub async fn config_info(app: AppHandle) -> Option<ConfigInfo> {
 }
 
 /// Abre la carpeta de Xenner en el explorador de archivos.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub async fn reveal_config_dir(app: AppHandle) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -339,6 +344,18 @@ pub async fn reveal_config_dir(app: AppHandle) -> Result<(), String> {
     })
     .await
     .map_err(|_| "no se pudo abrir la carpeta".to_string())?
+}
+
+/// En Android no hay a dónde abrir.
+///
+/// La carpeta de Xenner vive dentro del almacenamiento privado de la aplicación
+/// y además no existe ningún explorador de archivos para mirarla: ni en el
+/// gestor de archivos del sistema, que no ve apps, ni con un `Command`, que en
+/// móvil no se puede lanzar. Se responde con el motivo en vez de intentar nada.
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub async fn reveal_config_dir(_app: AppHandle) -> Result<(), String> {
+    Err("en Android no hay explorador de archivos: la carpeta está dentro de la app".into())
 }
 
 /// Un archivo que la persona ha elegido para meter en su tema.

@@ -35,6 +35,65 @@ Para ejecutar la aplicación desktop:
 pnpm tauri dev
 ```
 
+## Android
+
+La misma app empaquetada con `tauri android`: el mismo `src-tauri`, el mismo
+código Rust y el mismo frontend.
+
+### Prerrequisitos
+
+- Rust con los targets de Android (`rustup target add aarch64-linux-android
+  armv7-linux-androideabi i686-linux-android x86_64-linux-android`);
+- JDK 17, con `JAVA_HOME` apuntando al runtime de Android Studio;
+- Android SDK con Platform, Platform-Tools, NDK (side by side), Build-Tools y
+  Command-line Tools, con `ANDROID_HOME` y `NDK_HOME` exportadas.
+
+La lista completa, con los comandos por sistema operativo, está en
+<https://v2.tauri.app/start/prerequisites/#android>.
+
+### Puesta en marcha
+
+El proyecto Gradle se genera una única vez:
+
+```bash
+pnpm android:init
+```
+
+Después, `pnpm android:dev` levanta el servidor de Vite y empuja la app al
+dispositivo. Hace falta un dispositivo con depuración USB activada o un
+emulador. `pnpm tauri android dev --open` abre Android Studio sobre el proyecto
+generado, y el `android:dev` sigue corriendo en la otra terminal.
+
+### Construir
+
+```bash
+pnpm android:build
+pnpm android:release
+```
+
+`android:build` genera el APK de depuración y `android:release` el AAB de
+publicación; `pnpm android:apk` genera el APK de publicación. Todo cae dentro de
+`src-tauri/gen/android/app/build/outputs/`.
+
+### Limitaciones en Android
+
+- No se puede elegir una carpeta del sistema como biblioteca, porque el plugin de
+  diálogo de Tauri no tiene selector de carpetas en móvil; la biblioteca vive en
+  la carpeta privada de la app, que la crea la propia app.
+- No se puede abrir la carpeta de Xenner en un explorador de archivos, porque
+  Android no tiene uno al que lanzar.
+- Elegir una tipografía para un tema desde el disco no es fiable, porque el
+  selector de archivos de Android no resuelve rutas de fuentes.
+- Renombrar, mover, copiar y borrar notas se hacen con el botón `⋯` de cada
+  nota, porque arrastrar y soltar y el clic derecho son gestos de ratón y no
+  existen en una pantalla táctil.
+- La biblioteca es local y se queda en el dispositivo, sin sincronización con el
+  escritorio.
+
+`src-tauri/gen/android` se versiona en el repositorio. Al actualizar
+`@tauri-apps/cli` el template se regenera, así que ese directorio puede pedir
+revisión manual.
+
 ## Verificación
 
 ```bash

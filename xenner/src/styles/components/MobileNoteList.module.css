@@ -1,0 +1,125 @@
+/*
+ * Lista de notas: una fila por nota con su botón de acciones a la derecha.
+ *
+ * El scroller se queda con el gesto vertical (`touch-action: pan-y`), que es el
+ * suyo; el horizontal se lo deja a la tira de carpetas de arriba. El hueco
+ * inferior es para que el botón flotante no tape la última fila.
+ */
+.scroll {
+  min-height: 0;
+  flex: 1;
+  padding:
+    8px
+    calc(14px + env(safe-area-inset-right, 0px))
+    92px
+    calc(14px + env(safe-area-inset-left, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: var(--skin-sidebar-background);
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.loading {
+  opacity: 0.58;
+}
+
+.creation {
+  margin-bottom: 8px;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--skin-sidebar-background);
+  border: var(--skin-sidebar-border);
+  border-radius: calc(var(--skin-note-radius) * 0.8);
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  padding-right: 2px;
+}
+
+.row + .row {
+  border-top: var(--skin-sidebar-border);
+}
+
+.rowActive {
+  background-color: var(--skin-sidebar-itemActive);
+}
+
+.open {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 4px 10px 10px;
+  color: var(--skin-sidebar-text);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.open:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -2px;
+}
+
+.icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--skin-sidebar-textDim);
+}
+
+.icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rowActive .icon {
+  color: var(--skin-sidebar-accent);
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 38px 20px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 13px;
+  text-align: center;
+}
+
+.empty svg {
+  width: 30px;
+  height: 30px;
+  color: var(--skin-sidebar-accent);
+}
+
+.empty strong {
+  color: var(--skin-sidebar-text);
+  font-size: 14px;
+}

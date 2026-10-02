@@ -13,6 +13,9 @@ import { useAppearanceController } from "./useAppearanceController";
 import { useExplorerController } from "./useExplorerController";
 import { useHistoryController } from "./useHistoryController";
 
+/** Lo que devuelve el hook, tipado, para que quien lo use no tenga que repetirlo. */
+export type AppController = ReturnType<typeof useAppController>;
+
 export function useAppController() {
   const appearance = useAppearanceController();
   const explorer = useExplorerController();

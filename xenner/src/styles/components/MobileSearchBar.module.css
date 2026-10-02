@@ -1,0 +1,101 @@
+/* Título de sección y buscador. Sin borde arriba: el separador lo pone la barra. */
+.search {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px calc(14px + env(safe-area-inset-right, 0px)) 10px calc(14px + env(safe-area-inset-left, 0px));
+  background-color: var(--skin-sidebar-background);
+}
+
+.title {
+  margin: 0;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 0 10px;
+  color: var(--skin-input-placeholder);
+  background: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: var(--skin-input-radius);
+  transition: border-color var(--motion-standard) ease;
+}
+
+.field:focus-within {
+  border-color: var(--skin-input-focus);
+}
+
+.icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0;
+  color: var(--skin-input-text);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: 15px;
+  /* El campo es de escritura, no un botón disfrazado. */
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.input::placeholder {
+  color: var(--skin-input-placeholder);
+}
+
+/* La cruz nativa de `type="search"` se sustituye por el botón de limpiar. */
+.input::-webkit-search-cancel-button,
+.input::-webkit-search-decoration {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.clear {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  padding: 0;
+  place-items: center;
+  color: var(--skin-input-placeholder);
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--skin-button-radius) * 0.85);
+  cursor: pointer;
+}
+
+.clear svg {
+  width: 15px;
+  height: 15px;
+}
+
+.clear:hover {
+  color: var(--skin-input-text);
+  background-color: var(--skin-button-backgroundHover);
+}
+
+.clear:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 1px;
+}

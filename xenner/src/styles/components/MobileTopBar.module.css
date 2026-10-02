@@ -1,0 +1,33 @@
+/* Barra superior de la lista: título a la izquierda, iconos a la derecha. */
+.topBar {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 10px)
+    calc(10px + env(safe-area-inset-right, 0px))
+    10px
+    calc(14px + env(safe-area-inset-left, 0px));
+  color: var(--skin-sidebar-text);
+  background-color: var(--skin-sidebar-background);
+  border-bottom: var(--skin-sidebar-border);
+}
+
+.title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}

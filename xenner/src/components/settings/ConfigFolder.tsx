@@ -6,6 +6,7 @@ import {
   revealConfigDir,
   selectPath,
 } from "../../services/configFolder";
+import { platformSupportsFileReveal } from "../../services/platform";
 import styles from "../../styles/components/ConfigFolder.module.css";
 import { Button } from "../ui/Button";
 
@@ -78,13 +79,24 @@ export function ConfigFolder(props: ConfigFolderProps) {
               {data().root}
             </code>
             <div class={styles.folderActions}>
-              <Button type="button" onClick={() => void abrir()}>
-                Abrir la carpeta de {configFolderName(data().root)}
-              </Button>
+              {/* En Android no hay explorador de archivos al que abrir la carpeta,
+                  así que el botón no se pinta: dejarlo ahí sería un botón roto. La
+                  ruta y «Copiar la ruta» siguen estando. */}
+              <Show when={platformSupportsFileReveal()}>
+                <Button type="button" onClick={() => void abrir()}>
+                  Abrir la carpeta de {configFolderName(data().root)}
+                </Button>
+              </Show>
               <button type="button" class={styles.linkButton} onClick={copiar}>
                 {copied() ? "Ruta copiada" : "Copiar la ruta"}
               </button>
             </div>
+            <Show when={!platformSupportsFileReveal()}>
+              <p class={styles.folderNote}>
+                En Android no hay explorador de archivos, así que esta carpeta no se
+                puede abrir desde aquí. Está dentro de los datos de la app.
+              </p>
+            </Show>
             <Show when={data().previous}>
               {(previous) => (
                 <p class={styles.folderNote}>

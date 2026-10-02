@@ -1,0 +1,33 @@
+/*
+ * Barra del editor a pantalla completa: la flecha de vuelta y el nombre.
+ *
+ * Toma los tokens de la barra flotante del editor (`toolbar`), que es lo mismo:
+ * una barra pegada al borde. El separador es `--skin-toolbar-border` y no
+ * `--skin-note-border`, que en claro es un borde de tarjeta negra y aquí solo
+ * haría falta una línea fina.
+ */
+.bar {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 6px)
+    calc(14px + env(safe-area-inset-right, 0px))
+    6px
+    calc(14px + env(safe-area-inset-left, 0px));
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+  border-bottom: var(--skin-toolbar-border);
+}
+
+.title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

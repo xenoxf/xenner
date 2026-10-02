@@ -28,5 +28,6 @@
     "allow-rename-entry",
     "allow-move-entry",
     "allow-delete-entry"
-  ]
+  ],
+  "platforms": ["windows", "linux", "macOS", "android", "iOS"]
 }

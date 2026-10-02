@@ -9,6 +9,7 @@ import type {
   WorkspaceScan,
 } from "../types/workspace";
 import { getWorkspaceGateway } from "../services/workspace/gateway";
+import { platformSupportsFolderPicker } from "../services/platform";
 import { getActiveWhiteboard, leaveEditor } from "../services/editorSession";
 import { forgetNoteHistory, recordNoteVersion, seedNoteHistory } from "../services/noteHistory";
 import { noteTitleFromPath, serializeNoteContent } from "./note";
@@ -257,7 +258,9 @@ export function getExpandedPaths() {
 }
 
 export function workspaceSupportsFolderPicker(): boolean {
-  return gateway.canChooseWorkspace;
+  // En Android el diálogo de Tauri no tiene selector de carpetas, aunque el
+  // gateway diga que sí: la biblioteca es la de la app y no se puede cambiar.
+  return gateway.canChooseWorkspace && platformSupportsFolderPicker();
 }
 
 export function toggleFolder(path: string): void {

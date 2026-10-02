@@ -522,3 +522,17 @@ de la persona.
 `.txt`, `custom.css` y `assets/`) a la carpeta que elija la persona
 (comando `export_skin`). El destino nunca se pisa: si ya hay algo con ese
 nombre, se avisa.
+
+**Traer un tema** es lo mismo del revés (comando `import_skin`): se elige la
+carpeta del tema y queda instalada en la carpeta de la persona, lista para usar.
+Valida tres cosas antes de copiar nada:
+
+1. Que dentro haya `skin.txt`. Una carpeta cualquiera no es un tema, y el error
+   lo dice con el nombre del archivo que falta.
+2. Que el nombre de la carpeta sea un identificador válido (`valid_skin_id`): es
+   el nombre con el que se va a guardar y con el que se busca después.
+3. Que ese identificador esté libre. Si ya hay un tema tuyo con ese nombre, o si
+   choca con uno incluido, se avisa en vez de pisar.
+
+El nombre que sale en la lista de Ajustes sale de `skin.txt`, no del nombre de la
+carpeta: quien exportó pudo llamarla como quiso.

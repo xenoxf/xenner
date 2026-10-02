@@ -47,8 +47,8 @@
   position: relative;
   display: flex;
   min-width: 0;
-  flex-direction: column;
-  gap: 1px;
+  align-items: center;
+  gap: 10px;
   padding: 9px 10px 9px 13px;
   color: var(--skin-sidebar-text);
   background: transparent;
@@ -99,6 +99,27 @@
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sectionIcon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.sectionIcon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sectionText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .navFooter {
@@ -184,8 +205,11 @@
 
 /* ------------------------------------------------------------------- tarjetas */
 
+/* Los grupos van separados por una línea fina: menos cajas, más aire. */
 .group + .group {
   margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--skin-sidebar-border);
 }
 
 .groupTitle {
@@ -370,9 +394,9 @@
 
 .skinList {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 8px;
-  margin: 0;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -384,9 +408,9 @@
  * desmontan solos.
  */
 .skinList > li {
-  position: relative;
   display: flex;
   min-width: 0;
+  flex-direction: column;
 }
 
 .skinCard {
@@ -458,15 +482,27 @@
 }
 
 /* Encima de la tarjeta, en la esquina de abajo. */
+/*
+ * Acciones de un tema propio. Van **debajo** de la tarjeta, no encima: con dos
+ * botones (Editar y Exportar) un borde pegado a la esquina acaba tapando el
+ * nombre del tema, que es justo lo que hay que leer primero.
+ */
+.skinActions {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0 0 2px;
+}
+
 .skinEdit {
-  position: absolute;
-  right: 12px;
-  bottom: 9px;
-  padding: 3px 6px;
+  padding: 3px 8px;
   color: var(--skin-note-text);
   background-color: var(--skin-note-background);
   border: 1px solid var(--skin-input-border);
   border-radius: 6px;
+  font-size: 11px;
   text-decoration: none;
 }
 
@@ -507,6 +543,77 @@
 .check svg {
   width: 16px;
   height: 16px;
+}
+
+/*
+ * «Usar» en la tarjeta. Una tarjeta que se pulsa no se distingue de una que se
+ * enseña: el texto dice lo que pasa al pulsarla, y cuando ya está puesto, el
+ * visto dice que ya lo está. Uno u otro, nunca los dos.
+ */
+.skinUse {
+  display: inline-flex;
+  min-width: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--skin-note-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.skinUse svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Cabecera de grupo con la acción a la derecha: título, explicación y botón. */
+.groupHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.groupAction {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-button-background);
+  border: var(--skin-button-border);
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.groupAction:hover {
+  background-color: var(--skin-button-backgroundHover);
+  border-color: var(--skin-button-borderHover);
+}
+
+.groupAction:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+.groupAction svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Aviso de una acción: exportar o importar. Se queda hasta el siguiente clic. */
+.status {
+  margin: 12px 0 0;
+  padding: 8px 11px;
+  overflow-wrap: anywhere;
+  color: var(--skin-note-text);
+  background-color: var(--skin-sidebar-itemActive);
+  border-radius: calc(var(--skin-sidebar-radius) * 0.6);
+  font-size: 12px;
 }
 
 @media (max-width: 820px) {

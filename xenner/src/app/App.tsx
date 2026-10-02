@@ -113,6 +113,7 @@ export default function App() {
           onAppearanceChange={appearance.updateAppearance}
           onSkinChange={(id) => void appearance.changeSkin(id)}
           onSkinCreated={appearance.skinCreated}
+          onSkinImported={appearance.skinCreated}
           onSkinEdit={setEditingSkin}
           onSkinEditCancel={() => setEditingSkin(null)}
           onClose={() => {

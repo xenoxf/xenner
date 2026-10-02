@@ -30,6 +30,7 @@ pub fn run() {
             skin::set_active_skin,
             skin::create_skin,
             skin::export_skin,
+            skin::import_skin,
             vault::choose_workspace,
             vault::scan_workspace,
             vault::read_note,

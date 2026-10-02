@@ -5,13 +5,21 @@ import { SETTINGS_SECTIONS, THEME_MODES, type SettingsNavigationItem, type Setti
 import styles from "../../styles/components/SettingsModal.module.css";
 import type { Appearance } from "../../types/appearance";
 import type { SkinInfo } from "../../types/skin";
-import { CheckIcon, CloseIcon, InfoIcon } from "../ui/Icons";
+import {
+  CheckIcon,
+  CloseIcon,
+  FolderPlusIcon,
+  InfoIcon,
+  MoonIcon,
+  PlusIcon,
+  ShapesIcon,
+} from "../ui/Icons";
 import { ConfigFolder } from "./ConfigFolder";
 import { FontSelect } from "./FontSelect";
 import { IconButton } from "../ui/IconButton";
 import { ModalBackdrop } from "../ui/ModalBackdrop";
 import { SkinCreator } from "./SkinCreator";
-import { exportSkin } from "../../services/skinExport";
+import { exportSkin, importSkin } from "../../services/skinExport";
 
 export interface SettingsModalProps {
   skins: SkinInfo[];
@@ -21,6 +29,8 @@ export interface SettingsModalProps {
   onAppearanceChange(appearance: Appearance): void;
   onSkinChange(id: string): void;
   onSkinCreated(skin: SkinInfo): void;
+  /** Un tema importado: hay que recargar la lista para que aparezca. */
+  onSkinImported(skin: SkinInfo): void;
   /** El tema que se está editando, o `null` si se está creando uno nuevo. */
   editingSkin: SkinInfo | null;
   onSkinEdit(skin: SkinInfo): void;
@@ -104,13 +114,34 @@ export function SettingsModal(props: SettingsModalProps) {
   const canReset = (): boolean =>
     section() === "appearance" && !isDefaultAppearance(props.appearance);
 
-  const [avisoExport, setAvisoExport] = createSignal<string | null>(null);
+  const [aviso, setAviso] = createSignal<string | null>(null);
+
   async function compartirSkin(id: string): Promise<void> {
+    setAviso(null);
     try {
       const destino = await exportSkin(id);
-      if (destino) setAvisoExport(`Tema guardado en: ${destino}`);
+      if (destino) setAviso(`Tema guardado en: ${destino}`);
     } catch (cause) {
-      setAvisoExport(cause instanceof Error ? cause.message : "No se pudo exportar");
+      setAviso(cause instanceof Error ? cause.message : "No se pudo exportar el tema");
+    }
+  }
+
+  /**
+   * Importar un tema con un clic.
+   *
+   * El diálogo del sistema hace el trabajo de "ve a la carpeta, copia, pega":
+   * elegir la carpeta es toda la operación. Si viene uno que ya existe, se dice
+   * cuál y por qué, en vez de dejar a medias la lista.
+   */
+  async function importarTema(): Promise<void> {
+    setAviso(null);
+    try {
+      const skin = await importSkin();
+      if (!skin) return;
+      props.onSkinImported(skin);
+      setAviso(`«${skin.name}» ya está en tu lista de temas.`);
+    } catch (cause) {
+      setAviso(cause instanceof Error ? cause.message : "No se pudo importar el tema");
     }
   }
 
@@ -146,8 +177,15 @@ export function SettingsModal(props: SettingsModalProps) {
                 aria-current={section() === item.id ? "page" : undefined}
                 onClick={() => setSection(item.id)}
               >
-                <strong>{item.label}</strong>
-                <small>{item.hint}</small>
+                <span class={styles.sectionIcon} aria-hidden="true">
+                  <Show when={item.id === "appearance"}><MoonIcon /></Show>
+                  <Show when={item.id === "skins"}><ShapesIcon /></Show>
+                  <Show when={item.id === "create"}><PlusIcon /></Show>
+                </span>
+                <span class={styles.sectionText}>
+                  <strong>{item.label}</strong>
+                  <small>{item.hint}</small>
+                </span>
               </button>
             )}
           </For>
@@ -306,15 +344,29 @@ export function SettingsModal(props: SettingsModalProps) {
 
               <Show when={section() === "skins"}>
                 <div class={styles.group}>
-                  <h3 class={styles.groupTitle}>Elige un tema</h3>
-                  <p class={styles.groupHint}>
-                    Cada tema cambia los colores y las formas de toda la aplicación. Se aplica
-                    al momento.
-                  </p>
+                  <div class={styles.groupHeader}>
+                    <div>
+                      <h3 class={styles.groupTitle}>Elige un tema</h3>
+                      <p class={styles.groupHint}>
+                        Cada tema cambia los colores y las formas de toda la aplicación. Se aplica
+                        al momento.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      class={styles.groupAction}
+                      onClick={() => void importarTema()}
+                    >
+                      <FolderPlusIcon />
+                      <span>Traer un tema</span>
+                    </button>
+                  </div>
+                  <Show when={aviso()}>
+                    <p class={styles.status} role="status">
+                      {aviso()}
+                    </p>
+                  </Show>
                   <ul class={styles.skinList}>
-                    <Show when={avisoExport()}>
-                      <p class={styles.footnote} role="status">{avisoExport()}</p>
-                    </Show>
                     <li>
                       <button
                         type="button"
@@ -326,11 +378,9 @@ export function SettingsModal(props: SettingsModalProps) {
                           <strong>Xenner</strong>
                           <small>El original · claro y oscuro</small>
                         </span>
-                        <Show when={props.activeSkin === ""}>
-                          <span class={styles.check}>
-                            <CheckIcon />
-                          </span>
-                        </Show>
+                        <span class={styles.skinUse}>
+                          {props.activeSkin === "" ? <CheckIcon /> : "Usar"}
+                        </span>
                       </button>
                     </li>
                     <For each={props.skins}>
@@ -352,11 +402,9 @@ export function SettingsModal(props: SettingsModalProps) {
                                     : "Incluido"}
                               </small>
                             </span>
-                            <Show when={props.activeSkin === skin.id}>
-                              <span class={styles.check}>
-                                <CheckIcon />
-                              </span>
-                            </Show>
+                            <span class={styles.skinUse}>
+                              {props.activeSkin === skin.id ? <CheckIcon /> : "Usar"}
+                            </span>
                           </button>
                           {/*
                             «Editar» es hermano de la tarjeta, no un hijo suyo:
@@ -365,23 +413,25 @@ export function SettingsModal(props: SettingsModalProps) {
                             que la tarjeta deja de funcionar al pulsarla.
                           */}
                           <Show when={skin.origin === "user"}>
-                            <button
-                              type="button"
-                              class={styles.skinEdit}
-                              onClick={() => void compartirSkin(skin.id)}
-                            >
-                              Exportar
-                            </button>
-                            <button
-                              type="button"
-                              class={styles.skinEdit}
-                              onClick={() => {
-                                props.onSkinEdit(skin);
-                                setSection("create");
-                              }}
-                            >
-                              Editar
-                            </button>
+                            <span class={styles.skinActions}>
+                              <button
+                                type="button"
+                                class={styles.skinEdit}
+                                onClick={() => {
+                                  props.onSkinEdit(skin);
+                                  setSection("create");
+                                }}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                class={styles.skinEdit}
+                                onClick={() => void compartirSkin(skin.id)}
+                              >
+                                Exportar
+                              </button>
+                            </span>
                           </Show>
                         </li>
                       )}

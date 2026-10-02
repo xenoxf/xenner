@@ -1142,6 +1142,77 @@ pub async fn export_skin(app: AppHandle, skin: String) -> Result<Option<String>,
     .map_err(|_| "no se pudo exportar el tema".to_string())?
 }
 
+/// Lee el manifiesto de una carpeta de tema, para enseñar el nombre correcto.
+fn manifest_field(manifest: &str, key: &str) -> Option<String> {
+    for line in manifest.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix(key) {
+            let rest = rest.trim_start_matches([' ', '=', '"']);
+            let value = rest.trim_end_matches('"').trim();
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Importa un tema desde una carpeta que la persona eligió: valida que tenga
+/// `skin.txt`, la copia a la carpeta de temas y la deja lista para usar.
+#[tauri::command]
+pub async fn import_skin(app: AppHandle) -> Result<Option<SkinInfo>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let elegida = app
+            .dialog()
+            .file()
+            .set_title("Elige la carpeta de un tema")
+            .blocking_pick_folder();
+        let Some(carpeta) = elegida else {
+            return Ok(None);
+        };
+        let origen: PathBuf = carpeta
+            .into_path()
+            .map_err(|error| format!("no se pudo leer la carpeta: {error}"))?;
+
+        if !is_plain_file(&origen.join("skin.txt")) {
+            return Err("esa carpeta no es un tema de Xenner: falta su skin.txt".into());
+        }
+
+        let id = origen
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default()
+            .to_string();
+        if !valid_skin_id(&id) {
+            return Err("la carpeta del tema tiene que llamarse con letras minúsculas, números, '-' o '_'".into());
+        }
+
+        let user_dir = user_skins_dir(&app).ok_or("no se pudo resolver la carpeta de Xenner")?;
+        fs::create_dir_all(&user_dir).map_err(|error| error.to_string())?;
+        let destino = user_dir.join(&id);
+        if fs::symlink_metadata(&destino).is_ok() {
+            return Err(format!("ya tienes un tema llamado «{id}»"));
+        }
+        if system_skins_dir(&app).is_some_and(|dir| is_plain_directory(&dir.join(&id))) {
+            return Err(format!("«{id}» es un tema incluido de Xenner; renombra la carpeta"));
+        }
+
+        copy_tree(&origen, &destino).map_err(|error| format!("no se pudo copiar: {error}"))?;
+
+        let manifest = fs::read_to_string(destino.join("skin.txt")).unwrap_or_default();
+        Ok(Some(SkinInfo {
+            id: id.clone(),
+            name: manifest_field(&manifest, "name").unwrap_or_else(|| id.clone()),
+            version: manifest_field(&manifest, "version").unwrap_or_default(),
+            author: manifest_field(&manifest, "author").unwrap_or_default(),
+            origin: SkinOrigin::User,
+            editable: true,
+        }))
+    })
+    .await
+    .map_err(|_| "no se pudo importar el tema".to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1156,6 +1227,17 @@ mod tests {
         assert!(!valid_skin_id(&"a".repeat(65)));
         assert!(!valid_skin_id("CON"));
         assert!(!valid_skin_id("com1"));
+    }
+
+    #[test]
+    fn lee_el_nombre_de_un_manifiesto_importado() {
+        let manifest = "# un tema\nname=\"Cristal\"\nversion=\"1.0.0\"\nauthor=\"Alguien\"\n";
+        assert_eq!(manifest_field(manifest, "name").as_deref(), Some("Cristal"));
+        assert_eq!(manifest_field(manifest, "version").as_deref(), Some("1.0.0"));
+        assert_eq!(manifest_field(manifest, "author").as_deref(), Some("Alguien"));
+        // Sin manifest no se inventa nada: el nombre se cae al identificador.
+        assert_eq!(manifest_field("name=\n", "name"), None);
+        assert_eq!(manifest_field("", "name"), None);
     }
 
     #[test]

@@ -69,20 +69,18 @@ test("la barra flotante no ofrece tipos de texto", () => {
     !COMPONENT.includes("block-${item.id}"),
     "la barra flotante vuelve a traer un botón por cada tipo",
   );
-  // Y el tipo se sigue cambiando en algún sitio, que era el bug original: solo
-  // se puede cambiar con el cursor en una línea.
-  assert.match(COMPONENT, /function chooseBlockType/);
-  assert.match(COMPONENT, /runBlockCommand\(ctx, type, reportFailure\)/);
-  // El dock tampoco los tiene: un solo sitio, el `+`.
+  // Y el tipo se sigue cambiando en algún sitio, que era el bug original: lo
+  // hace el menú del `+` de Crepe. Ni la barra ni el dock añaden botones.
+  assert.ok(!TOOLBAR.includes("block-${item.id}"), "el dock vuelve a traer un botón por cada tipo");
   assert.ok(!TOOLBAR.includes("BLOCK_TYPE_ICONS"), "el dock vuelve a ofrecer los tipos");
   assert.ok(!TOOLBAR.includes("onApplyBlock"), "el dock vuelve a cambiar el tipo de texto");
 });
 
-test("cambiar el tipo de bloque no traga ninguna excepción", () => {
-  // El síntoma que hizo falta reconstruir esto: al cambiar el tipo de un texto
-  // seleccionado, el texto desaparecía, el editor dejaba de aceptar nada y al
-  // reabrir la nota todo estaba bien y sin guardar. Los `catch` mudos se comían
-  // justo la excepción que lo explica. Aquí no puede quedar ni uno.
+test("insertar en la nota no traga ninguna excepción", () => {
+  // El síntoma que hizo falta reconstruir esto: al insertar, el texto
+  // desaparecía, el editor dejaba de aceptar nada y al reabrir la nota todo
+  // estaba bien y sin guardar. Los `catch` mudos se comían justo la excepción que
+  // lo explica. Aquí no puede quedar ni uno.
   assert.ok(
     !/catch \{\s*\}/.test(COMPONENT),
     "queda un catch mudo en el componente: se traga la excepción que rompe el editor",
@@ -94,21 +92,17 @@ test("cambiar el tipo de bloque no traga ninguna excepción", () => {
   assert.match(COMMANDS, /ReportFailure/);
 });
 
-test("un fallo al aplicar el tipo se le dice a quien escribe", () => {
+test("un fallo al insertar se le dice a quien escribe", () => {
   // Un `console.error` no lo ve nadie. El texto desaparecía sin explicación y
   // quien escribía no tenía forma de saber si había hecho algo mal.
   assert.match(COMPONENT, /function reportFailure/);
   assert.match(COMPONENT, /reportFailure[\s\S]*?notifyError\(/);
-  // Cada camino en el que el cambio **no** se aplica avisa, con su motivo: que el
-  // botón no haga nada en silencio parece roto, y era justo lo que pasaba con las
-  // listas —«Viñetas» sobre un título devolvía `false` sin lanzar excepción y no
-  // había ni rastro. En `block-change.test.ts` está medido, no supuesto.
-  assert.match(COMMANDS, /report\("no hay un cursor en el texto que cambiar"/);
-  assert.match(COMMANDS, /report\("aquí no se puede cambiar el tipo"/);
-  assert.match(COMMANDS, /report\(`el tipo \$\{type\} no se pudo aplicar`, error\)/);
-  // Y que ya esté del tipo pedido **no** cuenta como fallo: es un gesto que ha
-  // funcionado bien.
-  assert.match(COMMANDS, /if \(plan\.yaEsta \|\| !plan\.cambios\.length\) return true/);
+  // Cada camino en el que la inserción **no** se hace avisa, con su motivo: un
+  // botón que no hace nada en silencio parece roto. En
+  // `editor-commands.test.ts` está ejecutado, no supuesto.
+  assert.match(COMMANDS, /report\("no se pudo escribir el enlace al archivo"/);
+  assert.match(COMMANDS, /report\("no se pudo insertar el bloque"/);
+  assert.match(COMMANDS, /report\("no se pudo devolver el cursor al texto"/);
 });
 
 test("el editor no guarda ni recupera la selección para cambiar el tipo", () => {
@@ -138,71 +132,40 @@ test("el editor no guarda ni recupera la selección para cambiar el tipo", () =>
   assert.ok(!COMPONENT.includes("canShowBlockHandle"), "queda el cálculo del asa propio");
 });
 
-test("el `+` es el de Crepe, con su UI, y solo se le cambia el gesto", () => {
-  // No se sustituye el botón: se le cambia lo que pasa al pulsarlo. Rehacerlo
-  // obligaba a medir y colocar el botón a mano, y eso es lo que salía mal —el
-  // `+` se quedaba donde estaba al moverse el cursor. El de Crepe lo coloca
-  // `floating-ui`, que ya lo hace bien.
-  assert.match(COMPONENT, /function interceptHandleAdd/);
-  assert.match(COMPONENT, /\.milkdown-block-handle \.operation-item:first-child/);
-  // Se come el evento en captura para que el `onAdd` de Crepe no lo vea.
-  assert.match(COMPONENT, /addEventListener\("pointerup", onPointerUp, true\)/);
-  assert.match(COMPONENT, /event\.stopPropagation\(\)/);
-  // Y el botón de Crepe NO se esconde: si se escondiera, esto sería otro botón
-  // propio con otro posicionamiento, que es justo el problema.
+test("el `+` es el de Crepe, entero: no se intercepta ni se coloca a mano", () => {
+  // Lo que había aquí era un `pointerup` en fase de captura sobre `document` que
+  // se comía el gesto del `+` de Crepe, más un `rAF` que medía el rectángulo del
+  // asa para colocar un menú propio. Todo eso sustituía algo que Crepe ya hace
+  // bien —su botón bien puesto por `floating-ui` y su menú con todo Markdown— y
+  // además era el único trozo del editor que escuchaba en `document`, o sea el
+  // único que podía comerse el evento de alguien más.
+  for (const sobra of [
+    "interceptHandleAdd",
+    "toggleInsertMenu",
+    "insertMenu",
+    "insertAnchor",
+    "coordsAtPos",
+    "requestImage",
+  ]) {
+    assert.ok(!COMPONENT.includes(sobra), `vuelve \`${sobra}\`: el + es de Crepe, no nuestro`);
+  }
+  // Ni un solo listener nuestro en `document`.
   assert.ok(
-    !CSS.includes("operation-item:first-child"),
-    "el `+` de Crepe vuelve a esconderse: eso rehace el botón y su posición",
-  );
-  assert.ok(!COMPONENT.includes("blockInsert"), "vuelve el botón propio del editor");
-});
-
-test("el menú se ancla al asa, no a una posición calculada", () => {
-  // El bug era que el `+` no entendía el cambio de posición. La causa: se medía
-  // el cursor y se colocaba a mano. El menú sale de la posición **real** del asa,
-  // que `floating-ui` ya tiene, y espera un `rAF` porque esa posición se aplica
-  // en un `then`.
-  assert.match(COMPONENT, /handle\.getBoundingClientRect\(\)/);
-  assert.match(COMPONENT, /requestAnimationFrame/);
-  // Y no queda ningún cálculo de posición del cursor.
-  assert.ok(
-    !COMPONENT.includes("coordsAtPos"),
-    "el menú vuelve a medirse con el cursor, que es lo que se descolocaba",
+    !/document\.addEventListener/.test(COMPONENT),
+    "el editor vuelve a escuchar en `document`, que roba el evento del resto",
   );
 });
 
-test("el `+` no inserta nada: solo abre el menú", () => {
-  // El gesto es poner algo en la nota, no abrir una línea nueva. Si el `+` tocara
-  // el documento, cada pulsación metería un párrafo que nadie pidió.
-  const abrir = COMPONENT.slice(
-    COMPONENT.indexOf("function toggleInsertMenu"),
-    COMPONENT.indexOf("function closeInsertMenu"),
-  );
-  assert.ok(
-    !/splitBlock|createParagraphNear|insertText|delete\(/.test(abrir),
-    "el + vuelve a tocar el documento: mete una línea que nadie pidió",
-  );
-});
-
-test("el menú del `+` pinta los tres grupos, no solo los de texto", () => {
-  // Markdown entero y las tres cosas de la app, en el mismo menú.
-  assert.match(COMPONENT, /<For each=\{INSERT_MENU\}>/);
-  assert.match(COMPONENT, /class=\{styles\.insertGroup\}/);
-  assert.match(COMPONENT, /class=\{styles\.insertGroupTitle\}/);
-  // Cada entrada va a lo que le toca según su `kind`.
-  assert.match(COMPONENT, /if \(item\.kind === "block"\)/);
-  assert.match(COMPONENT, /item\.kind === "image"/);
-  assert.match(COMPONENT, /item\.kind === "whiteboard"/);
+test("el menú del `+` es el de Crepe, y solo se le añade lo que no tiene", () => {
+  // El menú de Crepe ya trae texto, los seis títulos, viñetas, numerada, tareas,
+  // cita, código, separador, tabla, imagen y fórmula. Lo único que hay que
+  // añadir son las dos cosas de la app: adjuntar archivo y pizarra.
+  assert.match(COMPONENT, /buildMenu\(builder\)/);
+  assert.match(COMPONENT, /addItem\("attachment"/);
+  assert.match(COMPONENT, /addItem\("whiteboard"/);
   assert.match(COMPONENT, /props\.requestAttachment\?\.\(\)/);
-});
-
-test("el menú no se roba el foco ni se come el clic del asa", () => {
-  // El `pointerdown` con `preventDefault` en cada fila: sin él el botón recibe el
-  // foco y el editor pierde la selección justo antes de aplicar el tipo.
-  assert.match(COMPONENT, /onPointerDown=\{\(event\) => event\.preventDefault\(\)\}/);
-  // Y el asa queda excepta del cierre: el gesto del `+` pasa por ahí, así que si
-  // el menú se cerrara con el clic en el asa, se cerraría antes de abrirse.
-  assert.match(COMPONENT, /closest\("\.milkdown-block-handle"\)/);
+  // Y no queda ninguna regla CSS de un menú propio.
+  assert.ok(!CSS.includes("insertMenu"), "vuelve el CSS del menú propio");
 });
 
 test("la barra flotante es compacta con lo que lleva", () => {

@@ -5,28 +5,24 @@ import type { Ctx } from "@milkdown/kit/ctx";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { $prose, replaceAll } from "@milkdown/kit/utils";
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
-import { blockTypesInSelection } from "../../editor/block-type";
 import {
+  ATTACHMENT_ICON,
   CREPE_BUTTON_LABELS,
   CREPE_FEATURE_KEYS,
   CREPE_FEATURES,
   CREPE_TEXT_LABELS,
-  INSERT_MENU,
   SLASH_GROUPS,
   TEXT_BACKGROUND_ICON,
   TEXT_COLOR_ICON,
   WHITEBOARD_ICON,
-  type InsertAction,
 } from "../../editor/crepe-config";
 import { createDrawingId, serializeDrawing } from "../../editor/drawing";
 import {
-  applyBlockType as runBlockCommand,
   focusTextCursor,
   insertAttachmentLink,
   insertBlock,
-  leaveCaretBehind,
 } from "../../editor/editor-commands";
 import {
   DEFAULT_TEXT_BACKGROUND,
@@ -47,11 +43,7 @@ import { leaveEditor } from "../../services/editorSession";
 import { notifyError, notifySuccess } from "../../services/toastService";
 import styles from "../../styles/components/MarkdownEditor.module.css";
 import type { DrawingTool } from "../../types/drawing";
-import type {
-  EditorBlockType,
-  MarkdownEditorHandle,
-  PreparedMarkdown,
-} from "../../types/editor";
+import type { MarkdownEditorHandle, PreparedMarkdown } from "../../types/editor";
 import { createWhiteboardView } from "./WhiteboardNodeView";
 
 /**
@@ -75,32 +67,19 @@ interface MarkdownEditorProps {
   onReady?(handle: MarkdownEditorHandle): void;
   onDispose?(): void;
   /**
-   * Delegaciones al dock para el menú del `+`: elegir una imagen o un adjunto.
+   * Delegación al dock para la entrada «Adjuntar archivo» del menú del `+`.
    *
-   * El dock ya tiene los importadores, los diálogos del sistema y los avisos de
-   * error montados; el editor no tiene ni idea de qué archivos hay. En vez de
-   * duplicar eso, el menú devuelve el gesto.
+   * El dock ya tiene el importador, el diálogo del sistema y los avisos de error
+   * montados; el editor no tiene ni idea de qué archivos hay. En vez de duplicar
+   * eso, el menú devuelve el gesto y quien lo pidió lo hace.
    */
-  requestImage?(): void;
   requestAttachment?(): void;
-}
-
-interface InsertMenuPlacement {
-  left: number;
-  top: number;
 }
 
 export function MarkdownEditor(props: MarkdownEditorProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
-  /** Dónde sale el menú del `+`, o `null` si está cerrado. */
-  const [insertMenu, setInsertMenu] = createSignal<InsertMenuPlacement | null>(null);
-  /** El tipo que ya tiene el bloque del cursor, para marcarlo en el menú. */
-  const [activeBlock, setActiveBlock] = createSignal<EditorBlockType | null>(null);
-
   let root: HTMLDivElement | undefined;
-  let insertMenuPanel: HTMLDivElement | undefined;
-  let milkdownCtx: Ctx | null = null;
   let crepe: CrepeInstance | null = null;
   let textColorInput: HTMLInputElement | undefined;
   let textBackgroundInput: HTMLInputElement | undefined;
@@ -145,163 +124,6 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
 
   function currentView(): EditorView | null {
     return crepe?.editor.ctx.get(editorViewCtx) ?? null;
-  }
-
-  // --- El `+` del asa ------------------------------------------------------
-
-  /**
-   * El `+` del asa de Crepe, con su misma pinta, pero con otra lógica.
-   *
-   * El de Crepe inserta **siempre por debajo** del bloque y encima le abre su
-   * menú de tipos. Aquí no se inserta nada: el `+` solo abre un menú con todo lo
-   * que se puede poner en la nota, y el documento no se toca hasta que alguien
-   * elige algo.
-   *
-   * **No se sustituye el botón, se le cambia el gesto.** Es una mounting en
-   * `pointerup` en fase de captura sobre el asa: si el `pointerup` viene del `+`,
-   * se come el evento y Crepe nunca llega a ver su `onAdd`. Así el botón sigue
-   * siendo el de Crepe —misma pinta, mismos estados, y sobre todo **su
-   * posición**, que `floating-ui` ya coloca bien—, y lo único que cambia es lo
-   * que pasa al pulsarlo. Un botón propio tendría que volver a medir y colocar
-   * eso a mano, que es justo lo que salía mal.
-   *
-   * En `pointerup` y no en `pointerdown` porque el de Crepe también usa
-   * `pointerdown`, pero solo para el efecto visual de «pulsado»; si nos lo
-   * comiéramos ahí, el botón no se vería depressed al mantener.
-   */
-  function interceptHandleAdd(): () => void {
-    const onPointerUp = (event: PointerEvent): void => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (!target.closest(".milkdown-block-handle .operation-item:first-child")) return;
-      // Se come el evento: el `onAdd` de Crepe no debe ver este gesto.
-      event.stopPropagation();
-      event.preventDefault();
-      toggleInsertMenu();
-    };
-    // `capture` a propósito: hay que llegar antes que el listener de Vue, que
-    // está en la fase de burbuja sobre el propio botón.
-    document.addEventListener("pointerup", onPointerUp, true);
-    return () => document.removeEventListener("pointerup", onPointerUp, true);
-  }
-
-  /**
-   * Abre el menú del `+`, o lo cierra si ya estaba abierto.
-   *
-   * El menú sale pegado al `+`, en la posición **real** del asa. No se mide el
-   * cursor ni se calcula nada: `floating-ui` ya puso el asa donde toca, y leer
-   * su rectángulo es la única forma de no calcular mal. Se espera un `rAF`
-   * porque el asa acaba de aparecer y su posición se aplica en un `then`.
-   */
-  function toggleInsertMenu(): void {
-    if (insertMenu()) {
-      closeInsertMenu();
-      return;
-    }
-    const view = currentView();
-    if (!view || disposed) return;
-    if (!view.hasFocus()) view.focus();
-    const { selection } = view.state;
-    const types = blockTypesInSelection(view.state.doc, selection.from, selection.to);
-    // Con más de un tipo en la selección no hay uno que poner de relieve.
-    setActiveBlock(types.size === 1 ? [...types][0] : null);
-    requestAnimationFrame(() => {
-      if (disposed || insertMenu()) return;
-      const handle = root?.querySelector<HTMLElement>(".milkdown-block-handle");
-      if (!root || !handle) return;
-      const bounds = root.getBoundingClientRect();
-      const anchor = handle.getBoundingClientRect();
-      // A la derecha del asa y un poco más abajo: al lado del `+` que se ha
-      // pulsado, no encima del texto que se está escribiendo.
-      setInsertMenu({
-        left: Math.max(8, Math.min(anchor.right - bounds.left + 8, bounds.width - 236 - 8)),
-        top: anchor.top - bounds.top,
-      });
-    });
-  }
-
-  function closeInsertMenu(): void {
-    setInsertMenu(null);
-    setActiveBlock(null);
-  }
-
-  /**
-   * Aplica un tipo de bloque al del cursor y cierra el menú.
-   *
-   * No se prepara ningún punto de inserción ni se parte nada: el cambio se aplica
-   * a lo que hay seleccionado, o al bloque donde esté el cursor.
-   */
-  function chooseBlockType(type: EditorBlockType): void {
-    closeInsertMenu();
-    const view = currentView();
-    const ctx = milkdownCtx;
-    if (!view || !ctx) return;
-    runBlockCommand(ctx, type, reportFailure);
-    leaveCaretBehind(view, reportFailure);
-  }
-
-  /**
-   * Inserta algo que no es un bloque de texto —una imagen, un adjunto, una
-   * pizarra— y cierra el menú.
-   *
-   * Los tres vienen del dock: aquí no se sabe qué archivos elige la persona ni
-   * dónde están, así que el editor solo pone el bloque en su sitio. Lo que
-   * llegue ya viene importado.
-   */
-  function runInsertion(run: () => void | Promise<void>): void {
-    closeInsertMenu();
-    void run();
-  }
-
-  /**
-   * Reparte una entrada del menú a lo que toca.
-   *
-   * Un tipo de bloque se aplica al del cursor. Imagen, pizarra y adjunto no se
-   * resuelven aquí: el dock tiene los importadores y los diálogos del sistema, y
-   * el editor no tiene ni idea de qué archivos hay, así que el menú devuelve el
-   * gesto y quien lo pidió lo hace.
-   */
-  function runMenuAction(item: InsertAction): void {
-    if (item.kind === "block") {
-      chooseBlockType(item.id as EditorBlockType);
-      return;
-    }
-    if (item.kind === "image") runInsertion(() => props.requestImage?.());
-    else if (item.kind === "whiteboard") {
-      closeInsertMenu();
-      void insertWhiteboardCommand?.("pen").catch((error) => {
-        notifyError("No se pudo crear la pizarra", error);
-      });
-    } else runInsertion(() => props.requestAttachment?.());
-  }
-
-  /**
-   * Fuera del menú o con Escape se cierra.
-   *
-   * El asa queda excepta y no por descuido: el gesto del `+` pasa por aquí, así
-   * que si el menú se cerrara con el clic en el asa, se cerraría antes de abrirse
-   * y nunca se vería.
-   */
-  function watchInsertMenuDismissal(): () => void {
-    const onPointerDown = (event: PointerEvent): void => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (insertMenuPanel?.contains(target)) return;
-      if (target instanceof Element && target.closest(".milkdown-block-handle")) return;
-      closeInsertMenu();
-    };
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      closeInsertMenu();
-      currentView()?.focus();
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("keydown", onKeyDown, true);
-    };
   }
 
   // --- Seguimiento del cursor --------------------------------------------
@@ -455,15 +277,27 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
             listGroup: SLASH_GROUPS.list,
             advancedGroup: SLASH_GROUPS.advanced,
             buildMenu(builder) {
-              builder.addGroup("media", "Medio").addItem("whiteboard", {
-                icon: WHITEBOARD_ICON,
-                label: "Pizarra",
-                onRun: () => {
-                  void insertWhiteboardCommand?.("pen").catch((error) => {
-                    notifyError("No se pudo crear la pizarra", error);
-                  });
-                },
-              });
+              // El `+` es el de Crepe y su menú también. A ese menú solo se le
+              // añade lo que de verdad no tiene: las dos cosas de la app. Todo lo
+              // demás —texto, los seis títulos, viñetas, numerada, tareas, cita,
+              // código, separador, tabla, imagen y fórmula— ya está, con su
+              // posición y su comportamiento puestos por Crepe.
+              builder
+                .addGroup("media", "Medio")
+                .addItem("attachment", {
+                  icon: ATTACHMENT_ICON,
+                  label: "Adjuntar archivo",
+                  onRun: () => props.requestAttachment?.(),
+                })
+                .addItem("whiteboard", {
+                  icon: WHITEBOARD_ICON,
+                  label: "Pizarra",
+                  onRun: () => {
+                    void insertWhiteboardCommand?.("pen").catch((error) => {
+                      notifyError("No se pudo crear la pizarra", error);
+                    });
+                  },
+                });
             },
           },
           [Crepe.Feature.Placeholder]: CREPE_TEXT_LABELS.placeholder,
@@ -566,13 +400,11 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           }),
         );
       crepe = instance;
-      milkdownCtx = instance.editor.ctx;
       await instance.create();
       if (disposed) {
         await instance.destroy();
         return;
       }
-      onCleanup(interceptHandleAdd());
       instance.on((listener) => {
         listener.markdownUpdated((_ctx, markdown) => {
           if (disposed) return;
@@ -639,15 +471,8 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     })();
   });
 
-  createEffect(() => {
-    if (!insertMenu()) return;
-    const stop = watchInsertMenuDismissal();
-    onCleanup(stop);
-  });
-
   onCleanup(() => {
     disposed = true;
-    setInsertMenu(null);
     props.onDispose?.();
     if (crepe) void crepe.destroy();
   });
@@ -655,55 +480,6 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   return (
     <div class={styles.shell} data-x="editor">
       <div ref={(element) => (root = element)} class={styles.editor} data-x="editor-surface">
-        <Show when={insertMenu()}>
-          {(placement) => (
-            <div
-              ref={(element) => (insertMenuPanel = element)}
-              class={styles.insertMenu}
-              data-x="insert-menu"
-              role="menu"
-              aria-label="Insertar en la nota"
-              style={{ left: `${placement().left}px`, top: `${placement().top}px` }}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  closeInsertMenu();
-                  currentView()?.focus();
-                }
-              }}
-            >
-              <For each={INSERT_MENU}>
-                {(group) => (
-                  <section class={styles.insertGroup} role="group" aria-label={group.group}>
-                    <p class={styles.insertGroupTitle}>{group.group}</p>
-                    <div class={styles.insertGroupItems}>
-                      <For each={group.items}>
-                        {(item) => (
-                          <button
-                            type="button"
-                            role="menuitem"
-                            class={`${styles.insertItem} ${
-                              item.kind === "block" && activeBlock() === item.id
-                                ? styles.insertItemActive
-                                : ""
-                            }`}
-                            // Sin esto el botón se lleva el foco y el editor
-                            // pierde la selección justo antes de aplicar.
-                            onPointerDown={(event) => event.preventDefault()}
-                            onClick={() => runMenuAction(item)}
-                          >
-                            <span class={styles.insertItemIcon} innerHTML={item.icon} />
-                            {item.label}
-                          </button>
-                        )}
-                      </For>
-                    </div>
-                  </section>
-                )}
-              </For>
-            </div>
-          )}
-        </Show>
       </div>
       <input
         ref={(element) => (textColorInput = element)}

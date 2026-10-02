@@ -351,38 +351,27 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
     (negrita, cursiva, tachado, código, fórmula, enlace) y Xenner **añade** un
     grupo, `appearance`, con los dos colores. La barra es para **formato**: nada
     de tipos de texto.
-- **El `+` del lateral es el sitio de todo lo que se puede poner en la nota.** No
-    solo de los tipos de texto: también de imagen, pizarra y archivo adjunto. Son
-    tres grupos —Texto, Listas y texto, Insertar— en el mismo menú, que es lo que
-    hace Crepe con su menú slash pero con las tres cosas de la app añadidas.
-  - La lista está en `editor/crepe-config.ts` → `INSERT_MENU`, no en el
-    componente: es contenido y se prueba en Node.
-  - El menú **no inserta nada**. El documento no se toca hasta que alguien elige
-    una entrada, y entonces se aplica al bloque del cursor. Antes el `+` insertaba
-    por debajo del bloque, que a media frase partía el texto y además metía una
-    línea de más delante de lo que se iba a escribir.
-- **El `+` es el botón de Crepe, con su misma UI; lo único que cambia es el
-    gesto.** No se sustituye: se le come el `pointerup` en fase de captura sobre
-    el asa, para que su `onAdd` no lo vea. Es lo que arregla el botón «que no
-    entiende el cambio de posición»: un botón propio tenía que medir el cursor
-    con `coordsAtPos` y colocarse a mano, y ahí es donde se descolocaba. El de
-    Crepe lo coloca `floating-ui`, que ya lo hace bien —por eso **no se oculta por
-    CSS** ni se le toca una regla— y el tirador de arrastrar de al lado sigue
-    siendo el suyo.
-  - El menú sale **pegado al asa**, leyendo su rectángulo real, con un `rAF`
-    porque `floating-ui` aplica la posición en un `then`. Es la única forma de no
-    calcular mal.
-  - En `pointerup` y no en `pointerdown`, porque Crepe usa `pointerdown` para el
-    efecto de «pulsado»: si nos lo comiéramos ahí, el botón no se vería al
-    mantener pulsado.
-  - Las filas hacen `preventDefault` en `pointerdown` para no robarle el foco al
-    `contenteditable`, y el asa queda excepta del cierre por clic: el gesto del
-    `+` pasa por ahí, así que si el menú se cerrara con el clic en el asa, se
-    cerraría antes de abrirse y nunca se vería.
+- **El `+` del lateral es el de Crepe, entero.** Ni se sustituye ni se le
+    intercepta el gesto: se usa tal cual, con su botón puesto por `floating-ui` y
+    su menú, que ya trae texto, los seis títulos, viñetas, numerada, tareas, cita,
+    código, separador, tabla, imagen y fórmula. Lo único que se le añade, con
+    `buildMenu`, son las dos cosas que no son de Markdown: **adjuntar archivo** y
+    **pizarra**.
+  - Estuvo mal dos veces. La primera fue sustituir el botón por uno propio que
+    medía el cursor con `coordsAtPos` y se colocaba a mano: de ahí el «botón que no
+    entiende el cambio de posición». La segunda fue **quedarse con el botón pero
+    comerse su `pointerup` en fase de captura sobre `document`** y abrir un menú
+    propio —era el único trozo del editor que escuchaba en `document`, o sea el
+    único que podía tragarse el evento de alguien más— y colocar ese menú
+    midiendo el rectángulo del asa con un `rAF`.
+  - El `+` de Crepe abre una línea nueva y pone el menú ahí, que es lo propio de
+    un botón de insertar: no cambia el tipo de la línea de arriba.
+  - Lo que hace el `+` y lo que hace el menú de barras no se solapan: la barra es
+    para **formato** de lo seleccionado y no tiene ningún tipo de texto.
 - **Imagen, pizarra y adjunto no se resuelven en el editor.** El dock tiene los
     importadores, los diálogos del sistema y los avisos de error montados; el
     editor no tiene ni idea de qué archivos hay. El menú devuelve el gesto con
-    `requestImage` y `requestAttachment`, y quien lo pidió lo hace.
+    `requestAttachment`, y quien lo pidió lo hace.
 
 - **El camino del tipo de texto no guarda ni recupera la selección.** Los botones
     del menú se disparan con `pointerdown` y `preventDefault`, así que nunca le

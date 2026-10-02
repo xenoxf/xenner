@@ -223,6 +223,7 @@ export async function crearEditorDePrueba(bloques: unknown[]): Promise<EditorDeP
     set: (t: never, v: unknown) => ctx.set(t, v),
     update: (t: never, u: never) => ctx.update(t, u),
     use: (t: never) => ctx.use(t),
+    isInjected: (t: never) => ctx.isInjected(t),
     record: (t: never) => ctx.record(t),
     done: (t: never) => ctx.done(t),
     wait: (t: never) => ctx.wait(t),

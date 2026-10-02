@@ -1,16 +1,15 @@
-import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
+import { commandsCtx } from "@milkdown/kit/core";
 import type { Ctx } from "@milkdown/kit/ctx";
 import {
   addBlockTypeCommand,
   linkSchema,
+  paragraphSchema,
 } from "@milkdown/kit/preset/commonmark";
-import { createParagraphNear, splitBlock } from "@milkdown/kit/prose/commands";
+import { createParagraphNear } from "@milkdown/kit/prose/commands";
 import type { NodeType } from "@milkdown/kit/prose/model";
 import { TextSelection } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
 
-import type { EditorBlockType } from "../types/editor";
-import { ContenidoNoTextual, planearCambioDeTipo } from "./block-change.ts";
 
 /**
  * Lo que el editor **hace** cuando alguien pulsa algo.
@@ -31,62 +30,6 @@ import { ContenidoNoTextual, planearCambioDeTipo } from "./block-change.ts";
 
 /** Avisa de un fallo sin dejar la vista a medias. */
 export type ReportFailure = (what: string, error: unknown) => void;
-
-/**
- * Cambia el tipo de bloque de lo que está seleccionado.
- *
- * No llama a los comandos de Milkdown: rehace los bloques. El motivo está
- * escrito en `block-change.ts`, y es que aquellos **envuelven** en vez de
- * sustituir, con dos consecuencias que se ven desde fuera: cada elección añade
- * una capa y no hay forma de quitarla, y cuando no saben envolver fallan en
- * silencio y el botón parece roto.
- *
- * Devuelve `true` cuando los bloques quedan del tipo pedido —incluido el caso de
- * que ya lo estaban, que no es un fallo— y `false` con un aviso cuando no se ha
- * podido. Un `false` siempre llega con su motivo: un botón que no responde sin
- * explicación parece estropeado.
- */
-export function applyBlockType(
-  ctx: Ctx,
-  type: EditorBlockType,
-  report: ReportFailure,
-): boolean {
-  try {
-    const view = ctx.get(editorViewCtx);
-    const { state } = view;
-    const { selection } = state;
-    if (!(selection instanceof TextSelection)) {
-      report("no hay un cursor en el texto que cambiar", "la selección no es de texto");
-      return false;
-    }
-    const plan = planearCambioDeTipo(ctx, state.doc, selection.from, selection.to, type);
-    // Ya estaba como se pedía: no hay nada que hacer y no es un fallo.
-    if (plan.yaEsta || !plan.cambios.length) return true;
-
-    let tr = state.tr;
-    // De atrás hacia delante. Cada `replaceWith` cambia el tamaño de lo que hay
-    // detrás, y yendo al revés las posiciones de los cambios que faltan siguen
-    // valiendo.
-    //
-    // El contenido va **dentro de un array**, no repartido en varios argumentos:
-    // `replaceWith(from, to, content)` solo mira el tercero, así que al extender
-    // los nodos con `...` se quedaba solo el primero y **todo el texto del
-    // bloque se perdía**. Una cita de dos párrafos pasada a «Título 2» salía con
-    // un solo título, y con ella se iba la mitad de la nota.
-    for (const cambio of [...plan.cambios].reverse()) {
-      tr = tr.replaceWith(cambio.desde, cambio.hasta, cambio.nodos);
-    }
-    view.dispatch(tr.scrollIntoView());
-    return true;
-  } catch (error) {
-    if (error instanceof ContenidoNoTextual) {
-      report("aquí no se puede cambiar el tipo", error.message);
-      return false;
-    }
-    report(`el tipo ${type} no se pudo aplicar`, error);
-    return false;
-  }
-}
 
 /**
  * Deja el cursor al final de lo que se acaba de retocar, con nada seleccionado.
@@ -111,10 +54,16 @@ export function leaveCaretBehind(view: EditorView, report: ReportFailure): void 
 /**
  * Escribe un enlace a un archivo adjunto.
  *
- * Va en su propia línea porque es como se lee: si el cursor estaba a media
- * frase, partir el bloque deja la frase arriba y el adjunto debajo. Con texto
- * seleccionado, ese texto se sustituye: adjuntar encima de un texto significa
- * que ese texto era el nombre del archivo.
+ * Va en su propia línea **debajo** de la del cursor, porque es como se lee: si
+ * el cursor estaba a media frase, partir el bloque deja la frase arriba y el
+ * adjunto debajo. Con texto seleccionado, ese texto se sustituye: adjuntar
+ * encima de un texto significa que ese texto era el nombre del archivo.
+ *
+ * La línea nueva se abre **partiendo por el final del bloque**, no con
+ * `createParagraphNear`. Ese comando prueba primero «por arriba», así que con el
+ * cursor al principio de una frase el adjunto salía **encima** de ella, y tres
+ * adjuntos seguidos se acumulaban en orden inverso. Aquí se corta por detrás,
+ * que es lo que se espera siempre.
  */
 export function insertAttachmentLink(
   ctx: Ctx,
@@ -126,13 +75,7 @@ export function insertAttachmentLink(
   const text = label.trim() || "Archivo";
   try {
     if (!view.state.selection.empty) view.dispatch(view.state.tr.deleteSelection());
-    if (!isEmptyBlock(view)) {
-      // `createParagraphNear` no hace nada al final del documento; ahí lo que
-      // abre la línea de abajo es `splitBlock`.
-      if (!createParagraphNear(view.state, view.dispatch)) {
-        splitBlock(view.state, view.dispatch);
-      }
-    }
+    if (!isEmptyBlock(view)) abrirLineaDebajo(ctx, view);
     const from = view.state.selection.from;
     const mark = linkSchema.type(ctx).create({ href: relativePath, title: null });
     view.dispatch(
@@ -146,6 +89,27 @@ export function insertAttachmentLink(
     report("no se pudo escribir el enlace al archivo", error);
     return false;
   }
+}
+
+/**
+ * Abre un párrafo vacío detrás del bloque del cursor y deja el cursor en él.
+ *
+ * Se **inserta** un párrafo nuevo en vez de partir el que hay. `splitBlock`
+ * parte por donde está el cursor —con el cursor al principio de una frase, el
+ * enlace se quedaría pegado a esa frase— y `tr.split` en el límite del bloque
+ * falla con «Inserted content deeper than insertion position». Insertar el
+ * párrafo entero en la posición justa no tiene ninguno de los dos problemas.
+ *
+ * La posición se calcula con el documento de **antes** de insertar y el cursor
+ * con el de **después**: lo que hay a partir del punto de inserción se desplaza
+ * dos posiciones, el opening y el closing del párrafo nuevo.
+ */
+function abrirLineaDebajo(ctx: Ctx, view: EditorView): void {
+  const despues = view.state.selection.$to.end() + 1;
+  const parrafoNuevo = paragraphSchema.type(ctx).create();
+  const tr = view.state.tr.insert(despues, parrafoNuevo);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(despues + 1), 1));
+  view.dispatch(tr);
 }
 
 /**

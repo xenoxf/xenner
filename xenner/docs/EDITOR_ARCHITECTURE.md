@@ -148,41 +148,44 @@ las tres capas**, así que un test en verde no dice nada sobre permisos. Solo un
 Cada instancia de editor se destruye al cambiar de nota para evitar que un
 listener antiguo escriba sobre el archivo nuevo.
 
-### 5.1 Cambiar el tipo de bloque: se rehace, no se envuelve
+### 5.1 El `+` y su menú son los de Crepe
 
-El tipo de texto de una línea se cambia con el menú del `+`, y **no** con los
-comandos `wrapIn*` de Milkdown. Esos comandos **envuelven** el bloque en otro en
-vez de sustituirlo, y medido con el editor de pruebas (`block-change.test.ts`)
-salen tres fallos reales:
+No hay menú propio. El botón del asa y el menú que abre son de Crepe, tal cual; lo
+único que se le añade, con `buildMenu`, son las dos entradas que no son de
+Markdown: **adjuntar archivo** y **pizarra**. Todo lo demás ya está, con su
+posición y su comportamiento puestos por el paquete.
 
-| Gesto | Con `wrapIn*` | Con `block-change.ts` |
-| --- | --- | --- |
-| «Cita» y luego «Texto» | `> texto` — la cita no se quita | `texto` |
-| «Viñetas» sobre un título | no hace nada, `false` sin excepción | `* texto` |
-| Cualquier tipo dentro de un elemento de lista | ninguno se aplica | todos se aplican |
-| «Título 2» sobre una cita de dos párrafos | un título, **se pierde el segundo párrafo** | dos títulos |
+Sustituirlo salió mal dos veces, y las dos por lo mismo: **lo que ya estaba bien se
+ha vuelto a hacer a mano**. La primera, un botón propio que medía el cursor con
+`coordsAtPos`. La segunda —peor— mantener el botón pero comerse su `pointerup` en
+fase de captura sobre `document`, el único listener del editor que no vivía en el
+editor. Un menú propio obliga a colocar a mano lo que `floating-ui` ya coloca
+bien, y por eso el `+` «no entendía el cambio de posición».
 
-La última fila es la que se parecía al «desaparece todo»: `tr.replaceWith`
-acepta **un** contenido en el tercer argumento, así que al extender los nodos con
-`...nodos` se quedaba solo el primero y el resto del bloque se perdía. Por eso
-`editor-commands.ts` pasa el array entero.
+El tipo de texto se cambia con `setBlockTypeCommand` de Milkdown, desde el menú.
+Ese camino solo actúa sobre la línea vacía que el `+` acaba de abrir, así que no
+hay nada que reescribir: no hay estado que recuperar, ni selección que guardar, ni
+nodos que reconstruir.
 
-El módulo `block-change.ts` no llama a ningún comando: calcula qué nodo tiene que
-haber donde estaba el que había y lo sustituye. Tres reglas:
+### 5.2 El editor se puede ejecutar en los tests
 
-- **Se trabaja por bloque de primer nivel.** Una cita son dos niveles, y cambiar
-  su tipo es quitar el `blockquote`, no poner otro dentro.
-- **El texto y sus marcas se llevan tal cual.** Solo se reconstruyen nodos cuyo
-  contenido es texto; si hay una imagen o un separador dentro, el cambio se
-  rechaza y se explica por qué.
-- **Pedir el tipo que ya tiene no es un fallo.** Es un gesto que ha funcionado
-  bien, y antes salía un aviso en una situación normal.
+`editor/editor-harness.ts` monta Milkdown sin navegador —su esquema, su gestor de
+comandos y su serializador de Markdown— para que `editor-commands.test.ts`
+**ejecute** las inserciones en vez de leerlas. Antes los tests del editor leían el
+código como texto, que vigila que la regla siga escrita donde le toca pero no que
+el editor funcione.
 
-El editor de pruebas (`editor-harness.ts`) monta Milkdown sin navegador —su
-esquema, su gestor de comandos y su serializador de Markdown— para que estos
-casos se **ejecuten** en vez de leerse. Es lo que faltaba para ver el fallo: los
-tests que solo leen el código como texto no pueden ver nada que dependa de lo que
-haga ProseMirror con la transacción.
+Ejecutarlo ya ha pagado. Dos fallos que no se veían leyendo:
+
+- **`tr.replaceWith(desde, hasta, ...nodos)` se come texto.** La función solo mira
+  el tercer argumento, así que al extender los nodos con `...` se quedaba el
+  primero y **el resto del bloque se perdía**. De ahí el `validar()` del arnés:
+  cada prueba termina exigiendo que el documento siga en pie y que el texto de la
+  nota sea el mismo.
+- **El adjunto salía en la línea de arriba.** `createParagraphNear` prueba primero
+  «por arriba», así que con el cursor al principio de una frase el enlace se
+  ponía encima de ella y tres adjuntos seguidos se acumulaban en orden inverso.
+  Ahora se **inserta** un párrafo detrás del bloque, en vez de partirlo.
 
 ## 6. Dibujos visuales
 

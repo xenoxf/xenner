@@ -216,6 +216,22 @@
 }
 
 /*
+ * La barra flotante pasó de seis botones a trece al añadirle los tipos de
+ * bloque, y Crepe la pinta en una sola fila con `overflow: hidden`: sin esto se
+ * veían los de negrita y el resto quedaba cortado sin aviso. Se deja que se
+ * parta en dos filas antes que dejar botones fuera. El tope de ancho cabe en
+ * cualquier columna de lectura y, en un móvil, no se sale de la pantalla.
+ */
+.editor :global(.milkdown-toolbar) {
+  flex-wrap: wrap;
+  max-width: min(346px, calc(100vw - 24px));
+}
+
+.editor :global(.milkdown-toolbar .toolbar-item) {
+  flex: 0 0 auto;
+}
+
+/*
  * La barra flotante de formato de Crepe se ve cuando Crepe dice que se ve, que
  * es cuando hay texto seleccionado y el editor tiene el foco. No hay ninguna
  * regla que la esconda.

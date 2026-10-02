@@ -15,6 +15,8 @@ import { $prose, replaceAll } from "@milkdown/kit/utils";
 import { imageBlockSchema } from "@milkdown/kit/component/image-block";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
+import { blockTypesInSelection } from "../../editor/block-type";
+import { EDITOR_BLOCKS } from "../../data/editor";
 import {
   deleteAssetForEditor,
   importImageForEditor,
@@ -35,7 +37,11 @@ import {
 import { whiteboardNode, whiteboardRemark } from "../../editor/whiteboard-node";
 import styles from "../../styles/components/MarkdownEditor.module.css";
 import type { DrawingTool } from "../../types/drawing";
-import type { MarkdownEditorHandle, PreparedMarkdown } from "../../types/editor";
+import type {
+  EditorBlockType,
+  MarkdownEditorHandle,
+  PreparedMarkdown,
+} from "../../types/editor";
 import { createWhiteboardView } from "./WhiteboardNodeView";
 
 const WHITEBOARD_SLASH_ICON = `
@@ -95,11 +101,78 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   // tras el clic en la barra.
   let textCursorPos: number | null = null;
 
+  /**
+   * El texto seleccionado en el momento en que el editor perdió el foco.
+   *
+   * Es la pieza que faltaba para poder cambiar el tipo de un texto
+   * seleccionado: el dock abre un menú que se queda con el foco (para que se
+   * pueda recorrer con el teclado) y ese menú deja el `contenteditable` sin
+   * él. ProseMirror aguanta la selección en el estado, pero entre el clic y el
+   * comando hay un `queueMicrotask` que mueve el foco, y lo que se perdía era
+   * justo el texto que se quería cambiar: el tipo se acababa poniendo en la
+   * línea de al lado.
+   *
+   * Guardarla en el `blur` —y solo ahí— es lo que evita el problema de envejeci-
+   * miento: la selección guardada vale para el gesto que la dejó obsoleta, y
+   * cualquier clic o tecla posterior dentro del editor la borra.
+   */
+  let selectionOnBlur: { from: number; to: number } | null = null;
+
   function rememberTextCursor(view: EditorView): void {
     const { selection } = view.state;
     if (!(selection instanceof TextSelection)) return;
     if (!selection.$from.parent.isTextblock) return;
     textCursorPos = selection.from;
+  }
+
+  /**
+   * Descarta la selección guardada en cuanto el editor vuelve a tener una
+   * selección propia. Se queda solo si la selección que hay ahora es
+   * exactamente la que se guardó al perder el foco, que es el caso normal del
+   * menú: el editor no se ha movido.
+   */
+  function forgetStaleSelectionOnBlur(view: EditorView): void {
+    if (!selectionOnBlur) return;
+    const { selection } = view.state;
+    if (
+      selection instanceof TextSelection &&
+      selection.from === selectionOnBlur.from &&
+      selection.to === selectionOnBlur.to
+    ) {
+      return;
+    }
+    selectionOnBlur = null;
+  }
+
+  /**
+   * Devuelve al texto seleccionado lo que le corresponde: pone el tipo de bloque
+   * sobre lo que estaba seleccionado, no sobre la línea donde quedó el cursor.
+   * Es idempotente y no toca nada si no hay nada que recuperar.
+   */
+  function restoreSelectionOnBlur(view: EditorView): void {
+    const remembered = selectionOnBlur;
+    selectionOnBlur = null;
+    if (!remembered) return;
+    const { selection } = view.state;
+    if (
+      selection instanceof TextSelection &&
+      !selection.empty &&
+      selection.from === remembered.from &&
+      selection.to === remembered.to
+    ) {
+      return;
+    }
+    const { doc } = view.state;
+    if (remembered.from < 0 || remembered.to > doc.content.size || remembered.from >= remembered.to) {
+      return;
+    }
+    try {
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(doc, remembered.from, remembered.to)),
+      );
+    } catch {
+      // Un texto que ya no se puede seleccionar deja intacta la selección actual.
+    }
   }
 
   // Recoloca la selección en el cursor de texto conocido. Es idempotente: si
@@ -136,26 +209,81 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     () =>
       new Plugin({
         key: new PluginKey("xennerTextCursor"),
+        // El editor pierde el foco cada vez que se abre un menú, un diálogo de
+        // color o el propio dock. Lo que había seleccionado en ese momento es lo
+        // que hay que volver a poner antes de aplicar nada.
+        handleDOMEvents: {
+          blur: (view: EditorView) => {
+            if (disposed) return false;
+            const { selection } = view.state;
+            selectionOnBlur =
+              selection instanceof TextSelection && !selection.empty
+                ? { from: selection.from, to: selection.to }
+                : null;
+            return false;
+          },
+        },
         view: () => ({
           update: (view) => {
             if (disposed) return;
             rememberTextCursor(view);
+            forgetStaleSelectionOnBlur(view);
           },
         }),
       }),
   );
 
   // --- Barra flotante de formato -------------------------------------------
-  // Aquí ya no hay nada: la barra se ve cuando Crepe dice que se ve.
+  // Aquí ya no hay nada que la esconda: se ve cuando Crepe dice que se ve.
   //
   // Antes se tapaba con `opacity: 0` salvo que el puntero estuviera sobre el
   // texto seleccionado, y eso la volvía inusable: al seleccionar con el
   // teclado —Mayús flechas, doble clic, Ctrl+A— el puntero no se mueve, así
   // que la barra no salía nunca y no había forma de poner negrita, cursiva o un
   // título. Con el ratón era una lotería, y además la barra invisible seguía
-  // encima del texto cogiendo clics. Que se vea es lo que espera cualquiera
+  // encima del texto cogiendo clics. Que se ve es lo que espera cualquiera
   // que acaba de seleccionar texto; Crepe ya la coloca encima de la selección,
   // que es justo donde no estorba.
+  //
+  // Y a lo seleccionado hay que poder darle tipo. Crepe pone en su barra
+  // negrita, cursiva, tachado, código, fórmula y enlace, pero ningún botón que
+  // cambie el bloque: sin eso el tipo de texto solo se podía cambiar con el
+  // cursor en una línea, nunca sobre un texto seleccionado. Por eso el grupo
+  // `blocks` de abajo.
+
+  /**
+   * Pone un tipo de bloque a lo que está seleccionado.
+   *
+   * `setBlockType` del handle y los botones del mini menú pasan por aquí, y
+   * ambos caminos tienen que acabar igual: lo seleccionado cambia de tipo, no la
+   * línea de al lado. Los dos empiezan recuperando la selección del `blur` —el
+   * dock y la propia barra se quedan con el foco— y solo después dejan el
+   * cursor ir al último texto conocido, que es lo que hace falta cuando no hay
+   * nada seleccionado.
+   */
+  function applyBlockType(type: EditorBlockType): boolean {
+    if (!crepe) return false;
+    const view = crepe.editor.ctx.get(editorViewCtx);
+    restoreSelectionOnBlur(view);
+    restoreTextCursor(view);
+    const commands = crepe.editor.ctx.get(commandsCtx);
+    const applied =
+      type === "paragraph"
+        ? commands.call(turnIntoTextCommand.key)
+        : type === "heading1"
+          ? commands.call(wrapInHeadingCommand.key, 1)
+          : type === "heading2"
+            ? commands.call(wrapInHeadingCommand.key, 2)
+            : type === "heading3"
+              ? commands.call(wrapInHeadingCommand.key, 3)
+              : type === "bullet"
+                ? commands.call(wrapInBulletListCommand.key)
+                : type === "ordered"
+                  ? commands.call(wrapInOrderedListCommand.key)
+                  : commands.call(wrapInBlockquoteCommand.key);
+    view.focus();
+    return applied;
+  }
 
   function captureTextSelection(): void {
     if (!crepe) return;
@@ -318,6 +446,29 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           },
           [Crepe.Feature.Toolbar]: {
             buildToolbar(builder) {
+              // El tipo de bloque va PRIMERO en su propio grupo, antes que
+              // Apariencia. Es lo que más se echa de menos cuando hay texto
+              // seleccionado: el resto de la barra es lo que ya se sabe de
+              // memoria. Crepe llama a `buildToolbar` después de montar sus
+              // grupos, así que añadir aquí no quita la negrita ni el enlace.
+              const blocks = builder.addGroup("blocks", "Bloque");
+              for (const item of EDITOR_BLOCKS) {
+                blocks.addItem(`block-${item.id}`, {
+                  icon: item.icon,
+                  label: item.label,
+                  active: (ctx) => {
+                    const view = ctx.get(editorViewCtx);
+                    const { selection } = view.state;
+                    const active = blockTypesInSelection(
+                      view.state.doc,
+                      selection.from,
+                      selection.to,
+                    );
+                    return active.has(item.id);
+                  },
+                  onRun: () => applyBlockType(item.id),
+                });
+              }
               builder
                 .addGroup("appearance", "Apariencia")
                 .addItem("text-color", {
@@ -412,17 +563,7 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
           instance.editor.ctx.get(editorViewCtx).focus();
         },
         setBlockType(type) {
-          const view = instance.editor.ctx.get(editorViewCtx);
-          restoreTextCursor(view);
-          const commands = instance.editor.ctx.get(commandsCtx);
-          if (type === "paragraph") commands.call(turnIntoTextCommand.key);
-          else if (type === "heading1") commands.call(wrapInHeadingCommand.key, 1);
-          else if (type === "heading2") commands.call(wrapInHeadingCommand.key, 2);
-          else if (type === "heading3") commands.call(wrapInHeadingCommand.key, 3);
-          else if (type === "bullet") commands.call(wrapInBulletListCommand.key);
-          else if (type === "ordered") commands.call(wrapInOrderedListCommand.key);
-          else commands.call(wrapInBlockquoteCommand.key);
-          view.focus();
+          applyBlockType(type);
         },
         async insertWhiteboard(tool: DrawingTool) {
           await insertWhiteboard(tool);

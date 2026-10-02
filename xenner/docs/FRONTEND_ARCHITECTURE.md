@@ -156,14 +156,38 @@ convierten en clases globales de aplicación.
   hace desaparecer es Crepe, con `data-show="false"` (`display: none`), cuando
   la selección está vacía o el editor pierde el foco, que es lo correcto.
   `src/editor/toolbar.test.ts` vigila que nadie vuelva a esconderla.
-- Los botones de esa barra los pone Crepe en su `buildToolbar` (Negrita,
-  cursiva, títulos, listas, cita, código…) y Xenner **añade** dos al final,
-  `text-color` y `text-background`. El orden importa: Crepe llama a
+- Los botones de esa barra los pone Crepe en su `buildToolbar` (negrita,
+  cursiva, tachado, código, fórmula, enlace) y Xenner **añade** dos grupos al
+  final, `blocks` y `appearance`. El orden importa: Crepe llama a
   `buildToolbar` después de montar sus propios grupos, así que añadir no quita
-  nada. Los dos de Xenner no pueden usar el comando de Crepe porque abren el
-  diálogo de color del sistema, que roba el foco y con él la selección: por eso
-  `captureTextSelection()` la guarda antes y `applyTextStyleValue()` la vuelve a
-  poner.
+  nada.
+  - El grupo `blocks` —Texto, Título 1 a 3, Lista, Numerada, Cita— es el arreglo
+    de un bug real: Crepe **no** pone ningún botón que cambie el tipo de bloque,
+    así que el tipo de texto solo se podía cambiar con el cursor en una línea y
+    nunca sobre el texto que se acababa de seleccionar. Se recorre
+    `EDITOR_BLOCKS`, la misma lista que usa el dock, para que las dos superficies
+    no se separen. Qué botón se marca de activo lo dice
+    `editor/block-type.ts` (`blockTypeAt`, `blockTypesInSelection`), que mira los
+    ancestros del bloque y no solo su padre inmediato: el padre de un texto
+    citado es un `paragraph`, y el de un elemento de lista un `list_item`.
+    Con una selección de tipos mezclados no se marca ninguno, porque no hay un
+    único tipo que poner.
+  - Los dos botones de color no pueden usar el comando de Crepe porque abren el
+    diálogo de color del sistema, que roba el foco y con él la selección: por eso
+    `captureTextSelection()` la guarda antes y `applyTextStyleValue()` la vuelve a
+    poner.
+- **Cambiar el tipo de un texto seleccionado depende de la selección del
+  `blur`.** El dock abre un menú que se queda con el foco —para que se pueda
+  recorrer con el teclado— y la barra flotante lo conserva con un
+  `onPointerdown`-preventDefault. Aun así el `contenteditable` se queda sin foco,
+  y entre el clic y el comando el tipo acababa puesto en la línea del cursor en
+  vez de en lo seleccionado. Por eso el plugin `xennerTextCursor` guarda la
+  selección en `handleDOMEvents.blur` y `applyBlockType()` la recupera **antes**
+  de llamar al comando. Guardarla solo en el `blur` es lo que evita el
+  envejecimiento: cualquier clic o tecla posterior dentro del editor la borra,
+  así que nunca se aplica un tipo a un texto que se dejó de seleccionar hace
+  rato. `src/editor/toolbar.test.ts` vigila que la recuperación siga antes del
+  comando.
 - KaTeX es `white-space: nowrap`, así que una fórmula larga ensanchaba la
   columna de lectura. `span[data-type="math_inline"]` y `.katex-display` quedan
   acotados a `max-width: 100%` con desplazamiento horizontal interno, más una

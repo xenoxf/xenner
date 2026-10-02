@@ -64,3 +64,38 @@ test("el mini menu conserva los dos botones propios de Xenner", () => {
   assert.match(COMPONENT, /addItem\(\s*"text-color"/);
   assert.match(COMPONENT, /addItem\(\s*"text-background"/);
 });
+
+test("el mini menu tiene botones para el tipo de texto", () => {
+  // Nació de un bug real: Crepe pone en su barra negrita, cursiva, tachado,
+  // código, fórmula y enlace, pero ningún botón que cambie el bloque. Sin este
+  // grupo el tipo de texto solo se podía cambiar con el cursor en una línea, y
+  // nunca sobre el texto que se acababa de seleccionar.
+  assert.match(COMPONENT, /addGroup\(\s*"blocks"/);
+  assert.match(COMPONENT, /EDITOR_BLOCKS/);
+  // Todos los tipos del dock tienen que estar también aquí: es el mismo
+  // `EDITOR_BLOCKS`, así que basta con que se recorra entero.
+  assert.match(COMPONENT, /for \(const item of EDITOR_BLOCKS\)/);
+});
+
+test("cambiar el tipo de bloque no pierde el texto seleccionado", () => {
+  // El dock y la barra se quedan con el foco al abrir el menú. Si no se
+  // recupera la selección del `blur` antes de aplicar el comando, el tipo acaba
+  // puesto en la línea del cursor en vez de en lo seleccionado.
+  assert.match(COMPONENT, /function applyBlockType/);
+  const apply = COMPONENT.slice(
+    COMPONENT.indexOf("function applyBlockType"),
+    COMPONENT.indexOf("function captureTextSelection"),
+  );
+  assert.match(apply, /restoreSelectionOnBlur\(view\)/);
+  assert.ok(
+    apply.indexOf("restoreSelectionOnBlur") < apply.indexOf("commands.call"),
+    "la selección se recupera después del comando: llega tarde",
+  );
+  assert.match(COMPONENT, /handleDOMEvents:\s*\{\s*blur:/);
+});
+
+test("la barra flotante no se corta por tener más botones", () => {
+  // Trece botones en una fila con `overflow: hidden` salían fuera sin aviso.
+  assert.match(CSS, /\.milkdown-toolbar\)\s*\{[^}]*flex-wrap:\s*wrap/);
+  assert.match(CSS, /\.milkdown-toolbar\)\s*\{[^}]*max-width:/);
+});

@@ -46,7 +46,7 @@ const INSERT_ITEMS: readonly InsertItem[] = [
     id: item.id,
     label: item.label,
     group: "Texto" as const,
-    keywords: item.label.toLocaleLowerCase("es"),
+    keywords: item.keywords,
   })),
   {
     id: "image",

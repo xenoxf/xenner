@@ -241,6 +241,15 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
   paleta de comandos (`Ctrl+K`). Las flechas suben y bajan por las filas
   visibles, `←`/`→` pliegan carpetas y entran en ellas, e `Inicio`/`Fin` van a
   los extremos.
+- La paleta de comandos (`CommandPalette`) es el «ir a» sin ratón: `Ctrl+K`
+  busca notas por su nombre —sin tildes, con lo que empieza primero— y
+  `Ctrl+Mayús+P` (o escribir `>`) enseña los comandos: crear, renombrar,
+  eliminar, copiar/cortar/pegar, historial, guardar, biblioteca, lista y
+  ajustes. Vive en los overlays compartidos de `App.tsx`, así que vale en
+  escritorio y en móvil; el estado (`paletteOpen`, `paletteMode`) y los atajos
+  globales están en `useAppController`, y la búsqueda pura en
+  `workspace/search.ts`. `Ctrl+S` también se sacó al controlador (`saveNow`)
+  para que el atajo y el comando hagan exactamente lo mismo.
 - Los nombres de la lista **se parten en varias líneas, no se recortan con
   puntos**. Con el panel estrecho —que ahora se puede estrechar a pulso— la
   mayoría de los nombres largos no cabían y la lista quedaba inútil: había que

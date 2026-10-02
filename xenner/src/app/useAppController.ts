@@ -1,6 +1,7 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 
 import { notifyError, notifySuccess, notifyWarning } from "../services/toastService";
+import { isDialogPending } from "../services/dialogs";
 import { saveActiveWhiteboard } from "../services/editorSession";
 import {
   readSidebarLayout,
@@ -28,6 +29,22 @@ export function useAppController() {
   const history = useHistoryController();
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   /*
+   * La paleta de comandos: si está abierta y en qué modo empieza. Vive aquí
+   * porque se abre desde el teclado global (`Ctrl+K`, `Ctrl+Mayús+P`) y se usa
+   * desde el escritorio y desde el móvil, y ninguno de los dos es su dueño.
+   */
+  const [paletteOpen, setPaletteOpen] = createSignal(false);
+  const [paletteMode, setPaletteMode] = createSignal<"notes" | "commands">("notes");
+
+  function openPalette(mode: "notes" | "commands"): void {
+    setPaletteMode(mode);
+    setPaletteOpen(true);
+  }
+
+  function closePalette(): void {
+    setPaletteOpen(false);
+  }
+  /*
    * Cómo se ve la columna de la lista: si sale desplegada y de qué ancho. Vive
    * aquí porque la controlan tres sitios —el icono de la barra de secciones, el
    * atajo de teclado y el tirador del borde— y ninguno de ellos es el panel.
@@ -38,6 +55,24 @@ export function useAppController() {
   let lastWorkspaceIssue = "";
   let lastLegacyIssue = "";
   let saveShortcutBusy = false;
+
+  /**
+   * Guardar ahora, lo use quien lo use: el atajo `Ctrl+S` o el comando de la
+   * paleta. Estaba dentro del manejador del atajo; al sacarlo, los dos hacen lo
+   * mismo sin copiarse el código.
+   */
+  async function saveNow(): Promise<void> {
+    if (saveShortcutBusy) return;
+    saveShortcutBusy = true;
+    try {
+      const whiteboardSaved = await saveActiveWhiteboard();
+      if (!whiteboardSaved) return;
+      const saved = await flushPendingSave();
+      if (saved) notifySuccess("Cambios guardados");
+    } finally {
+      saveShortcutBusy = false;
+    }
+  }
 
   /** Un solo camino para cambiarlo y para recordarlo entre sesiones. */
   function updateSidebarLayout(patch: Partial<SidebarLayout>): void {
@@ -93,20 +128,30 @@ export function useAppController() {
     const saveWithShortcut = (event: KeyboardEvent): void => {
       if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s" || saveShortcutBusy) return;
       event.preventDefault();
-      saveShortcutBusy = true;
-      void saveActiveWhiteboard()
-        .then((whiteboardSaved) => {
-          if (!whiteboardSaved) return false;
-          return flushPendingSave();
-        })
-        .then((saved) => {
-          if (saved) notifySuccess("Cambios guardados");
-        })
-        .finally(() => {
-          saveShortcutBusy = false;
-        });
+      void saveNow();
     };
     document.addEventListener("keydown", saveWithShortcut);
+    /*
+     * La paleta: `Ctrl+K` para ir a una nota, `Ctrl+Mayús+P` para comandos. No
+     * se abre sobre un diálogo —una pregunta a medias no se tapa con otra
+     * ventana— ni sobre Ajustes o el historial, que ya son modales.
+     */
+    const paletteWithShortcut = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === "k" && !event.shiftKey && !event.altKey) {
+        if (isDialogPending() || settingsOpen() || history.path() || paletteOpen()) return;
+        event.preventDefault();
+        openPalette("notes");
+        return;
+      }
+      if (key === "p" && event.shiftKey && !event.altKey) {
+        if (isDialogPending() || settingsOpen() || history.path() || paletteOpen()) return;
+        event.preventDefault();
+        openPalette("commands");
+      }
+    };
+    document.addEventListener("keydown", paletteWithShortcut);
     /*
      * Mostrar u ocultar la lista de notas. Es `Ctrl+E` y no `Ctrl+B`, que es lo
      * que usan los editores de código, porque `Ctrl+B` aquí es negrita en el
@@ -119,6 +164,7 @@ export function useAppController() {
     };
     document.addEventListener("keydown", toggleSidebarWithShortcut);
     onCleanup(() => document.removeEventListener("keydown", saveWithShortcut));
+    onCleanup(() => document.removeEventListener("keydown", paletteWithShortcut));
     onCleanup(() => document.removeEventListener("keydown", toggleSidebarWithShortcut));
     onCleanup(stopWatchingSystem);
     onCleanup(stopWatchingWorkspace);
@@ -130,6 +176,11 @@ export function useAppController() {
     history,
     settingsOpen,
     setSettingsOpen,
+    paletteOpen,
+    paletteMode,
+    openPalette,
+    closePalette,
+    saveNow,
     sidebarOpen,
     sidebarWidth,
     setSidebarOpen,

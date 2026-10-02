@@ -277,7 +277,7 @@ export const HOOKS: readonly HookDoc[] = [
   { hook: 'toolbar', name: 'La barra del editor', sees: 'La flotante sobre el texto.' },
   { hook: 'toolbar-button', name: 'Un botón de la barra', sees: 'Con `data-x-open="true"` si su menú está abierto.' },
   { hook: 'button', name: 'Cualquier botón', sees: 'Con `data-x-role="primary"`, `"icon"`, `"rail"` o `"default"`, y `data-x-size` en los de icono.' },
-  { hook: 'modal', name: 'Una ventana emergente', sees: 'Con `data-x-modal="settings"` o `"history"`.' },
+  { hook: 'modal', name: 'Una ventana emergente', sees: 'Con `data-x-modal="settings"`, `"history"` o `"command-palette"`.' },
 ];
 
 /** Extensiones que se pueden dejar en `assets/`. */

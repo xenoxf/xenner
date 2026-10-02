@@ -343,7 +343,7 @@ es contrato: no se renombra sin actualizar este doc y la guía.
 | `toolbar` | La barra flotante del editor |
 | `toolbar-button` | Un botón de la barra, con `data-x-open` si su menú está abierto |
 | `button` | Cualquier botón. `data-x-role`: `primary`, `icon`, `rail` o `default`. `data-x-size` en los de icono |
-| `modal` | Una ventana emergente. `data-x-modal`: `settings` o `history` |
+| `modal` | Una ventana emergente. `data-x-modal`: `settings`, `history` o `command-palette` |
 | `mobile` | La raíz de la vista móvil, la de los teléfonos. En el escritorio no existe |
 | `mobile-topbar` | La barra de arriba de la lista: el título y sus dos iconos |
 | `mobile-search` | El bloque del buscador. El campo de dentro lleva `data-x="input"` |

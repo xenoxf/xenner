@@ -147,6 +147,8 @@ export default function App() {
               canPaste={Boolean(explorer.cutPath())}
               legacyNoteCount={explorer.legacyNotes().length}
               legacyIssue={explorer.legacyIssue()}
+              width={controller.sidebarWidth()}
+              onWidthChange={controller.setSidebarWidth}
               onChooseWorkspace={() => void chooseWorkspace()}
               onRefresh={() => void refreshWorkspaceTree()}
               onDismissError={closeWorkspaceError}

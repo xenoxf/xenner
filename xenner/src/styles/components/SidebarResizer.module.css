@@ -1,0 +1,52 @@
+/*
+ * El tirador del borde del panel de notas.
+ *
+ * Es una franja de 9 px que sobresale 4 px hacia el editor: lo justo para que se
+ * vea y se coja, sin robarle sitio al texto. Al pasar por encima se ilumina; al
+ * arrastrar se queda iluminado, porque el cursor —una flecha con eñe— es la
+ * única pista de que el ancho se está cambiando.
+ */
+
+.resizer {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  transition: background-color var(--motion-standard) ease;
+}
+
+.resizer:hover,
+.resizer:focus-visible {
+  background-color: color-mix(in srgb, var(--skin-sidebar-accent) 55%, transparent);
+}
+
+.resizer:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -2px;
+}
+
+/* La marca del medio: tres rayas, como el tirador de las ventanas. Se ve solo
+   al pasar por encima, para que el panel no lleve adorno cuando nadie lo toca. */
+.grip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 26px;
+  background-color: var(--skin-sidebar-text);
+  border-radius: 2px;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity var(--motion-standard) ease;
+}
+
+.resizer:hover .grip,
+.resizer:focus-visible .grip,
+.resizer:active .grip {
+  opacity: 0.55;
+}

@@ -103,6 +103,14 @@ convierten en clases globales de aplicación.
   `toggleSidebar` viven en `useAppController` porque los manejan dos sitios que
   no son el panel —el icono de la barra y el atajo `Ctrl+E`— y crear una nota
   desde el editor vuelve a abrirlo, ya que la fila para nombrarla está dentro.
+- El ancho del panel llega como la variable `--sidebar-width`, no como un `width`
+  en la hoja: si no se ha arrastrado el tirador no se escribe nada y manda el
+  `clamp()` de `ExplorerSidebar.module.css`, que es lo que lo adapta a una
+  ventana estrecha. Ese ancho y si el panel sale desplegado son preferencias de
+  la ventana, no de Apariencia, y viven en `services/sidebarLayout.ts`. El
+  tirador (`SidebarResizer`) es un `separator` con su papel: se arrastra con el
+  puntero y también con las flechas, con `Shift` a saltos grandes y con
+  `Inicio`/`Fin` a los topes; dos clics lo devuelven al ancho de la hoja.
 - `workspace/store.ts` conserva el estado reactivo y la cola de autoguardado; el
   nombre del archivo es la fuente del título y el input superior lo renombra.
   El título se renombra al perder el foco del input, nunca en cada pulsación:

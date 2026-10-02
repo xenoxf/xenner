@@ -253,6 +253,7 @@ export const HOOKS: readonly HookDoc[] = [
   { hook: 'sidebar-window-actions', name: 'Los botones de ventana', sees: 'Abrir carpeta y recargar. Los ajustes están en la barra de secciones.' },
   { hook: 'sidebar-toolbar', name: 'La fila de arriba', sees: '«Nueva nota» y el contador.' },
   { hook: 'sidebar-count', name: 'El contador', sees: 'El número con cuántas notas hay en total.' },
+  { hook: 'sidebar-resizer', name: 'El tirador', sees: 'La franja del borde derecho que cambia el ancho del panel.' },
   { hook: 'tree', name: 'El área de la lista', sees: 'Donde se hace scroll, con las notas dentro.' },
   { hook: 'tree-item', name: 'Una nota o carpeta', sees: 'La línea entera. Con `data-kind="note"` o `="directory"` para distinguirlas.' },
   { hook: 'tree-row', name: 'La fila', sees: 'La parte pulsable. Con `data-selected="true"` si está abierta.' },

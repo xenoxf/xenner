@@ -1,10 +1,12 @@
 import { Show } from "solid-js";
 
+import { sidebarWidthVariable } from "../../services/sidebarLayout";
 import type { VaultErrorShape, WorkspaceScan, WorkspaceTreeNode } from "../../types/workspace";
 import { CreationRow, type CreationKind } from "../explorer/CreationRow";
 import { Explorer, type CreationDraft } from "../explorer/Explorer";
 import { FolderOpenIcon, FolderPlusIcon, PlusIcon, RefreshIcon } from "../ui/Icons";
 import { IconButton } from "../ui/IconButton";
+import { SidebarResizer } from "./SidebarResizer";
 import styles from "../../styles/components/ExplorerSidebar.module.css";
 
 export interface ExplorerSidebarProps {
@@ -20,6 +22,9 @@ export interface ExplorerSidebarProps {
   canPaste: boolean;
   legacyNoteCount: number;
   legacyIssue: string | null;
+  /** El ancho elegido al arrastrar el tirador, o `null` para el de la hoja CSS. */
+  width: number | null;
+  onWidthChange(width: number | null): void;
   onChooseWorkspace(): void;
   onRefresh(): void;
   onDismissError(): void;
@@ -43,7 +48,19 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
   const noteCount = () => props.workspace?.info.noteCount ?? 0;
 
   return (
-    <aside class={styles.sidebar} data-x="sidebar" aria-label="Explorador de archivos">
+    <aside
+      class={styles.sidebar}
+      /*
+       * El ancho llega como variable en vez de como `width` en la hoja: si se
+       * escribiera el ancho aquí, el `clamp()` de la hoja —y con él el
+       * comportamiento en ventanas estrechas— dejaría de mandar cuando no hay
+       * ancho elegido. Es un detalle de una línea que evita tener dos reglas
+       * compitiendo por la misma propiedad.
+       */
+      style={sidebarWidthVariable(props.width)}
+      data-x="sidebar"
+      aria-label="Explorador de archivos"
+    >
       {/*
         La cabecera es la del panel: el nombre de la sección a la izquierda y sus
         acciones a la derecha. El engranaje no vive aquí porque la configuración
@@ -185,6 +202,8 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
           <span title={root()}>{root()}</span>
         </Show>
       </footer>
+
+      <SidebarResizer width={props.width} onWidthChange={props.onWidthChange} />
     </aside>
   );
 }

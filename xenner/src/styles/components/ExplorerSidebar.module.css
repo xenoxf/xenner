@@ -5,8 +5,13 @@
    * que poder desaparecer entera —con el icono de la barra de secciones— y
    * dejar que el editor ocupe su sitio. Con el ancho puesto en el shell, esconder
    * el panel dejaría un hueco vacío de 236 px.
+   *
+   * `--sidebar-width` lo escribe `ExplorerSidebar` cuando alguien arrastra el
+   * tirador del borde; si no está, manda el `clamp()`, que es lo que adapta el
+   * panel a una ventana estrecha.
    */
-  width: clamp(236px, 21vw, 272px);
+  position: relative;
+  width: var(--sidebar-width, clamp(236px, 21vw, 272px));
   min-width: 0;
   min-height: 0;
   flex: 0 0 auto;
@@ -20,7 +25,9 @@
 
 @media (max-width: 760px) {
   .sidebar {
-    width: 225px;
+    /* Por debajo de ese ancho la franja que sobresale para el tirador se come
+       el borde de la ventana: aquí el panel se ajusta solo. */
+    width: var(--sidebar-width, 225px);
   }
 }
 

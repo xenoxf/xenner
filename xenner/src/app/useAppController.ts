@@ -3,6 +3,12 @@ import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { notifyError, notifySuccess, notifyWarning } from "../services/toastService";
 import { saveActiveWhiteboard } from "../services/editorSession";
 import {
+  readSidebarLayout,
+  sanitizeSidebarLayout,
+  saveSidebarLayout,
+  type SidebarLayout,
+} from "../services/sidebarLayout";
+import {
   flushPendingSave,
   getWorkspace,
   getWorkspaceError,
@@ -22,17 +28,39 @@ export function useAppController() {
   const history = useHistoryController();
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   /*
-   * Si el panel de la lista de notas está desplegado. Vive aquí porque lo
-   * controlan dos sitios —el icono de la barra de secciones y el atajo de
-   * teclado— y ninguno de los dos es el panel.
+   * Cómo se ve la columna de la lista: si sale desplegada y de qué ancho. Vive
+   * aquí porque la controlan tres sitios —el icono de la barra de secciones, el
+   * atajo de teclado y el tirador del borde— y ninguno de ellos es el panel.
    */
-  const [sidebarOpen, setSidebarOpen] = createSignal(true);
+  const [sidebarLayout, setSidebarLayout] = createSignal(readSidebarLayout());
+  const sidebarOpen = (): boolean => sidebarLayout().open;
+  const sidebarWidth = (): number | null => sidebarLayout().width;
   let lastWorkspaceIssue = "";
   let lastLegacyIssue = "";
   let saveShortcutBusy = false;
 
+  /** Un solo camino para cambiarlo y para recordarlo entre sesiones. */
+  function updateSidebarLayout(patch: Partial<SidebarLayout>): void {
+    const current = sidebarLayout();
+    const next = sanitizeSidebarLayout({ ...current, ...patch });
+    // El tirador avisa en cada movimiento del puntero: comparar antes evita
+    // escribir en `localStorage` sesenta veces por segundo cuando ya está en el
+    // tope y no se puede mover más.
+    if (next.open === current.open && next.width === current.width) return;
+    saveSidebarLayout(next);
+    setSidebarLayout(next);
+  }
+
+  function setSidebarOpen(open: boolean): void {
+    updateSidebarLayout({ open });
+  }
+
   function toggleSidebar(): void {
-    setSidebarOpen((open) => !open);
+    updateSidebarLayout({ open: !sidebarOpen() });
+  }
+
+  function setSidebarWidth(width: number | null): void {
+    updateSidebarLayout({ width });
   }
 
   createEffect(() => {
@@ -103,7 +131,9 @@ export function useAppController() {
     settingsOpen,
     setSettingsOpen,
     sidebarOpen,
+    sidebarWidth,
     setSidebarOpen,
+    setSidebarWidth,
     toggleSidebar,
   };
 }

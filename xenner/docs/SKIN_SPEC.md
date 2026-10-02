@@ -319,6 +319,7 @@ es contrato: no se renombra sin actualizar este doc y la guía.
 | `sidebar-window-actions` | Los dos botones de la esquina (abrir, recargar) |
 | `sidebar-toolbar` | La fila con «Nueva nota» y el contador |
 | `sidebar-count` | El número de notas |
+| `sidebar-resizer` | El tirador del borde derecho, para cambiar el ancho a pulso |
 | `tree` | El área con scroll donde vive la lista |
 | `tree-item` | Un nodo (nota o carpeta), con `data-kind="note\|directory"` |
 | `tree-row` | La fila pulsable, con `data-selected="true"` y `data-drop-target` |

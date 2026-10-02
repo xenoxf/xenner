@@ -326,9 +326,30 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
   hace desaparecer es Crepe, con `data-show="false"` (`display: none`), cuando
   la selección está vacía o el editor pierde el foco, que es lo correcto.
   `src/editor/toolbar.test.ts` vigila que nadie vuelva a esconderla.
-- Los botones de esa barra los pone Crepe en su `buildToolbar` (negrita,
-    cursiva, tachado, código, fórmula, enlace) y Xenner **añade** dos grupos al
-    final, `blocks` y `appearance`. El orden importa: Crepe llama a
+- **El editor está partido en tres, y por qué importa.** Antes era un solo
+    archivo de 900 líneas con el `new Crepe({...})` dentro, y todo lo que se le
+    enseña a la persona y todo lo que se hace con el documento compartían sitio.
+    Salir de ahí explica los fallos más caros: un arreglo del botón `+` acababa
+    tocando la configuración del menú de enlaces, y un `catch` mudo puesto «por
+    si acaso» se tragaba la excepción que rompía el editor.
+  - `editor/crepe-config.ts` — **qué se le enseña**: qué features van encendidas,
+    los rótulos del menú `/`, los nombres accesibles y los textos. Solo datos, sin
+    estado, y por eso se prueba en Node. Sus claves de feature están escritas a
+    mano y `crepe-config.test.ts` las compara contra el enum real de Crepe: si
+    Crepe renombra una, ese test falla en vez de que la feature se apague en
+    silencio.
+  - `editor/editor-commands.ts` — **qué se hace**: cada función despacha una
+    transacción y devuelve `false` si no ha podido, **sin tragarse excepciones**.
+    Toda función que toca el documento recibe un `report: ReportFailure`.
+  - `components/editor/MarkdownEditor.tsx` — **el pegamento**: crear la
+    instancia, vigilar los cambios y exponer el handle. No decide nada.
+- **Un fallo en el editor se avisa dos veces**: por `console.error` y por un aviso
+    a quien escribe. Un `console.error` no lo ve nadie, y un texto que desaparece
+    sin explicación es un callejón sin salida. Que un comando devuelva `false`
+    sin lanzar también cuenta como fallo, no como un «no-op» silencioso.
+- **Los botones de la barra flotante los pone Crepe** en su `buildToolbar`
+    (negrita, cursiva, tachado, código, fórmula, enlace) y Xenner **añade** dos
+    grupos al final, `blocks` y `appearance`. El orden importa: Crepe llama a
     `buildToolbar` después de montar sus propios grupos, así que añadir no quita
     nada —y también por eso el tipo de bloque, que es lo que más se usa, queda
     detrás del formato.
@@ -375,6 +396,15 @@ montadas. `MobileShell` sustituye al shell entero, no se cuelga dentro de él.
     texto que desaparece sin explicación es un callejón sin salida. Que el comando
     devuelva `false` sin lanzar también se cuenta como fallo. El `console.debug`
     con el largo del texto antes y después queda solo en `import.meta.env.DEV`.
+- **Lo que los tests no pueden cubrir.** Casi todo lo del editor se prueba
+    leyendo el código como texto, porque no hay navegador en la comprobación: se
+    vigila que la regla siga escrita en el sitio que le toca, no que el editor
+    funcione. Un paseo manual sigue siendo imprescindible para el `+` (que se
+    mide con `coordsAtPos` y depende del scroll), para el ancho real de la barra
+    flotante con quince botones, y para confirmar que el texto ya no desaparece al
+    cambiar el tipo. El `console.debug` de `applyBlockType` está puesto justo para
+    eso: si `caracteresDespues` no es `caracteresAntes`, ha entrado un comando que
+    borra y se ve en el momento.
 - Con quince botones la barra se aprieta —28 px de botón, 3 px de margen— para
     caber en una fila. El `flex-wrap` queda como red de seguridad para ventanas
     estrechas o temas con otros iconos, no como su forma normal: sin él, el

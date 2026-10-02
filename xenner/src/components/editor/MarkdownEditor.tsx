@@ -1,33 +1,32 @@
 import type { Crepe as CrepeInstance } from "@milkdown/crepe";
-import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
-import {
-  addBlockTypeCommand,
-  linkSchema,
-  turnIntoTextCommand,
-  wrapInBlockquoteCommand,
-  wrapInBulletListCommand,
-  wrapInHeadingCommand,
-  wrapInOrderedListCommand,
-} from "@milkdown/kit/preset/commonmark";
-import { createParagraphNear, splitBlock } from "@milkdown/kit/prose/commands";
+import { editorViewCtx } from "@milkdown/kit/core";
+import { imageBlockSchema } from "@milkdown/kit/component/image-block";
+import type { Ctx } from "@milkdown/kit/ctx";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { $prose, replaceAll } from "@milkdown/kit/utils";
-import { imageBlockSchema } from "@milkdown/kit/component/image-block";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 
 import { blockTypesInSelection } from "../../editor/block-type";
-import { EDITOR_BLOCKS } from "../../data/editor";
 import {
-  deleteAssetForEditor,
-  importImageForEditor,
-  prepareMarkdownForEditor,
-  serializeMarkdownFromEditor,
-  updateAssetForEditor,
-} from "../../services/editorAssets";
-import { notifyError, notifySuccess } from "../../services/toastService";
-import { leaveEditor } from "../../services/editorSession";
+  BLOCK_TYPE_ICONS,
+  CREPE_BUTTON_LABELS,
+  CREPE_FEATURE_KEYS,
+  CREPE_FEATURES,
+  CREPE_TEXT_LABELS,
+  SLASH_GROUPS,
+  TEXT_BACKGROUND_ICON,
+  TEXT_COLOR_ICON,
+  WHITEBOARD_ICON,
+} from "../../editor/crepe-config";
 import { createDrawingId, serializeDrawing } from "../../editor/drawing";
+import {
+  applyBlockType as runBlockCommand,
+  focusTextCursor,
+  insertAttachmentLink,
+  insertBlock,
+  prepareInsertionPoint,
+} from "../../editor/editor-commands";
 import {
   DEFAULT_TEXT_BACKGROUND,
   DEFAULT_TEXT_COLOR,
@@ -36,6 +35,15 @@ import {
   textColorRemark,
 } from "../../editor/text-color";
 import { whiteboardNode, whiteboardRemark } from "../../editor/whiteboard-node";
+import {
+  deleteAssetForEditor,
+  importImageForEditor,
+  prepareMarkdownForEditor,
+  serializeMarkdownFromEditor,
+  updateAssetForEditor,
+} from "../../services/editorAssets";
+import { leaveEditor } from "../../services/editorSession";
+import { notifyError, notifySuccess } from "../../services/toastService";
 import styles from "../../styles/components/MarkdownEditor.module.css";
 import type { DrawingTool } from "../../types/drawing";
 import type {
@@ -45,30 +53,18 @@ import type {
 } from "../../types/editor";
 import { createWhiteboardView } from "./WhiteboardNodeView";
 
-const WHITEBOARD_SLASH_ICON = `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M4 5h16v12H4z" />
-    <path d="m7 14 3-3 2 2 2-2 3 3" />
-    <path d="M7 9h.01" />
-  </svg>
-`;
-
-const TEXT_COLOR_TOOLBAR_ICON = `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="m14.6 17.9-1.3-1.3a1 1 0 0 1 0-1.4l1.4-1.4a1 1 0 0 1 1.4 0l1.3 1.3a1 1 0 0 1 0 1.4l-1.4 1.4a1 1 0 0 1-1.4 0Z" />
-    <path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM15 5l4 4" />
-  </svg>
-`;
-
-const TEXT_BACKGROUND_TOOLBAR_ICON = `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="m4 16 8-8 4 4-8 8H4v-4Z" />
-    <path d="m12 8 4-4 4 4-4 4M4 20h16" />
-  </svg>
-`;
+/**
+ * El editor: monta Crepe y le cablea lo que Xenner le añade.
+ *
+ * Este archivo **no decide nada**. Lo que se le enseña a la persona está en
+ * `editor/crepe-config.ts` y lo que se hace con el documento, en
+ * `editor/editor-commands.ts`. Aquí queda solo el pegamento: crear la
+ * instancia, vigilar los cambios y exponer el handle que usa `EditorPane`.
+ *
+ * Esa división es lo que impide que un arreglo del botón `+` acabe tocando la
+ * configuración del menú de enlaces, que es lo que pasaba cuando todo vivía
+ * dentro del mismo `new Crepe({...})`.
+ */
 
 interface MarkdownEditorProps {
   notePath: string;
@@ -79,16 +75,21 @@ interface MarkdownEditorProps {
   onDispose?(): void;
 }
 
+interface InsertAnchor {
+  left: number;
+  top: number;
+}
+
 export function MarkdownEditor(props: MarkdownEditorProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   /** Dónde va el `+` de insertar en la línea, en px sobre la raíz del editor. */
-  const [insertAnchor, setInsertAnchor] = createSignal<{ left: number; top: number } | null>(null);
+  const [insertAnchor, setInsertAnchor] = createSignal<InsertAnchor | null>(null);
+
   let root: HTMLDivElement | undefined;
   let crepe: CrepeInstance | null = null;
   let textColorInput: HTMLInputElement | undefined;
   let textBackgroundInput: HTMLInputElement | undefined;
-  let pendingTextSelection: { from: number; to: number } | null = null;
   let disposed = false;
   let lastReloadToken = props.reloadToken;
   let prepared: PreparedMarkdown = {
@@ -98,180 +99,67 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
   };
   let insertWhiteboardCommand: ((tool: DrawingTool) => Promise<void>) | null = null;
   let insertingWhiteboard = false;
-  // Última posición del cursor de TEXTO conocida. Sin ella, insertar un bloque
-  // (pizarra o imagen) desde el dock caía al final de la nota cuando la
-  // selección era un NodeSelection o el editor aún no había recuperado el foco
-  // tras el clic en la barra.
-  let textCursorPos: number | null = null;
+  /**
+   * Última posición del cursor de TEXTO conocida. Insertar un bloque desde el
+   * dock puede llegar con una selección de nodo, o sin que el editor tenga el
+   * foco porque el botón está fuera del `contenteditable`. Sin esto el bloque
+   * caía al final de la nota.
+   */
+  let lastTextPos: number | null = null;
+  /** La selección del momento de abrir un diálogo del sistema, que roba el foco. */
+  let selectionBeforeDialog: { from: number; to: number } | null = null;
 
   /**
-   * Avisa de un fallo en vez de tragárselo.
+   * Avisa de un fallo sin enterrarlo y sin dejar la vista a medias.
    *
-   * Este archivo estuvo un tiempo con bloques `catch` sin cuerpo alrededor de
-   * todo lo delicado, y por eso un botón dio un resultado imposible de razonar:
-   * al cambiar el tipo de un texto seleccionado, el texto desaparecía, el editor
-   * dejaba de aceptar nada y al reabrir la nota todo estaba bien. Un `catch`
-   * sin cuerpo se come justo la excepción que explica eso —una transacción
-   * empezada que se corta a mitad deja la vista a medias, el serializador de
-   * Markdown falla sobre ese documento y no se guarda nada— y mientras siga
-   * así, el siguiente fallo del mismo tipo tampoco se va a ver.
+   * Antes este archivo tuvo bloques `catch` sin cuerpo alrededor de todo lo
+   * delicado. Eso es lo que escondió el fallo más difícil de depurar del
+   * editor: al cambiar el tipo de un texto seleccionado, el texto desaparecía,
+   * el editor dejaba de aceptar nada y al reabrir la nota todo estaba bien. Un
+   * `catch` mudo se come justo la excepción que lo explica —una transacción a
+   * medio hacer deja la vista a medias, el serializador de Markdown falla sobre
+   * ese documento, no se guarda nada y ProseMirror se queda sin poder despachar.
+   *
+   * Un fallo se avisa por consola **y** se le dice a quien escribe: un
+   * `console.error` no lo ve nadie, y un texto que desaparece sin explicación es
+   * un callejón sin salida.
    */
-  function reportEditorFailure(what: string, error: unknown): void {
+  function reportFailure(what: string, error: unknown): void {
     console.error(`xenner: ${what}`, error);
-    // Y también se lo decimos a quien escribe. Un `console.error` no lo ve
-    // nadie: un fallo al aplicar el tipo de bloque se llevaba el texto y lo
-    // dejaba sin explicar, y eso es un callejón sin salida para el usuario.
     notifyError("No se pudo aplicar el formato", what);
   }
 
-  function rememberTextCursor(view: EditorView): void {
-    const { selection } = view.state;
-    if (!(selection instanceof TextSelection)) return;
-    if (!selection.$from.parent.isTextblock) return;
-    textCursorPos = selection.from;
+  function currentView(): EditorView | null {
+    return crepe?.editor.ctx.get(editorViewCtx) ?? null;
   }
+
+  // --- La posición del `+` ------------------------------------------------
 
   /**
-   * Dónde se inserta al pedir un bloque nuevo con el `+`.
+   * El asa lateral solo con el cursor en un bloque de texto.
    *
-   * El `+` de Crepe inserta **siempre por debajo** del bloque y abre el menú de
-   * tipos: eso convertía cada pulsación en «una línea nueva que elegir», y
-   * pulsar el `+` a media frase partía la frase. Aquí el gesto significa «en esta
-   * línea», así que:
-   *
-   * - con el cursor en un bloque **vacío**, se sustituye ese bloque: no tiene
-   *   sentido dejar un párrafo en blanco encima del que se acaba de elegir;
-   * - con el cursor en un bloque con texto, no se inserta nada todavía. Se
-   *   parte por la mitad del bloque —que es lo que significa «aquí»— y el cursor
-   *   se queda en la parte de abajo, lista para escribir.
-   *
-   * Devuelve `null` cuando no hay un sitio claro donde insertar, y entonces no
-   * se toca el documento: insertar donde no toca sería peor que no hacer nada.
-   */
-  function prepareInlineInsert(view: EditorView): number | null {
-    const { selection } = view.state;
-    // El gesto es de bloque, no de texto: con algo seleccionado manda la
-    // selección y el camino es la barra flotante, no este botón.
-    if (!(selection instanceof TextSelection)) return null;
-    if (!selection.empty || !selection.$from.parent.isTextblock) return null;
-    try {
-      const parent = selection.$from.parent;
-      if (parent.content.size === 0) {
-        // Bloque vacío: se sustituye. No tiene sentido dejar un párrafo en
-        // blanco encima del que se acaba de elegir.
-        const start = selection.from - 1;
-        view.dispatch(
-          view.state.tr.delete(start, selection.from + parent.nodeSize),
-        );
-        return selection.from - 1;
-      }
-      // Bloque con texto: partir por donde está el cursor. `splitBlock` no hace
-      // nada si el cursor ya está al final, y entonces no hay línea que crear.
-      if (!splitBlock(view.state, view.dispatch)) return null;
-      return selection.from;
-    } catch (error) {
-      reportEditorFailure("no se pudo preparar el punto de inserción", error);
-      return null;
-    }
-  }
-
-  /**
-   * El `+` que inserta en la línea del cursor y abre el menú de tipos.
-   *
-   * Va en el mismo sitio que el asa de Crepe pero es nuestro: el de Crepe pone
-   * el bloque siempre por debajo, y por eso el gesto no se podía corregir desde
-   * fuera. El resto del asa —el tirador de arrastrar— sí funciona y se deja.
-   *
-   * El menú se abre escribiendo `/`, que es lo mismo que hace el menú slash al
-   * teclearlo. Se usa ese camino y no el método interno de Crepe porque `menuAPI`
-   * no está exportado: el único subpaquete público es el de la feature entera, y
-   * el tipo es `lib/types/feature/block-edit/index.d.ts`, sin `menuAPI`.
-   */
-  function showInlineInsertButton(): void {
-    if (!crepe || disposed) return;
-    const view = crepe.editor.ctx.get(editorViewCtx);
-    if (!view.hasFocus()) view.focus();
-    if (prepareInlineInsert(view) === null) return;
-    const after = crepe.editor.ctx.get(editorViewCtx);
-    // El `/` dispara la regla de entrada de Crepe, que abre el menú. Va en su
-    // propia transacción para que la regla vea un estado limpio.
-    after.dispatch(after.state.tr.insertText("/"));
-  }
-
-  // Recoloca la selección en el cursor de texto conocido. Es idempotente: si
-  // ya hay una selección de texto válida, no toca nada.
-  //
-  // Solo lo usan las inserciones de bloque —imagen y pizarra—, que pueden
-  // llegar con una selección de nodo o sin que el editor tenga el foco. Cambiar
-  // el tipo de texto no lo necesita: el camino está en la barra flotante, cuyos
-  // botones son de Crepe y no le roban el foco a nadie.
-  function restoreTextCursor(view: EditorView): void {
-    const { selection } = view.state;
-    if (selection instanceof TextSelection && selection.$from.parent.isTextblock) return;
-    if (textCursorPos === null) return;
-    const pos = Math.min(Math.max(textCursorPos, 0), view.state.doc.content.size);
-    try {
-      view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos), 1)));
-    } catch (error) {
-      reportEditorFailure("no se pudo devolver el cursor al texto", error);
-    }
-  }
-
-  /**
-   * Deja el cursor en el párrafo que se acaba de crear tras el bloque, para
-   * poder seguir escribiendo sin tabular. SIN `scrollIntoView()` a propósito:
-   * el bloque recién insertado es alto y un scroll mínimo desplaza la vista
-   * justo cuando la persona está mirando la línea desde la que insertó.
-   */
-  function settleAfterInsertion(view: EditorView): void {
-    try {
-      const near = TextSelection.near(view.state.selection.$to, 1);
-      view.dispatch(view.state.tr.setSelection(near));
-    } catch (error) {
-      reportEditorFailure("el bloque se insertó pero el cursor no se quedó detrás", error);
-    }
-    view.focus();
-  }
-
-  /**
-   * El asa lateral solo aparece con el cursor dentro de un bloque de texto.
-   *
-   * Es la condición que usa Crepe para su asa, menos las tablas, las citas y las
-   * fórmulas: dentro de ellas no hay «la línea del cursor» sobre la que
-   * insertar. Se pasa como `shouldShow` del `blockHandle` para que el `+` de
-   * Xenner y el tirador de arrastrar aparezcan y desaparezcan **juntos**; si no,
-   * un `+` sin asa al lado parece un botón suelto.
-   */
-    /**
-   * El asa lateral solo aparece con el cursor dentro de un bloque de texto.
-   *
-   * Es la condición que usa Crepe para su asa, menos las tablas, las citas y las
-   * fórmulas: dentro de ellas no hay «la línea del cursor» sobre la que
-   * insertar. Se pasa como `shouldShow` del `blockHandle` para que el `+` de
-   * Xenner y el tirador de arrastrar aparezcan y desaparezcan **juntos**; si no,
-   * un `+` sin asa al lado parece un botón suelto.
+   * Es la condición de Crepe menos las tablas, las citas y las fórmulas: dentro
+   * de ellas no hay «la línea del cursor» sobre la que insertar. Se pasa como
+   * `shouldShow` del `blockHandle` para que nuestro `+` y el tirador de arrastrar
+   * aparezcan y desaparezcan **juntos**; si no, un `+` sin asa al lado parece un
+   * botón suelto.
    */
   function canShowBlockHandle(view: EditorView): boolean {
     const { selection } = view.state;
     if (!(selection instanceof TextSelection) || !selection.$from.parent.isTextblock) return false;
     for (let depth = selection.$from.depth; depth > 0; depth -= 1) {
-      if (["table", "blockquote", "math_inline"].includes(selection.$from.node(depth).type.name)) {
-        return false;
-      }
+      const name = selection.$from.node(depth).type.name;
+      if (name === "table" || name === "blockquote" || name === "math_inline") return false;
     }
     return true;
   }
 
-  function showBlockHandle(): boolean {
-    if (!crepe || disposed) return false;
-    return canShowBlockHandle(crepe.editor.ctx.get(editorViewCtx));
-  }
-
   /**
    * Coloca el `+` a la altura del cursor y a la izquierda del bloque, que es
-   * donde Crepe pone su asa. Se mide con `coordsAtPos`, que es síncrono; leer la
-   * posición del asa de Crepe sería una carrera, porque `floating-ui` la aplica
-   * en un `then`.
+   * donde Crepe pone su asa.
+   *
+   * Se mide con `coordsAtPos`, que es síncrono. Leer la posición del asa de
+   * Crepe sería una carrera, porque `floating-ui` la aplica en un `then`.
    */
   function updateInsertAnchor(view: EditorView): void {
     if (!root || !canShowBlockHandle(view)) {
@@ -279,25 +167,52 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
       return;
     }
     try {
-      const { selection } = view.state;
       const bounds = root.getBoundingClientRect();
-      const caret = view.coordsAtPos(selection.from);
-      const dom = view.domAtPos(selection.from).node;
+      const caret = view.coordsAtPos(view.state.selection.from);
+      const dom = view.domAtPos(view.state.selection.from).node;
       const element = dom instanceof HTMLElement ? dom : dom?.parentElement;
       const blockLeft = element
         ? element.getBoundingClientRect().left - bounds.left
         : bounds.left;
       // El mismo margen que el asa de Crepe (`getOffset`), más el ancho del
       // botón, para que los dos queden en paralelo.
-      setInsertAnchor({
-        left: Math.max(4, blockLeft - 10 - 26),
-        top: caret.top - bounds.top,
-      });
+      setInsertAnchor({ left: Math.max(4, blockLeft - 10 - 26), top: caret.top - bounds.top });
     } catch (error) {
-      reportEditorFailure("no se pudo colocar el botón de insertar", error);
+      reportFailure("no se pudo colocar el botón de insertar", error);
       setInsertAnchor(null);
     }
   }
+
+  function refreshInsertAnchor(): void {
+    const view = currentView();
+    if (!disposed && view) updateInsertAnchor(view);
+  }
+
+  /**
+   * El `+` que inserta en la línea del cursor y abre el menú de tipos.
+   *
+   * El de Crepe inserta **siempre por debajo** del bloque: pulsarlo a media frase
+   * partía el texto y además metía una línea de más delante de lo que se iba a
+   * escribir. Su `onAdd` no es configurable, así que se sustituye por este y el
+   * suyo se oculta por CSS. El tirador de arrastrar que va al lado sí funciona y
+   * no se toca.
+   *
+   * El menú se abre escribiendo `/`, que es lo mismo que hace el menú slash al
+   * teclearlo. Se usa ese camino y no el método interno de Crepe porque
+   * `menuAPI` no está exportado: el único subpaquete público es el de la
+   * feature entera, y ahí solo sale `blockEdit`.
+   */
+  function showInlineInsertMenu(): void {
+    const view = currentView();
+    if (!view || disposed) return;
+    if (!view.hasFocus()) view.focus();
+    if (prepareInsertionPoint(view, reportFailure) === null) return;
+    // El `/` dispara la regla de entrada de Crepe, que abre el menú. Va en su
+    // propia transacción para que la regla vea un estado limpio.
+    view.dispatch(view.state.tr.insertText("/"));
+  }
+
+  // --- Seguimiento del cursor --------------------------------------------
 
   const textCursorTracker = $prose(
     () =>
@@ -306,209 +221,77 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
         view: () => ({
           update: (view) => {
             if (disposed) return;
-            rememberTextCursor(view);
+            const { selection } = view.state;
+            if (selection instanceof TextSelection && selection.$from.parent.isTextblock) {
+              lastTextPos = selection.from;
+            }
             updateInsertAnchor(view);
           },
         }),
       }),
   );
 
-  // El `+` va anclado al bloque, así que tiene que moverse con el scroll: si no,
-  // se queda clavado en el sitio que ocupaba el bloque al moverse el texto.
-  function refreshInsertAnchor(): void {
-    if (disposed || !crepe) return;
-    updateInsertAnchor(crepe.editor.ctx.get(editorViewCtx));
-  }
-
-  // --- Barra flotante de formato -------------------------------------------
-  // Aquí ya no hay nada que la esconda: se ve cuando Crepe dice que se ve.
-  //
-  // Antes se tapaba con `opacity: 0` salvo que el puntero estuviera sobre el
-  // texto seleccionado, y eso la volvía inusable: al seleccionar con el
-  // teclado —Mayús flechas, doble clic, Ctrl+A— el puntero no se mueve, así
-  // que la barra no salía nunca y no había forma de poner negrita, cursiva o un
-  // título. Con el ratón era una lotería, y además la barra invisible seguía
-  // encima del texto cogiendo clics. Que se ve es lo que espera cualquiera
-  // que acaba de seleccionar texto; Crepe ya la coloca encima de la selección,
-  // que es justo donde no estorba.
-  //
-  // Y a lo seleccionado hay que poder darle tipo. Crepe pone en su barra
-  // negrita, cursiva, tachado, código, fórmula y enlace, pero ningún botón que
-  // cambie el bloque: sin eso el tipo de texto solo se podía cambiar con el
-  // cursor en una línea, nunca sobre un texto seleccionado. Por eso el grupo
-  // `blocks` de abajo.
+  // --- Color y fondo del texto -------------------------------------------
 
   /**
-   * Pone un tipo de bloque a lo que está seleccionado.
+   * Los diálogos de color del sistema se llevan el foco, y con él la selección.
    *
-   * Un solo camino, el de los botones de la barra flotante. Esos botones son de
-   * Crepe y los dispara en `pointerdown` con `preventDefault`, así que nunca le
-   * quitan el foco al `contenteditable`: la selección que hay en el editor es,
-   * sin más, la que se quiere cambiar. Por eso aquí no hay nada que recordar ni
-   * que recuperar.
-   *
-   * Lo que hay detrás es un diagnóstico, no una suposición. Este botón dio un
-   * resultado imposible de razonar —al cambiar el tipo de un texto
-   * seleccionado, el texto desaparecía, el editor dejaba de aceptar nada, y al
-   * reabrir la nota todo estaba bien y sin guardar— y la causa era que los
-   * bloques `catch` sin cuerpo de este archivo se comían la excepción. Una
-   * transacción que se corta a mitad deja la vista a medias, el serializador de
-   * Markdown falla sobre ese documento, no se guarda nada y ProseMirror se queda
-   * sin poder despachar. Aquí ya no hay nada que tragarse: o funciona, o se ve
-   * por qué.
+   * Se guarda la selección **antes** de abrir el diálogo, porque para entonces
+   * el editor ya está sin ella. Es el mismo problema que tenía el `+` antes, y
+   * se resuelve igual: recordar en el momento del gesto, no intentar recuperarlo
+   * después.
    */
-  function applyBlockType(type: EditorBlockType): void {
-    if (!crepe) return;
-    const view = crepe.editor.ctx.get(editorViewCtx);
-    const { selection } = view.state;
-    const before = view.state.doc.textContent.length;
-    const commands = crepe.editor.ctx.get(commandsCtx);
-    let applied = false;
-    try {
-      applied =
-        type === "paragraph"
-          ? commands.call(turnIntoTextCommand.key)
-          : type === "heading1"
-            ? commands.call(wrapInHeadingCommand.key, 1)
-            : type === "heading2"
-              ? commands.call(wrapInHeadingCommand.key, 2)
-              : type === "heading3"
-                ? commands.call(wrapInHeadingCommand.key, 3)
-                : type === "bullet"
-                  ? commands.call(wrapInBulletListCommand.key)
-                  : type === "ordered"
-                    ? commands.call(wrapInOrderedListCommand.key)
-                    : commands.call(wrapInBlockquoteCommand.key);
-      if (applied) leaveCaretAfterBlockType(view);
-      else reportEditorFailure(`el tipo ${type} no se pudo aplicar`, "el comando no hizo nada");
-    } catch (error) {
-      reportEditorFailure(`el tipo ${type} no se pudo aplicar`, error);
-    }
-    const after = view.state.doc.textContent.length;
-    // Un comando de Milkdown solo cambia el tipo de los bloques que toca la
-    // selección: no puede borrar texto. Si alguna vez aparece texto en esta
-    // línea, el culpable es esta función y no el comando, así que el aviso se
-    // lleva a quien escribe en lugar de quedarse en la consola. De momento solo
-    // suena en `debug`, porque no está pasando y no hay nada que contar.
-    if (import.meta.env.DEV) {
-      console.debug("xenner: tipo de bloque", {
-        type,
-        aplicado: applied,
-        seleccion: `${selection.from}–${selection.to}`,
-        bloque: selection.$from.parent.type.name,
-        caracteresAntes: before,
-        caracteresDespues: after,
-      });
-      if (after !== before) {
-        console.warn("xenner: el texto ha cambiado al aplicar el tipo; revisa esta función");
-      }
-    }
-    view.focus();
-  }
-
-  /**
-   * Deja el cursor al final de lo que se acaba de retocar, con nada seleccionado.
-   *
-   * Sin esto la selección se queda puesta y el siguiente carácter que se escriba
-   * sustituye el texto entero, por el gesto más natural del mundo: cambiar el
-   * tipo y seguir escribiendo. El texto se conserva; lo que se suelta es la
-   * selección, que ya ha hecho su trabajo y estorbaría para escribir.
-   */
-  function leaveCaretAfterBlockType(view: EditorView): void {
-    try {
-      view.dispatch(
-        view.state.tr
-          .setSelection(TextSelection.near(view.state.selection.$to, 1))
-          .scrollIntoView(),
-      );
-    } catch (error) {
-      reportEditorFailure("el tipo se puso pero el cursor no se quedó al final", error);
-    }
-  }
-
-  /**
- * Escribe en la nota un enlace al archivo adjunto.
- *
- * Se inserta como un enlace de commonmark —`[Informe.pdf](./.assets/…)`— y no
- * como un bloque propio: así el Markdown sigue siendo legible desde cualquier
- * editor, y la referencia es un archivo al lado de la nota en vez de una imagen
- * incrustada. No necesita ir en `prepared.replacements` porque ahí solo se
- * sustituyen los `data:` que no caben en el archivo.
- *
- * El enlace va en su propia línea: si el cursor estaba a media frase, partir el
- * bloque deja la frase intacta arriba y el adjunto debajo, que es como se lee.
- */
-function insertAttachmentLink(relativePath: string, label: string): void {
-  if (!crepe) return;
-  const view = crepe.editor.ctx.get(editorViewCtx);
-  restoreTextCursor(view);
-  const text = label.trim() || "Archivo";
-  const mark = linkSchema.type(crepe.editor.ctx).create({ href: relativePath, title: null });
-
-  // Con texto seleccionado se sustituye: adjuntar encima de un texto
-  // seleccionado significa que ese texto era el nombre del archivo.
-  if (!view.state.selection.empty) view.dispatch(view.state.tr.deleteSelection());
-
-  const $from = view.state.selection.$from;
-  const blockIsEmpty = $from.parent.isTextblock && $from.parent.content.size === 0;
-  if (!blockIsEmpty) {
-    // `createParagraphNear` no hace nada al final del documento; ahí lo que
-    // abre la línea de abajo es `splitBlock`.
-    if (!createParagraphNear(view.state, view.dispatch)) splitBlock(view.state, view.dispatch);
-  }
-
-  const from = view.state.selection.from;
-  const transaction = view.state.tr
-    .insertText(text, from)
-    .addMark(from, from + text.length, mark);
-  view.dispatch(transaction.scrollIntoView());
-  view.focus();
-}
-
-function captureTextSelection(): void {
-    if (!crepe) return;
-    const { from, to } = crepe.editor.ctx.get(editorViewCtx).state.selection;
-    pendingTextSelection = from === to ? null : { from, to };
-  }
-
-  function openTextStylePicker(input: HTMLInputElement | undefined): void {
-    if (!input) return;
-    captureTextSelection();
+  function openColorPicker(input: HTMLInputElement | undefined): void {
+    const view = currentView();
+    if (!input || !view) return;
+    const { from, to } = view.state.selection;
+    selectionBeforeDialog = from === to ? null : { from, to };
     input.click();
   }
 
-  function applyTextStyleValue(target: "color" | "background", value: string): boolean {
-    if (!crepe) return false;
+  function applyTextStyle(target: "color" | "background", value: string): boolean {
+    const view = currentView();
+    if (!view) return false;
     const normalized = normalizeTextColor(value);
     if (!normalized) return false;
-    const view = crepe.editor.ctx.get(editorViewCtx);
-    const selection = pendingTextSelection ?? view.state.selection;
-    const { from, to } = selection;
+    const { from, to } = selectionBeforeDialog ?? view.state.selection;
     if (from === to) return false;
-
-    const markType = textColorMark.type(crepe.editor.ctx);
-    let currentColor = "";
-    let currentBackground = "";
-    view.state.doc.nodesBetween(from, to, (node) => {
-      if (!node.isText) return;
-      const mark = node.marks.find((candidate) => candidate.type === markType);
-      if (!mark) return;
-      if (!currentColor) currentColor = normalizeTextColor(mark.attrs.color) ?? "";
-      if (!currentBackground) currentBackground = normalizeTextColor(mark.attrs.background) ?? "";
-    });
-    const attrs = target === "color"
-      ? { color: normalized, background: currentBackground }
-      : { color: currentColor, background: normalized };
-    const transaction = view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to));
-    transaction.removeMark(from, to, markType);
-    if (attrs.color || attrs.background) {
-      transaction.addMark(from, to, markType.create(attrs));
+    try {
+      const ctx = crepe!.editor.ctx;
+      const markType = textColorMark.type(ctx);
+      // Un color a la vez: el otro se lee de lo que ya hay puesto, para no
+      // borrarlo al cambiar solo el fondo.
+      let currentColor = "";
+      let currentBackground = "";
+      view.state.doc.nodesBetween(from, to, (node) => {
+        if (!node.isText) return;
+        const mark = node.marks.find((candidate) => candidate.type === markType);
+        if (!mark) return;
+        currentColor ||= normalizeTextColor(mark.attrs.color) ?? "";
+        currentBackground ||= normalizeTextColor(mark.attrs.background) ?? "";
+      });
+      const attrs =
+        target === "color"
+          ? { color: normalized, background: currentBackground }
+          : { color: currentColor, background: normalized };
+      const transaction = view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, from, to),
+      );
+      transaction.removeMark(from, to, markType);
+      if (attrs.color || attrs.background) {
+        transaction.addMark(from, to, markType.create(attrs));
+      }
+      view.dispatch(transaction.scrollIntoView());
+      view.focus();
+      selectionBeforeDialog = null;
+      return true;
+    } catch (error) {
+      reportFailure("no se pudo aplicar el color", error);
+      return false;
     }
-    view.dispatch(transaction.scrollIntoView());
-    view.focus();
-    pendingTextSelection = null;
-    return true;
   }
+
+  // --- Montaje ------------------------------------------------------------
 
   onMount(async () => {
     if (!root) return;
@@ -522,6 +305,8 @@ function captureTextSelection(): void {
       ]);
       if (disposed) return;
       let instance: CrepeInstance;
+      const ctx = (): Ctx => instance.editor.ctx;
+
       const insertWhiteboard = async (tool: DrawingTool): Promise<void> => {
         if (insertingWhiteboard) return;
         insertingWhiteboard = true;
@@ -533,23 +318,20 @@ function captureTextSelection(): void {
           });
           imported = await importImageForEditor(props.notePath, file);
           prepared.replacements.set(imported.dataUrl, imported.relativePath);
-                if (imported.revision) prepared.revisions.set(imported.dataUrl, imported.revision);
-          const node = whiteboardNode.type(instance.editor.ctx).create({
-            src: imported.dataUrl,
-            tool,
-            draft: true,
-            drawingId,
-          });
-          const view = instance.editor.ctx.get(editorViewCtx);
-          // El dock no roba el foco, pero la importación del asset es async:
-          // recolocamos la selección justo antes de insertar para que la
-          // pizarra caiga donde estaba el cursor de texto.
-          restoreTextCursor(view);
-          const commands = instance.editor.ctx.get(commandsCtx);
-          const inserted = commands.call(addBlockTypeCommand.key, { nodeType: node });
-          if (!inserted) throw new Error("No se pudo insertar el bloque de pizarra");
-          createParagraphNear(view.state, view.dispatch);
-          settleAfterInsertion(view);
+          if (imported.revision) prepared.revisions.set(imported.dataUrl, imported.revision);
+          const view = currentView();
+          if (!view) throw new Error("El editor no está listo");
+          // La importación del asset es async: el cursor puede haberse movido,
+          // así que se recoloca en el texto conocido justo antes de insertar.
+          focusTextCursor(view, lastTextPos, reportFailure);
+          const inserted = insertBlock(
+            ctx(),
+            view,
+            whiteboardNode.type(ctx()),
+            { src: imported.dataUrl, tool, draft: true, drawingId },
+            reportFailure,
+          );
+          if (!inserted) throw new Error("No se pudo insertar la pizarra");
         } catch (error) {
           if (imported) {
             await deleteAssetForEditor(props.notePath, imported.relativePath).catch(() => undefined);
@@ -566,110 +348,62 @@ function captureTextSelection(): void {
         root,
         defaultValue: prepared.content,
         features: {
-          [Crepe.Feature.AI]: false,
-          [Crepe.Feature.TopBar]: false,
-          [Crepe.Feature.BlockEdit]: true,
-          [Crepe.Feature.ImageBlock]: true,
+          [Crepe.Feature.AI]: CREPE_FEATURES[CREPE_FEATURE_KEYS.AI],
+          [Crepe.Feature.TopBar]: CREPE_FEATURES[CREPE_FEATURE_KEYS.TopBar],
+          [Crepe.Feature.BlockEdit]: CREPE_FEATURES[CREPE_FEATURE_KEYS.BlockEdit],
+          [Crepe.Feature.ImageBlock]: CREPE_FEATURES[CREPE_FEATURE_KEYS.ImageBlock],
         },
         featureConfigs: {
           [Crepe.Feature.BlockEdit]: {
             blockHandle: {
               root,
               getOffset: () => 10,
-              // El asa solo se usa para arrastrar bloques. Su botón `+` lo
-              // neutraliza `.blockHandleAddHidden` y lo sustituye
-              // `InlineInsertButton`: el de Crepe inserta **inevitablemente**
-              // por debajo del bloque y abre el menú de tipos, así que nunca
-              // podía respetar el gesto. Ver `blockHandleAddHidden` en el CSS.
-              shouldShow: showBlockHandle,
+              // El `+` del asa de Crepe se sustituye por el nuestro, que
+              // inserta en la línea del cursor. Se oculta por CSS.
+              shouldShow: () => {
+                const view = currentView();
+                return view ? canShowBlockHandle(view) : false;
+              },
             },
-            slashMenu: {
-              root,
-              offset: 8,
-            },
-            textGroup: {
-              label: "Texto",
-              text: { label: "Texto" },
-              h1: { label: "Título 1" },
-              h2: { label: "Título 2" },
-              h3: { label: "Título 3" },
-              h4: { label: "Título 4" },
-              h5: { label: "Título 5" },
-              h6: { label: "Título 6" },
-              quote: { label: "Cita" },
-              divider: { label: "Separador" },
-            },
-            listGroup: {
-              label: "Listas",
-              bulletList: { label: "Viñetas" },
-              orderedList: { label: "Numerada" },
-              taskList: { label: "Tareas" },
-            },
-            advancedGroup: {
-              label: "Insertar",
-              image: { label: "Imagen" },
-              codeBlock: { label: "Código" },
-              table: { label: "Tabla" },
-              math: { label: "Fórmula" },
-            },
+            slashMenu: { root, offset: 8 },
+            textGroup: SLASH_GROUPS.text,
+            listGroup: SLASH_GROUPS.list,
+            advancedGroup: SLASH_GROUPS.advanced,
             buildMenu(builder) {
               builder.addGroup("media", "Medio").addItem("whiteboard", {
-                icon: WHITEBOARD_SLASH_ICON,
+                icon: WHITEBOARD_ICON,
                 label: "Pizarra",
                 onRun: () => {
-                  const command = insertWhiteboardCommand;
-                  if (!command) return;
-                  void command("pen").catch((error) => {
+                  void insertWhiteboardCommand?.("pen").catch((error) => {
                     notifyError("No se pudo crear la pizarra", error);
                   });
                 },
               });
             },
           },
-          [Crepe.Feature.Placeholder]: {
-            text: "Escribe tu nota…",
-            mode: "doc",
-          },
-          [Crepe.Feature.LinkTooltip]: {
-            // Solo el marcador de posición es texto: `editButton`,
-            // `removeButton` y `confirmButton` reciben SVG. El tooltip que
-            // sale sobre un enlace ya escrito está en inglés dentro del
-            // paquete y no hay ningún campo para cambiarlo; queda anotado en
-            // `docs/FRONTEND_ARCHITECTURE.md` como lo que queda en inglés.
-            inputPlaceholder: "Pega el enlace…",
-          },
-          [Crepe.Feature.CodeMirror]: {
-            searchPlaceholder: "Buscar lenguaje",
-            noResultText: "Sin resultados",
-          },
+          [Crepe.Feature.Placeholder]: CREPE_TEXT_LABELS.placeholder,
+          [Crepe.Feature.LinkTooltip]: CREPE_TEXT_LABELS.link,
+          [Crepe.Feature.CodeMirror]: CREPE_TEXT_LABELS.codeMirror,
           [Crepe.Feature.Toolbar]: {
-            // Los nombres accesibles de los botones que pone Crepe. Los botones
-            // solo llevan un SVG dentro, así que sin `label` no tienen nombre
-            // accesible: un lector de pantalla lee «botón» a secas. Y en una app
-            // donde todo lo demás está en español, leer *Bold* en mitad de una
-            // nota en español es un descuido, no una traducción pendiente.
-            //
-            // El `title` que se ve al pasar el ratón sale de aquí también, y es
-            // lo que de verdad se lee de un vistazo.
-            boldLabel: "Negrita",
-            italicLabel: "Cursiva",
-            strikethroughLabel: "Tachado",
-            codeLabel: "Código en línea",
-            latexLabel: "Fórmula",
-            linkLabel: "Enlace",
+            boldLabel: CREPE_BUTTON_LABELS.bold,
+            italicLabel: CREPE_BUTTON_LABELS.italic,
+            strikethroughLabel: CREPE_BUTTON_LABELS.strikethrough,
+            codeLabel: CREPE_BUTTON_LABELS.code,
+            latexLabel: CREPE_BUTTON_LABELS.latex,
+            linkLabel: CREPE_BUTTON_LABELS.link,
             buildToolbar(builder) {
-              // El tipo de bloque va en la MISMA barra flotante que el formato,
-              // no en un segundo menú. Dos menús para lo mismo obligaban a
-              // decidir cuál era el bueno, y el dock acababa siendo el sitio
-              // donde el tipo se cambiaba de verdad mientras la barra —la que
-              // sale justo encima del texto— no podía.
+              // El tipo de bloque va en la MISMA barra flotante que el formato.
+              // Dos menús para lo mismo obligaban a decidir cuál era el bueno.
+              // Nació de un bug real: Crepe no pone ningún botón que cambie el
+              // tipo de bloque, así que el tipo solo se podía cambiar con el
+              // cursor en una línea.
               const blocks = builder.addGroup("blocks", "Tipo de texto");
-              for (const item of EDITOR_BLOCKS) {
+              for (const item of BLOCK_TYPE_ICONS) {
                 blocks.addItem(`block-${item.id}`, {
                   icon: item.icon,
                   label: item.label,
-                  active: (ctx) => {
-                    const view = ctx.get(editorViewCtx);
+                  active: (activeCtx) => {
+                    const view = activeCtx.get(editorViewCtx);
                     const { selection } = view.state;
                     return blockTypesInSelection(
                       view.state.doc,
@@ -677,35 +411,27 @@ function captureTextSelection(): void {
                       selection.to,
                     ).has(item.id);
                   },
-                  onRun: () => applyBlockType(item.id),
+                  onRun: () => runBlockCommand(ctx(), item.id as EditorBlockType, reportFailure),
                 });
               }
               builder
                 .addGroup("appearance", "Apariencia")
                 .addItem("text-color", {
-                  icon: TEXT_COLOR_TOOLBAR_ICON,
+                  icon: TEXT_COLOR_ICON,
                   label: "Color de texto",
                   active: () => false,
-                  onRun: () => openTextStylePicker(textColorInput),
+                  onRun: () => openColorPicker(textColorInput),
                 })
                 .addItem("text-background", {
-                  icon: TEXT_BACKGROUND_TOOLBAR_ICON,
+                  icon: TEXT_BACKGROUND_ICON,
                   label: "Fondo del texto",
                   active: () => false,
-                  onRun: () => openTextStylePicker(textBackgroundInput),
+                  onRun: () => openColorPicker(textBackgroundInput),
                 });
             },
           },
           [Crepe.Feature.ImageBlock]: {
-            // Los textos que se ven al subir una imagen. Los botones de esta
-            // pieza llevan SVG, no palabras, así que lo único que hay que
-            // traducir son los marcadores de posición y el rótulo de confirmar.
-            blockUploadButton: "Subir archivo",
-            blockConfirmButton: "Confirmar",
-            blockUploadPlaceholderText: "o pega un enlace",
-            blockCaptionPlaceholderText: "Escribe el pie de la imagen",
-            inlineUploadButton: "Subir",
-            inlineUploadPlaceholderText: "o pega un enlace",
+            ...CREPE_TEXT_LABELS.image,
             onUpload: async (file) => {
               try {
                 const imported = await importImageForEditor(props.notePath, file);
@@ -728,51 +454,56 @@ function captureTextSelection(): void {
         .use(whiteboardNode)
         .use(whiteboardRemark)
         .use(textCursorTracker)
-        .use(createWhiteboardView({
-          onSave: async (svg, currentSrc, saveOptions) => {
-            try {
-              const file = new File([svg], "pizarra.svg", { type: "image/svg+xml" });
-              const relativePath = prepared.replacements.get(currentSrc);
-              const saved = relativePath && !saveOptions?.copy
-                ? await updateAssetForEditor(
-                    props.notePath,
-                    relativePath,
-                    file,
-                    prepared.revisions.get(currentSrc),
-                  )
-                : await importImageForEditor(props.notePath, file);
-              prepared.replacements.delete(currentSrc);
-              prepared.revisions.delete(currentSrc);
-              prepared.replacements.set(saved.dataUrl, saved.relativePath);
-              if (saved.revision) prepared.revisions.set(saved.dataUrl, saved.revision);
-              if (saveOptions?.notify !== false) {
-                notifySuccess(relativePath ? "Pizarra actualizada" : "Pizarra guardada");
+        .use(
+          createWhiteboardView({
+            onSave: async (svg, currentSrc, saveOptions) => {
+              try {
+                const file = new File([svg], "pizarra.svg", { type: "image/svg+xml" });
+                const relativePath = prepared.replacements.get(currentSrc);
+                const saved =
+                  relativePath && !saveOptions?.copy
+                    ? await updateAssetForEditor(
+                        props.notePath,
+                        relativePath,
+                        file,
+                        prepared.revisions.get(currentSrc),
+                      )
+                    : await importImageForEditor(props.notePath, file);
+                prepared.replacements.delete(currentSrc);
+                prepared.revisions.delete(currentSrc);
+                prepared.replacements.set(saved.dataUrl, saved.relativePath);
+                if (saved.revision) prepared.revisions.set(saved.dataUrl, saved.revision);
+                if (saveOptions?.notify !== false) {
+                  notifySuccess(relativePath ? "Pizarra actualizada" : "Pizarra guardada");
+                }
+                return saved.dataUrl;
+              } catch (error) {
+                notifyError("No se pudo guardar la pizarra", error);
+                return null;
               }
-              return saved.dataUrl;
-            } catch (error) {
-              notifyError("No se pudo guardar la pizarra", error);
-              return null;
-            }
-          },
-          onDeleteAsset: async (currentSrc) => {
-            const relativePath = prepared.replacements.get(currentSrc);
-            if (!relativePath) return;
-            try {
-              await deleteAssetForEditor(props.notePath, relativePath);
-              prepared.replacements.delete(currentSrc);
-              prepared.revisions.delete(currentSrc);
-            } catch (error) {
-              notifyError("No se pudo eliminar la pizarra", error);
-              throw error;
-            }
-          },
-        }));
+            },
+            onDeleteAsset: async (currentSrc) => {
+              const relativePath = prepared.replacements.get(currentSrc);
+              if (!relativePath) return;
+              try {
+                await deleteAssetForEditor(props.notePath, relativePath);
+                prepared.replacements.delete(currentSrc);
+                prepared.revisions.delete(currentSrc);
+              } catch (error) {
+                notifyError("No se pudo eliminar la pizarra", error);
+                throw error;
+              }
+            },
+          }),
+        );
       crepe = instance;
       await instance.create();
       if (disposed) {
         await instance.destroy();
         return;
       }
+      // El `+` va anclado al bloque, así que tiene que moverse con el scroll: si
+      // no, se queda clavado donde estaba el bloque al desplazarse el texto.
       const surface = root.querySelector<HTMLElement>(".ProseMirror") ?? root;
       surface.addEventListener("scroll", refreshInsertAnchor, { passive: true });
       window.addEventListener("resize", refreshInsertAnchor);
@@ -782,12 +513,13 @@ function captureTextSelection(): void {
       });
       instance.on((listener) => {
         listener.markdownUpdated((_ctx, markdown) => {
-          if (!disposed) props.onChange(serializeMarkdownFromEditor(markdown, prepared.replacements));
+          if (disposed) return;
+          props.onChange(serializeMarkdownFromEditor(markdown, prepared.replacements));
         });
       });
       props.onReady?.({
         focus() {
-          instance.editor.ctx.get(editorViewCtx).focus();
+          currentView()?.focus();
         },
         async insertWhiteboard(tool: DrawingTool) {
           await insertWhiteboard(tool);
@@ -795,34 +527,35 @@ function captureTextSelection(): void {
         async insertAsset(dataUrl, relativePath, alt = "Imagen", revision) {
           prepared.replacements.set(dataUrl, relativePath);
           if (revision) prepared.revisions.set(dataUrl, revision);
-          const view = instance.editor.ctx.get(editorViewCtx);
-          restoreTextCursor(view);
-          const commands = instance.editor.ctx.get(commandsCtx);
-          const node = imageBlockSchema.type(instance.editor.ctx).create({
-            src: dataUrl,
-            caption: alt,
-            ratio: 1,
-          });
-          const inserted = commands.call(addBlockTypeCommand.key, { nodeType: node });
+          const view = currentView();
+          if (!view) {
+            await deleteAssetForEditor(props.notePath, relativePath).catch(() => undefined);
+            throw new Error("El editor no está listo");
+          }
+          focusTextCursor(view, lastTextPos, reportFailure);
+          const inserted = insertBlock(
+            ctx(),
+            view,
+            imageBlockSchema.type(ctx()),
+            { src: dataUrl, caption: alt, ratio: 1 },
+            reportFailure,
+          );
           if (!inserted) {
             await deleteAssetForEditor(props.notePath, relativePath).catch(() => undefined);
             prepared.replacements.delete(dataUrl);
             prepared.revisions.delete(dataUrl);
-            throw new Error("No se pudo insertar el bloque de imagen");
           }
-          createParagraphNear(view.state, view.dispatch);
-          settleAfterInsertion(view);
         },
         insertAttachment(relativePath, label) {
-          insertAttachmentLink(relativePath, label);
+          const view = currentView();
+          if (view) insertAttachmentLink(ctx(), view, relativePath, label, reportFailure);
         },
       });
       setReady(true);
     } catch (cause) {
       if (!disposed) {
-        const message = cause instanceof Error ? cause.message : "No se pudo iniciar el editor";
-        setError(message);
-        notifyError("No se pudo abrir el editor", message);
+        setError(cause instanceof Error ? cause.message : "No se pudo iniciar el editor");
+        notifyError("No se pudo abrir el editor", cause instanceof Error ? cause.message : "");
       }
     }
   });
@@ -853,11 +586,7 @@ function captureTextSelection(): void {
 
   return (
     <div class={styles.shell} data-x="editor">
-      <div
-        ref={(element) => (root = element)}
-        class={styles.editor}
-        data-x="editor-surface"
-      >
+      <div ref={(element) => (root = element)} class={styles.editor} data-x="editor-surface">
         <Show when={insertAnchor()}>
           {(anchor) => (
             <button
@@ -872,10 +601,17 @@ function captureTextSelection(): void {
               // `pointerdown` por la misma razón que en el dock.
               onPointerDown={(event) => {
                 event.preventDefault();
-                showInlineInsertButton();
+                showInlineInsertMenu();
               }}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
                 <path d="M12 5v14M5 12h14" />
               </svg>
             </button>
@@ -889,7 +625,7 @@ function captureTextSelection(): void {
         value={DEFAULT_TEXT_COLOR}
         tabIndex={-1}
         aria-label="Color del texto seleccionado"
-        onInput={(event) => applyTextStyleValue("color", event.currentTarget.value)}
+        onInput={(event) => applyTextStyle("color", event.currentTarget.value)}
       />
       <input
         ref={(element) => (textBackgroundInput = element)}
@@ -898,7 +634,7 @@ function captureTextSelection(): void {
         value={DEFAULT_TEXT_BACKGROUND}
         tabIndex={-1}
         aria-label="Fondo del texto seleccionado"
-        onInput={(event) => applyTextStyleValue("background", event.currentTarget.value)}
+        onInput={(event) => applyTextStyle("background", event.currentTarget.value)}
       />
       <Show when={!ready() && !error()}>
         <div class={styles.loading} role="status">

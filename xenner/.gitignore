@@ -17,3 +17,10 @@ src-tauri/gen/android/app/build/
 src-tauri/gen/android/.gradle/
 src-tauri/gen/android/build/
 src-tauri/target/
+
+# Las librerías nativas que Gradle copia para Android.
+#
+# No son código: son enlaces simbólicos **absolutos** a `src-tauri/target/…` de la
+# máquina donde se compiló. En un clon limpio no llevan a ningún sitio, y cualquier
+# recorrido del árbol del repositorio se rompía al seguirlos.
+src-tauri/gen/android/app/src/main/jniLibs/

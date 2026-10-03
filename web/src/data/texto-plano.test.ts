@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, lstatSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -60,6 +60,29 @@ const RAIZ = fileURLToPath(new URL('../../..', import.meta.url));
 /** Carpetas que no son código nuestro y que hay que saltarse. */
 const DESCARTAR = new Set(['node_modules', 'dist', 'target', 'build', 'coverage', '.astro']);
 
+/**
+ * Qué es una entrada del árbol, sin reventar con un enlace roto.
+ *
+ * `statSync` **sigue** los enlaces simbólicos y lanza `ENOENT` si el destino no
+ * está. En un clon recién hecho no hay ninguno de esos destinos —señalan a rutas
+ * de la máquina donde se compiló—, y un recorrido que se quede a medias es peor
+ * que uno que se salte lo que no puede leer.
+ *
+ * Los enlaces **no se siguen**: lo que hay al otro lado no es el repositorio, así
+ * que el texto que se leyera no sería el que se enseña.
+ */
+function tipoDe(ruta: string): 'fichero' | 'carpeta' | null {
+  let info: ReturnType<typeof lstatSync>;
+  try {
+    info = lstatSync(ruta);
+  } catch {
+    return null;
+  }
+  if (info.isSymbolicLink()) return null;
+  if (info.isDirectory()) return 'carpeta';
+  return info.isFile() ? 'fichero' : null;
+}
+
 /** Los archivos donde el texto se le por una persona. */
 function archivosDeTexto(): string[] {
   // Este archivo queda fuera a propósito: nombra todas las palabras que busca,
@@ -70,9 +93,14 @@ function archivosDeTexto(): string[] {
     for (const nombre of readdirSync(carpeta)) {
       if (DESCARTAR.has(nombre) || nombre.startsWith('.')) continue;
       const ruta = `${carpeta}/${nombre}`;
-      if (statSync(ruta).isDirectory()) {
+      const tipo = tipoDe(ruta);
+      if (tipo === 'carpeta') {
         recorrer(ruta);
-      } else if (/\.(ts|tsx|astro|css|md|rs|yml)$/.test(nombre) && nombre !== thisFile) {
+      } else if (
+        tipo === 'fichero' &&
+        /\.(ts|tsx|astro|css|md|rs|yml)$/.test(nombre) &&
+        nombre !== thisFile
+      ) {
         encontrados.push(ruta);
       }
     }

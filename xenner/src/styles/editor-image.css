@@ -1,0 +1,177 @@
+/*
+ * La imagen de una nota, por dentro.
+ *
+ * Va en una hoja **global** y no en el módulo del editor a propósito: la vista de
+ * nodo de `note-image.ts` es DOM plano —no Solid— porque así el motor no depende
+ * de la interfaz. Los módulos CSS solo se aplican a lo que Solid pinta, y aquí no
+ * hay Solid: sin esta hoja, los tiradores de tamaño y los botones de alineación
+ * saldrían sin estilo.
+ *
+ * Los colores salen de los tokens del tema, como todo lo demás: una foto con los
+ * tiradores azules de fábrica rompe un tema oscuro igual que cualquier otra cosa.
+ */
+
+/* El contenedor lo pone `display: flex` el redimensionable; aquí solo se afina. */
+.note-image {
+  display: flex;
+  position: relative;
+  max-width: 100%;
+  margin: 1em 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.note-image__resizable {
+  max-width: 100%;
+  line-height: 0;
+}
+
+.note-image__picture {
+  max-width: 100%;
+  height: auto;
+  border-radius: calc(var(--skin-note-radius, 10px) * 0.5);
+}
+
+/*
+ * Se ven **solo con la imagen seleccionada**, igual que en Word. Siempre visibles
+ * son cuatro cosas dibujadas encima de cada foto de la nota, y lo que se está
+ * leyendo no es la foto.
+ *
+ * `ProseMirror-selectednode` es la clase que pone el propio ProseMirror al
+ * seleccionar el nodo: no hay que llevar la cuenta a mano.
+ */
+.note-image__handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background-color: var(--skin-note-background, #fff);
+  border: 2px solid var(--skin-note-accent, #2383e2);
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.note-image__handle[data-direction="right"] {
+  top: 50%;
+  right: -6px;
+  margin-top: -6px;
+  cursor: ew-resize;
+}
+
+.note-image__handle[data-direction="bottom"] {
+  bottom: -6px;
+  left: 50%;
+  margin-left: -6px;
+  cursor: ns-resize;
+}
+
+.note-image__handle[data-direction="bottom-right"] {
+  right: -6px;
+  bottom: -6px;
+  cursor: nwse-resize;
+}
+
+.note-image:hover .note-image__handle,
+.ProseMirror-selectednode.note-image .note-image__handle,
+.note-image--resizing .note-image__handle {
+  opacity: 1;
+}
+
+/* Estirando, los tiradores no desaparecen bajo el puntero. */
+.note-image--resizing {
+  user-select: none;
+}
+
+/* Una imagen que no se pudo cargar: el hueco conserva el pie a la vista. */
+.note-image--missing .note-image__picture {
+  display: none;
+}
+
+.note-image__missing {
+  margin: 0;
+  padding: 18px 14px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 0.85em;
+  text-align: center;
+  border: 1px dashed var(--skin-input-border);
+  border-radius: var(--skin-input-radius, 6px);
+}
+
+/*
+ * El pie y los tres botones de alineación, en una fila.
+ *
+ * Vienen en la propia imagen en vez de en una barra fija porque así no están
+ * encima de lo que se está leyendo: aparecen cuando la imagen está seleccionada.
+ */
+.note-image__caption {
+  width: 100%;
+  margin-top: 6px;
+  padding: 3px 6px;
+  color: var(--skin-sidebar-textDim);
+  font-family: var(--skin-editor-font, inherit);
+  font-size: 0.82em;
+  text-align: center;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius, 7px) * 0.7);
+}
+
+.note-image__caption::placeholder {
+  color: var(--skin-sidebar-textDim);
+  opacity: 0.65;
+}
+
+.note-image__caption:hover {
+  border-color: var(--skin-input-border);
+}
+
+.note-image__caption:focus {
+  color: var(--skin-note-text);
+  background-color: var(--skin-input-background);
+  border-color: var(--skin-input-focus);
+  outline: none;
+}
+
+.note-image__align {
+  display: none;
+  width: 100%;
+  gap: 2px;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.ProseMirror-selectednode.note-image .note-image__align,
+.note-image:hover .note-image__align {
+  display: flex;
+}
+
+.note-image__align-button {
+  display: grid;
+  width: 24px;
+  height: 22px;
+  place-items: center;
+  padding: 0;
+  color: var(--skin-toolbar-textDim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius, 7px) * 0.7);
+  cursor: pointer;
+}
+
+.note-image__align-button:hover {
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.note-image__align-button[aria-pressed="true"] {
+  color: var(--skin-toolbar-accent);
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+  border-color: var(--skin-toolbar-border);
+}
+
+@media (max-width: 640px) {
+  /* En un dedo no hay «estirar por la esquina»: estorba más de lo que ayuda. */
+  .note-image__handle {
+    display: none;
+  }
+}

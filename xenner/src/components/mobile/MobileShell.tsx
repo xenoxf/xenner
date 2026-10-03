@@ -61,6 +61,15 @@ export interface MobileShellProps {
   creation: CreationDraft | null;
   creating: boolean;
   canPaste: boolean;
+  /**
+   * La ruta de la carpeta que se acaba de crear, o `null`.
+   *
+   * La necesita porque no puede deducirla del árbol: el watcher sondea cada
+   * 2,5 segundos y puede traer en el mismo turno una carpeta sincronizada de
+   * otra máquina. El controlador dice cuál es, que es la única forma de no
+   * equivocar.
+   */
+  createdPath?: string | null;
 
   onOpenSettings(): void;
   onDismissError(): void;
@@ -120,8 +129,6 @@ export function MobileShell(props: MobileShellProps) {
   const [editing, setEditing] = createSignal(false);
   const [query, setQuery] = createSignal("");
   const [folder, setFolder] = createSignal<string | null>(null);
-  /** Guardando las carpetas de antes de empezar a crear una, para ver la nueva. */
-  let foldersBefore: ReadonlySet<string> = new Set<string>();
   const [awaitingFolder, setAwaitingFolder] = createSignal(false);
   /**
    * Se ha pedido una nota nueva y aún no existe su documento. El editor no se
@@ -129,6 +136,11 @@ export function MobileShell(props: MobileShellProps) {
    * foco en su título, y escribir un nombre renombraría el fichero viejo.
    */
   const [startingNote, setStartingNote] = createSignal(false);
+  /**
+   * La nota que estaba abierta al pedir una nueva. Sirve para distinguir la nota
+   * recién creada de la anterior: solo la primera cambia de ruta.
+   */
+  let noteBeforeCreating: string | null = null;
   let editorInHistory = false;
   /** Pide el foco del editor en cuanto la nota nueva esté cargada. */
   let focusWhenReady = false;
@@ -201,29 +213,25 @@ export function MobileShell(props: MobileShellProps) {
    * se guarda el censo de carpetas de antes y se espera a que aparezca una nueva.
    *
    * Solo se mira el diff **mientras se está creando**. El watcher de la biblioteca
-   * sondea cada 2,5 segundos y puede traer una carpeta que no es de esta creación
-   * —una sincronizada desde otro sitio, otra máquina— y se seleccionaba esa en vez
-   * de la recién creada. Con la lista congelada no hay carrera, porque la carpeta
-   * propia tampoco estará aún.
+   * sondea cada 2,5 segundos y puede traer en el mismo aliento una carpeta
+   * sincronizada desde otro sitio. Comparar el censo de antes con el de después
+   * elegía la primera ruta nueva por orden alfabético, que no era necesariamente
+   * la propia. Por eso el controlador dice cuál es: `createdPath` es la ruta que
+   * devolvió la creación, sin ambigüedad.
    */
   createEffect(() => {
     if (!awaitingFolder()) return;
-    const creating = props.creating;
-    const draft = props.creation;
-    const paths = folders().map((item) => item.path);
-    if (creating || draft) {
-      const created = paths.find((path) => !foldersBefore.has(path));
-      if (created) {
-        setFolder(created);
-        setAwaitingFolder(false);
-      }
+    const created = props.createdPath;
+    if (created) {
+      setFolder(created);
+      setAwaitingFolder(false);
       return;
     }
-    // Se acabó la creación sin carpeta nueva. Solo se desarma si ya no queda
-    // borrador: el controlador no limpia el suyo cuando la creación falla, así que
-    // quedarse esperando aquí dejaría el filtro de la lista apuntando a lo que
-    // apareciera después, y el botón flotante crearía las notas en esa carpeta.
-    setAwaitingFolder(false);
+    // La creación terminó sin carpeta —falló o se canceló—: no hay nada que
+    // elegir. Sin esta salida la lista se quedaba esperando, y la primera carpeta
+    // que trajera el watcher se convertía en el filtro, con el botón flotante
+    // creando las notas ahí.
+    if (!props.creating && props.creation === null) setAwaitingFolder(false);
   });
 
   function pushEditorHistory(): void {
@@ -262,29 +270,38 @@ export function MobileShell(props: MobileShellProps) {
    */
   function createNote(): void {
     if (props.creating) return;
+    // Se apunta la nota que hay ahora mismo. Es la única forma de saber cuál es
+    // la **nueva**: esperar a que `selectedPath` y `document` coincidan no sirve,
+    // porque mientras haya una nota seleccionada ya coinciden —con la anterior— y
+    // el editor se abría con ella. La nota nueva es la que tenga otra ruta.
+    noteBeforeCreating = props.selectedPath;
     setStartingNote(true);
     props.onStartCreation("note", folder() ?? "");
   }
 
   /**
-   * Cuando la nota recién creada ya está cargada, se entra a escribir.
+   * Cuando la nota recién creada está cargada, se entra a escribir.
    *
-   * Es el momento en que `selectedPath` y `document` apuntan a la misma nota
-   * nueva, y en el que el campo de título ya está montado para recibir el foco.
+   * La señal es que la ruta seleccionada haya cambiado: la creación elige la nota
+   * nueva y la deja seleccionada, así que `selectedPath` pasa a ser un nombre
+   * distinto al que había. Se espera además a que su documento exista, que es
+   * cuando el campo de título ya está montado para recibir el foco.
    */
   createEffect(() => {
     const path = props.selectedPath;
     const current = props.document;
     if (!startingNote()) return;
-    if (path && current?.path === path) {
+    if (path && path !== noteBeforeCreating && current?.path === path) {
       setStartingNote(false);
       focusWhenReady = true;
       setEditing(true);
       pushEditorHistory();
+      return;
     }
-    // Si la creación se cancela o falla, el editor se queda esperando y no hay
-    // nota nueva que abrir.
-    if (!props.creating && props.creation === null && !path) setStartingNote(false);
+    // La creación terminó sin dar ninguna nota nueva —falló o se canceló—, así
+    // que no hay nada que abrir. Sin esta salida el botón se quedaba inutilizado
+    // para siempre.
+    if (!props.creating && props.creation === null) setStartingNote(false);
   });
 
   /**
@@ -327,7 +344,6 @@ export function MobileShell(props: MobileShellProps) {
   }
 
   function submitCreation(name: string): void {
-    foldersBefore = new Set(folders().map((item) => item.path));
     setAwaitingFolder(true);
     props.onSubmitCreation(name);
   }

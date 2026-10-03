@@ -1,65 +1,21 @@
-import { resolveAssetReference } from "../editor/asset-paths";
-import type {
-  ImportedEditorAsset,
-  PreparedMarkdown,
-} from "../types/editor";
-import type { AssetPayload, ImportedAsset, ImportedAttachment } from "../types/workspace";
+import type { ImportedEditorAsset } from "../types/editor";
+import type { ImportedAsset, ImportedAttachment } from "../types/workspace";
 import { getWorkspaceGateway } from "./workspace/gateway";
 
 export { resolveAssetReference } from "../editor/asset-paths";
 
-const IMAGE_MARKDOWN = /(!\[[^\]]*\]\()([^)\s]+)((?:\s+["'][^)]*["'])?\))/g;
-
-function dataUrl(payload: AssetPayload): string {
-  return `data:${payload.mime};base64,${payload.dataBase64}`;
-}
-
-export async function prepareMarkdownForEditor(
-  notePath: string,
-  markdown: string,
-): Promise<PreparedMarkdown> {
-  const sources = new Set<string>();
-  for (const match of markdown.matchAll(IMAGE_MARKDOWN)) {
-    const source = match[2];
-    if (resolveAssetReference(notePath, source)) sources.add(source);
-  }
-
-  const loaded = new Map<string, { dataUrl: string; revision: string }>();
-  await Promise.all(
-    [...sources].map(async (source) => {
-      const assetPath = resolveAssetReference(notePath, source);
-      if (!assetPath) return;
-      try {
-        const payload = await getWorkspaceGateway().readAsset(notePath, assetPath);
-        loaded.set(source, { dataUrl: dataUrl(payload), revision: payload.revision });
-      } catch {
-        // Un asset roto no impide abrir el Markdown; se conserva la referencia.
-      }
-    }),
-  );
-
-  const replacements = new Map<string, string>();
-  const revisions = new Map<string, string>();
-  let content = markdown.replace(IMAGE_MARKDOWN, (full, prefix, source, suffix) => {
-    const asset = loaded.get(source);
-    if (!asset) return full;
-    replacements.set(asset.dataUrl, source);
-    revisions.set(asset.dataUrl, asset.revision);
-    return `${prefix}${asset.dataUrl}${suffix}`;
-  });
-  return { content, replacements, revisions };
-}
-
-export function serializeMarkdownFromEditor(
-  markdown: string,
-  replacements: ReadonlyMap<string, string>,
-): string {
-  let serialized = markdown;
-  for (const [displayUrl, source] of [...replacements.entries()].sort((left, right) => right[0].length - left[0].length)) {
-    serialized = serialized.split(displayUrl).join(source);
-  }
-  return serialized;
-}
+/**
+ * Los ficheros que se pueden meter en una nota.
+ *
+ * Aquí solo hay **entrada y salida de bytes**: importar un fichero, elegir uno del
+ * sistema, actualizarlo o borrarlo. Lo que el editor hace con el resultado —cargar
+ * los assets de una nota antes de abrirla y volver a escribir las rutas al
+ * serializar— vive en `editor/markdown/assets.ts`, que es del motor y se puede
+ * probar sin Tauri.
+ *
+ * La frontera está puesta para que este módulo no dependa de nada del editor:
+ * los diálogos del sistema son cosa de la app, no del motor.
+ */
 
 async function fileToBase64(file: File): Promise<string> {
   const bytes = new Uint8Array(await file.arrayBuffer());

@@ -16,7 +16,7 @@ import {
 } from "../../services/editorSession";
 import styles from "../../styles/components/EditorPane.module.css";
 import type { DrawingTool } from "../../types/drawing";
-import type { MarkdownEditorHandle } from "../../types/editor";
+import type { NoteEditorHandle } from "../../types/editor";
 import type {
   NoteDocument,
   SaveStatus,
@@ -26,7 +26,7 @@ import { NOTE_TITLE_MAX_LENGTH } from "../../workspace/note";
 import { Button } from "../ui/Button";
 import { NoteIcon, RefreshIcon } from "../ui/Icons";
 import { EditorToolbar } from "./EditorToolbar";
-import { MarkdownEditor } from "./MarkdownEditor";
+import { NoteEditor } from "./NoteEditor";
 
 export interface EditorPaneProps {
   document: NoteDocument | null;
@@ -72,7 +72,7 @@ export function EditorPane(props: EditorPaneProps) {
   const [attachmentBusy, setAttachmentBusy] = createSignal(false);
   const [titleDraft, setTitleDraft] = createSignal("");
   const [titleFocused, setTitleFocused] = createSignal(false);
-  let editorHandle: MarkdownEditorHandle | null = null;
+  let editorHandle: NoteEditorHandle | null = null;
   let imageInput: HTMLInputElement | undefined;
   let attachmentInput: HTMLInputElement | undefined;
   let lastDocumentPath: string | undefined;
@@ -146,12 +146,7 @@ export function EditorPane(props: EditorPaneProps) {
     try {
       const imported = await chooseImageForEditor(document.path);
       if (!imported || !editorHandle) return;
-      await editorHandle.insertAsset(
-        imported.dataUrl,
-        imported.relativePath,
-        imported.fileName,
-        imported.revision,
-      );
+      await editorHandle.insertImage(imported, imported.fileName);
       notifySuccess("Imagen insertada", imported.fileName);
     } catch (error) {
       notifyError("No se pudo insertar la imagen", error);
@@ -178,12 +173,7 @@ export function EditorPane(props: EditorPaneProps) {
     setImageBusy(true);
     try {
       const imported = await importImageForEditor(document.path, file);
-      await editorHandle.insertAsset(
-        imported.dataUrl,
-        imported.relativePath,
-        file.name,
-        imported.revision,
-      );
+      await editorHandle.insertImage(imported, file.name);
       notifySuccess("Imagen insertada", file.name);
     } catch (error) {
       notifyError("No se pudo insertar la imagen", error);
@@ -372,14 +362,25 @@ export function EditorPane(props: EditorPaneProps) {
                         </div>
                       </div>
                     </Show>
-                    <MarkdownEditor
+                    <NoteEditor
                       notePath={documentPath}
-                      initialValue={props.document?.body ?? ""}
+                      markdown={props.document?.body ?? ""}
                       reloadToken={props.reloadToken}
-                      onChange={props.onChange}
-                      // El menú del `+` devuelve el gesto para adjuntar: el
-                      // importador y el diálogo del sistema ya están aquí
-                      // montados, y el editor no sabe qué archivos hay.
+                      onChange={(body) => {
+                        // El editor entrega su Markdown con retardo, y lo suelta
+                        // una última vez al destruirse. Para entonces esta rama ya
+                        // puede ser la de una nota que **no** es la suya: si se
+                        // entregara sin mirar, `updateSelectedDocument` guardaría
+                        // el texto de la nota anterior en la nueva. La comprobación
+                        // es la de la ruta, que es lo único que no cambia mientras
+                        // se está escribiendo en ella.
+                        if (props.document?.path !== documentPath) return;
+                        props.onChange(body);
+                      }}
+                      // El menú del `+` devuelve el gesto para imagen y adjunto:
+                      // los importadores y los diálogos del sistema ya están
+                      // aquí montados, y el editor no sabe qué archivos hay.
+                      requestImage={() => void chooseImage()}
                       requestAttachment={() => void chooseAttachment()}
                       onReady={(handle) => {
                         editorHandle = handle;

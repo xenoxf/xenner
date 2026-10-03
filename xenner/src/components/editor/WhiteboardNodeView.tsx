@@ -1,9 +1,6 @@
-import type { Node as ProseNode } from "@milkdown/kit/prose/model";
-import type {
-  EditorView,
-  NodeView,
-} from "@milkdown/kit/prose/view";
-import { $view } from "@milkdown/kit/utils";
+import type { NodeViewProps } from "@tiptap/core";
+import type { Node as ProseNode } from "@tiptap/pm/model";
+import type { NodeView } from "@tiptap/pm/view";
 import { createUniqueId, lazy, Suspense } from "solid-js";
 import { render } from "solid-js/web";
 
@@ -14,23 +11,29 @@ import {
   hasDrawingContent,
   parseDrawingPaper,
   parseDrawingSvg,
-} from "../../editor/drawing";
-import { shouldShowDrawingPreview } from "../../editor/whiteboard";
-import { whiteboardNode } from "../../editor/whiteboard-node";
+} from "../../editor/drawing.ts";
+import { shouldShowDrawingPreview } from "../../editor/extensions/whiteboard.ts";
 import {
   getActiveWhiteboard,
   leaveEditor,
   registerWhiteboardSession,
   updateWhiteboardSession,
-} from "../../services/editorSession";
+} from "../../services/editorSession.ts";
 import styles from "../../styles/components/WhiteboardNodeView.module.css";
-import type { DrawingTool } from "../../types/drawing";
+import type { DrawingTool } from "../../types/drawing.ts";
 
 const WhiteboardBlock = lazy(() =>
-  import("./WhiteboardBlock").then((module) => ({ default: module.WhiteboardBlock })),
+  import("./WhiteboardBlock.tsx").then((module) => ({ default: module.WhiteboardBlock })),
 );
 
-export interface WhiteboardViewOptions {
+/**
+ * Lo que la vista de nodo necesita de la app para guardar un dibujo.
+ *
+ * Es el mismo contrato que recibe la extensión del motor (`WhiteboardViewOptions`),
+ * y llega aquí desde `NoteEditor`: escribir un asset es cosa de la app —el motor
+ * no sabe qué ficheros hay—, así que quien guarda es quien pinta.
+ */
+export interface WhiteboardSaveOptions {
   onSave(
     svg: string,
     currentSrc: string,
@@ -39,12 +42,12 @@ export interface WhiteboardViewOptions {
   onDeleteAsset?(currentSrc: string): Promise<void>;
 }
 
-class WhiteboardNodeView implements NodeView {
+class WhiteboardView implements NodeView {
   readonly dom: HTMLDivElement;
-  private readonly view: EditorView;
-  private readonly getPos: () => number | undefined;
-  private readonly onSave: WhiteboardViewOptions["onSave"];
-  private readonly onDeleteAsset?: WhiteboardViewOptions["onDeleteAsset"];
+  private readonly view: NodeViewProps["view"];
+  private readonly getPos: NodeViewProps["getPos"];
+  private readonly onSave: WhiteboardSaveOptions["onSave"];
+  private readonly onDeleteAsset?: WhiteboardSaveOptions["onDeleteAsset"];
   private readonly preview: HTMLButtonElement;
   private readonly image: HTMLImageElement;
   private readonly editorHost: HTMLDivElement;
@@ -61,17 +64,12 @@ class WhiteboardNodeView implements NodeView {
   private unregisterSession: (() => void) | null = null;
   private disposeEditor: (() => void) | null = null;
 
-  constructor(
-    initialNode: ProseNode,
-    view: EditorView,
-    getPos: () => number | undefined,
-    options: WhiteboardViewOptions,
-  ) {
-    this.view = view;
-    this.getPos = getPos;
+  constructor(props: NodeViewProps, options: WhiteboardSaveOptions) {
+    this.view = props.view;
+    this.getPos = props.getPos;
     this.onSave = options.onSave;
     this.onDeleteAsset = options.onDeleteAsset;
-    this.currentNode = initialNode;
+    this.currentNode = props.node;
 
     this.dom = document.createElement("div");
     this.dom.className = styles.node;
@@ -80,7 +78,7 @@ class WhiteboardNodeView implements NodeView {
     this.preview = document.createElement("button");
     this.preview.type = "button";
     this.preview.className = styles.preview;
-    this.preview.disabled = !view.editable;
+    this.preview.disabled = !this.view.editable;
     this.preview.title = "Doble clic para editar · arrastrar para mover";
     this.preview.setAttribute("aria-label", "Doble clic para editar el dibujo");
     this.preview.addEventListener("dblclick", (event) => {
@@ -110,7 +108,7 @@ class WhiteboardNodeView implements NodeView {
     this.dom.append(this.preview, this.editorHost);
     this.syncDraggable();
     this.updatePreview();
-    if (initialNode.attrs.draft) queueMicrotask(() => void this.startEditing());
+    if (props.node.attrs.draft) queueMicrotask(() => void this.startEditing());
   }
 
   update(node: ProseNode): boolean {
@@ -451,8 +449,17 @@ class WhiteboardNodeView implements NodeView {
   }
 }
 
-export function createWhiteboardView(options: WhiteboardViewOptions) {
-  return $view(whiteboardNode.node, () => (node, view, getPos) =>
-    new WhiteboardNodeView(node, view, getPos, options),
-  );
+/**
+ * La vista de nodo de la pizarra, en la interfaz de Tiptap.
+ *
+ * La crea el motor a través de `whiteboard.renderNodeView`, y por eso recibe
+ * `NodeViewProps` (`getPos`, `view`, `editor`) y devuelve un `NodeView`. Los
+ * callbacks de guardado llegan aparte porque son de la app: el motor dibuja el
+ * nodo, pero no sabe escribir en `.assets`.
+ */
+export function WhiteboardNodeView(
+  props: NodeViewProps,
+  options: WhiteboardSaveOptions,
+): NodeView {
+  return new WhiteboardView(props, options);
 }

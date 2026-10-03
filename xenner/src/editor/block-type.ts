@@ -4,16 +4,16 @@ import type { EditorBlockType } from "../types/editor";
  * Qué tipo de bloque hay activo en una selección, y por qué.
  *
  * Existe por un bug real: el tipo de texto solo se podía cambiar con el cursor
- * en una línea, nunca con un texto seleccionado encima. Los comandos de Milkdown
- * (`wrapInHeadingCommand` y compañía) ya saben aplicar el cambio a todos los
- * bloques que toca la selección, así que el problema no era el cambio: era que
- * no había forma de pedirlo desde el texto seleccionado, y que al pedirlo desde
- * el dock la selección se perdía por el camino.
+ * en una línea, nunca con un texto seleccionado encima. Los comandos de Tiptap
+ * (`setBlockType` y compañía) saben aplicar el cambio a todos los bloques que
+ * toca la selección, así que el problema no era el cambio: era que no había
+ * forma de pedirlo desde el texto seleccionado, y que al pedirlo desde el dock
+ * la selección se perdía por el camino.
  *
  * Para poner de relieve qué botón está pulsado hace falta saber qué tipo tiene
- * cada bloque, y eso es lo que hay aquí. Los nombres de nodo son los del
- * `commonmark` de Milkdown; no se comparan objetos del esquema porque este
- * módulo se importa también fuera del navegador.
+ * cada bloque, y eso es lo que hay aquí. Los nombres de nodo son los del esquema
+ * de Tiptap —`bulletList`, `orderedList`—; no se comparan objetos del esquema
+ * porque este módulo se importa también fuera del navegador.
  */
 
 /** Lo mínimo de `ResolvedPos` que hace falta para leer los ancestros. */
@@ -57,8 +57,11 @@ export function blockTypeAt($pos: BlockPosition): EditorBlockType {
     const node = $pos.node(depth);
     const name = node.type.name;
     if (name === "blockquote") return "quote";
-    if (name === "bullet_list") return "bullet";
-    if (name === "ordered_list") return "ordered";
+    // Una lista de tareas es una lista de viñetas con otra forma: su contenedor
+    // cuelga igual de la lista, así que el botón que se marca es el de lista y
+    // no hay un botón aparte para las tareas.
+    if (name === "bulletList" || name === "taskList") return "bullet";
+    if (name === "orderedList") return "ordered";
     if (name === "heading") return headingType(node.attrs?.level);
   }
   const parentName = $pos.parent?.type.name;
@@ -82,23 +85,29 @@ export function blockTypesInSelection(
 ): Set<EditorBlockType> {
   const types = new Set<EditorBlockType>();
   doc.nodesBetween(from, to, (node, pos) => {
-    // `nodesBetween` también pasa por los contenedores: una `bullet_list` con
-    // sus dos `list_item` son tres visitas, y solo la del párrafo de dentro
+    // `nodesBetween` también pasa por los contenedores: una `bulletList` con
+    // sus dos `listItem` son tres visitas, y solo la del párrafo de dentro
     // dice qué hay escrito. Sin este filtro un elemento suelto de una lista se
     // contaría también como texto suelto.
     if (node?.isTextblock !== true) return undefined;
-    types.add(blockTypeAt(doc.resolve(pos)));
+    // **`pos + 1`, y no `pos`.** `nodesBetween` entrega la posición *antes* del
+    // nodo, y resolver ahí cae en el bloque **anterior**: con el cursor dentro de
+    // un `##` se leía «Texto» y el botón de título no se marcaba. Una posición
+    // más es el interior del bloque, que es lo que hay que preguntar.
+    types.add(blockTypeAt(doc.resolve(pos + 1)));
     return undefined;
   });
   if (!types.size && from === to) {
+    // Aquí no hace falta el desplazamiento: `from` es ya la posición del cursor,
+    // y sí está dentro de su bloque.
     types.add(blockTypeAt(doc.resolve(from)));
   }
   return types;
 }
 
 /**
- * Un `h4`, `h5` o `h6` se enseña como el `Título 3` más cercano: en el dock y
- * en el mini menú no hay un botón por cada nivel, y los títulos de 4 a 6 se
+ * Un `h4`, `h5` o `h6` se enseña como el `Título 3` más cercano: en el menú y
+ * en la barra flotante no hay un botón por cada nivel, y los títulos de 4 a 6 se
  * crean con el menú slash. Marcar el nivel cercano deja claro que la línea es
  * un título sin inventar un botón que no existe.
  */

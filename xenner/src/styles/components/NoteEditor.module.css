@@ -1,0 +1,1022 @@
+/*
+ * La capa del editor: la columna de lectura, el asa del bloque, el menú del `+`,
+ * el menú de la `/` y la barra flotante.
+ *
+ * Antes esta hoja traducía las variables de tema a las de Crepe (`--crepe-*`) y
+ * dejaba que la biblioteca pusiera el resto: barra, asa y menú `/` venían de
+ * Milkdown. Ahora no hay biblioteca detrás, así que aquí está todo lo que se ve.
+ *
+ * Los colores, las medidas grandes y las tipografías salen siempre de los tokens
+ * del tema (`--skin-note-*`, `--skin-toolbar-*`, `--skin-sidebar-*`,
+ * `--skin-input-*`, `--skin-button-*`). Lo que no depende del tema —el ancho de
+ * un botón, el hueco del asa— es una medida fija de esta hoja.
+ */
+
+.shell,
+.editor {
+  min-height: 52vh;
+}
+
+.shell {
+  position: relative;
+}
+
+/*
+ * La superficie es lo que coloca el asa y los dos menús. Es `relative` porque
+ * ellos se sitúan en coordenadas suyas, y no en coordenadas de la ventana: así
+ * el menú `/` y el del `+` se mueven con la columna cuando esta se desplaza.
+ */
+.surface {
+  position: relative;
+  isolation: isolate;
+}
+
+.editor {
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  font-family: var(--skin-editor-font, var(--skin-background-font));
+}
+
+/* --- La columna de lectura ------------------------------------------------ */
+
+.editor :global(.ProseMirror) {
+  width: 100%;
+  max-width: none;
+  min-height: 52vh;
+  margin: 0;
+  padding: 0;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-background);
+  outline: none;
+  text-align: left;
+  font-family: var(--skin-editor-font, var(--skin-background-font));
+  font-size: var(--skin-editor-size, 16px);
+  line-height: var(--skin-editor-line-height, 1.7);
+}
+
+.editor :global(.ProseMirror > :first-child) {
+  margin-top: 0;
+}
+
+/*
+ * El texto de una nota vacía.
+ *
+ * Es un pseudo-elemento de altura cero, que es como se hace: si ocupara sitio, el
+ * texto de verdad se iría de su sitio al escribir la primera letra.
+ */
+.editor :global(.ProseMirror .is-empty)::before,
+.editor :global(.ProseMirror .is-editor-empty)::before {
+  float: left;
+  height: 0;
+  color: var(--skin-input-placeholder);
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
+/*
+ * El color del texto seleccionado dentro del editor.
+ *
+ * Aquí se dice explícitamente, y es el texto del propio tema: si no lo pone la
+ * hoja, lo elige el navegador según el `color-scheme` del sistema, y en un tema
+ * oscuro con el sistema en claro sale texto oscuro sobre la banda de selección.
+ */
+.editor :global(.ProseMirror ::selection),
+.editor :global(.ProseMirror *)::selection {
+  background-color: var(--skin-note-selection);
+  color: var(--skin-note-selectionText);
+}
+
+.editor :global(.ProseMirror h1),
+.editor :global(.ProseMirror h2),
+.editor :global(.ProseMirror h3),
+.editor :global(.ProseMirror h4),
+.editor :global(.ProseMirror h5),
+.editor :global(.ProseMirror h6) {
+  color: var(--skin-note-text);
+  font-family: var(--skin-editor-font, var(--skin-background-font));
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.editor :global(.ProseMirror h1) {
+  font-size: 2.15em;
+}
+
+.editor :global(.ProseMirror h2) {
+  font-size: 1.7em;
+}
+
+.editor :global(.ProseMirror h3) {
+  font-size: 1.35em;
+}
+
+.editor :global(.ProseMirror h4) {
+  font-size: 1.2em;
+}
+
+.editor :global(.ProseMirror h5) {
+  font-size: 1.1em;
+}
+
+.editor :global(.ProseMirror h6) {
+  font-size: 1em;
+  color: var(--skin-sidebar-textDim);
+}
+
+.editor :global(.ProseMirror p),
+.editor :global(.ProseMirror li) {
+  color: var(--skin-note-text);
+  line-height: var(--skin-editor-line-height, 1.7);
+}
+
+/* Red de seguridad: una URL larguísima o una palabra sin espacios no puede
+   ensanchar la columna de lectura. */
+.editor :global(.ProseMirror p),
+.editor :global(.ProseMirror li),
+.editor :global(.ProseMirror td),
+.editor :global(.ProseMirror th) {
+  overflow-wrap: anywhere;
+}
+
+/*
+ * LaTeX: KaTeX es `white-space: nowrap`, así que una fórmula larga se salía de
+   la columna y rompía el ancho de la nota. inline-block + overflow lo convierte
+   en un contenedor desplazable DENTRO de la columna en vez de desbordarla.
+ */
+.editor :global(.ProseMirror span[data-type="inline-math"]),
+.editor :global(.ProseMirror div[data-type="block-math"]),
+.editor :global(.ProseMirror .katex-display) {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.editor :global(.ProseMirror div[data-type="block-math"]) {
+  margin: 1em 0;
+  padding: 4px 0;
+  text-align: center;
+}
+
+.editor :global(.ProseMirror a) {
+  color: var(--skin-note-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.editor :global(.ProseMirror blockquote) {
+  margin: 1em 0;
+  padding: 2px 0 2px 18px;
+  color: var(--skin-sidebar-textDim);
+  border-left: 3px solid var(--skin-note-accent);
+}
+
+.editor :global(.ProseMirror code) {
+  padding: 0.12em 0.35em;
+  color: var(--skin-note-accent);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.editor :global(.ProseMirror pre) {
+  overflow: auto;
+  padding: 16px;
+  color: var(--skin-input-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: var(--skin-input-radius);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.editor :global(.ProseMirror pre code) {
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  font-size: 0.9em;
+}
+
+.editor :global(.ProseMirror-selectednode) {
+  border-radius: calc(var(--skin-note-radius) * 0.35);
+}
+
+.editor :global(.ProseMirror hr) {
+  margin: 1.5em 0;
+  border: 0;
+  border-top: var(--skin-input-border);
+}
+
+/* --- Listas -------------------------------------------------------------- */
+
+.editor :global(.ProseMirror ul),
+.editor :global(.ProseMirror ol) {
+  margin: 1em 0;
+  padding-left: 1.5em;
+}
+
+.editor :global(.ProseMirror ul) {
+  list-style: disc;
+}
+
+.editor :global(.ProseMirror ol) {
+  list-style: decimal;
+}
+
+.editor :global(.ProseMirror li) {
+  margin: 0.2em 0;
+}
+
+.editor :global(.ProseMirror li > p) {
+  margin: 0.2em 0;
+}
+
+/*
+ * Las listas de tareas no llevan punto: la casilla es la viñeta. El `li` trae un
+ * `label` con el `input` y un `span`, así que el texto va en el `div` de
+ * contenido y hay que quitarle el margen al `label` para que la línea no quede
+ * descuadrada.
+ */
+.editor :global(.ProseMirror ul[data-type="taskList"]) {
+  padding-left: 0;
+  list-style: none;
+}
+
+.editor :global(.ProseMirror ul[data-type="taskList"] > li) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.editor :global(.ProseMirror ul[data-type="taskList"] > li > label) {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  height: calc(var(--skin-editor-line-height, 1.7) * 1em);
+  margin: 0;
+  user-select: none;
+}
+
+.editor :global(.ProseMirror ul[data-type="taskList"] > li > label > input) {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--skin-note-accent);
+  cursor: pointer;
+}
+
+.editor :global(.ProseMirror ul[data-type="taskList"] > li > div) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.editor :global(.ProseMirror ul[data-type="taskList"] > li[data-checked="true"] > div) {
+  color: var(--skin-sidebar-textDim);
+  text-decoration: line-through;
+}
+
+/* --- Tablas -------------------------------------------------------------- */
+
+.editor :global(.ProseMirror table) {
+  width: 100%;
+  margin: 1em 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+  overflow: hidden;
+}
+
+.editor :global(.ProseMirror th),
+.editor :global(.ProseMirror td) {
+  position: relative;
+  padding: 8px 10px;
+  border: var(--skin-input-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.editor :global(.ProseMirror th) {
+  color: var(--skin-toolbar-text);
+  font-weight: 650;
+  background-color: var(--skin-toolbar-background);
+}
+
+.editor :global(.ProseMirror .selectedCell::after) {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background-color: var(--skin-note-selection);
+  content: "";
+  pointer-events: none;
+}
+
+/* --- Imágenes ------------------------------------------------------------ */
+
+.editor :global(.ProseMirror figure) {
+  margin: 1em 0;
+  text-align: center;
+}
+
+.editor :global(.ProseMirror img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border-radius: calc(var(--skin-note-radius) * 0.5);
+}
+
+.editor :global(.ProseMirror figcaption) {
+  margin-top: 6px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 0.85em;
+  font-style: italic;
+  text-align: center;
+}
+
+.editor :global(.ProseMirror figcaption p) {
+  margin: 0;
+}
+
+/* --- La barra de formato ------------------------------------------------- */
+
+/*
+ * La barra es fija y vive **fuera** de la superficie, que es donde se colocan el
+ * asa y los menús: su desplegable sale hacia abajo desde aquí, y no tiene que
+ * medir nada para saber dónde está.
+ *
+ * `sticky` para que siga a la vista al bajar por la nota —es fija porque el tipo
+ * de bloque tiene que estar siempre a mano— y el fondo va en la envoltura y no
+ * en la fila, para que el texto que pasa por debajo no aparezca entre la cinta y
+ * el borde de arriba de la columna.
+ */
+.styleBar {
+  /*
+   * La píldora **flota encima del texto seleccionado**.
+   *
+   * `fixed` con coordenadas de ventana porque es lo que sale de `coordsAtPos`: así
+   * da igual que el editor esté dentro de dos contenedores con scroll, sin cuentas
+   * con ninguno. No usa `sticky` a propósito: pegada al borde de arriba parecería
+   * una cinta fija, y lo que se busca es una pieza que aparece donde estás
+   * escribiendo.
+   *
+   * `pointer-events: none` para que el hueco alrededor no se coma el texto que pasa
+   * por debajo; la píldora y su desplegable lo reinstate con `auto`.
+   *
+   * `visibility: hidden` en vez de `display: none`: la píldora **siempre** está
+   * montada para poder medirse, y sin medidas se colocaría por la mitad de un ancho
+   * inventado. Lo que se apaga es que se vea y lo que recibe clics.
+   */
+  position: fixed;
+  z-index: 60;
+  top: 0;
+  left: 0;
+  display: flex;
+  margin: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.styleBar[data-visible="true"] {
+  visibility: visible;
+}
+
+/*
+ * La fila **es** la píldora: es el único trozo de la barra que recibe clics, y el
+ * desplegable se ancla a ella (`position: relative`) para no salirse de sitio
+ * cuando se centra o se parte en dos filas.
+ *
+ * Envuelve con `flex-wrap` (viene de `.toolbar`), así que con muchos botones pasa
+ * a dos filas y el `999px` se convierte en la mitad del lado menor: sigue siendo
+ * una píldora, solo que más alta.
+ */
+.styleBarRow {
+  position: relative;
+  width: 100%;
+  max-width: min(560px, 100%);
+  pointer-events: auto;
+  border-radius: 999px;
+}
+
+/* Oculta, no puede recibir clics: si no, un rectángulo invisible encima del texto se
+   lo comería justo en el sitio donde se ha pinchado para seleccionarlo. */
+.styleBar[data-visible="false"] .styleBarRow,
+.styleBar[data-visible="false"] .styleMenu {
+  pointer-events: none;
+}
+
+/*
+ * El selector de estilo enseña **en qué estilo está el cursor**, que es lo que
+ * hace que nadie tenga que saber qué es Markdown: si el botón dijera «Párrafo» en
+ * un `##` habría que abrirlo para averiguarlo. Mínimo de 148 px porque los seis
+ * niveles de título tienen que caber enteros y no partirse a dos líneas.
+ */
+.styleSelector {
+  display: flex;
+  height: 28px;
+  min-width: 148px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  color: var(--skin-toolbar-text);
+  font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
+  font-size: 12px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.styleSelector:hover {
+  color: var(--skin-toolbar-accent);
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.styleSelector:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -2px;
+}
+
+.styleSelector:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.styleSelectorIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--skin-toolbar-textDim);
+}
+
+.styleSelectorIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* El triángulo que dice que el botón abre una lista. */
+.styleCaret {
+  margin-left: auto;
+  color: var(--skin-toolbar-textDim);
+  font-size: 9px;
+}
+
+/* La raya que separa el selector de las marcas. */
+.barSeparator {
+  width: 1px;
+  align-self: stretch;
+  margin: 3px 4px;
+  background-color: var(--skin-toolbar-border);
+}
+
+/*
+ * El desplegable de estilos sale de debajo de la fila, como el de cualquier
+ * editor de texto. Se ancla con `top: 100%` en vez de calcular su sitio: la fila
+ * sabe dónde está y no hay nada que medir.
+ */
+.styleMenu {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + 4px);
+  left: 0;
+  pointer-events: auto;
+}
+
+/*
+ * Los botones están fuera del `contenteditable`. El `preventDefault` va en la
+ * barra y no en cada botón, para que un botón nuevo no pueda olvidarlo: si el
+ * botón recibiera el foco al pulsarlo, el editor perdería la selección justo
+ * antes de aplicar el formato.
+ */
+.toolbar {
+  display: flex;
+  max-width: min(460px, calc(100vw - 24px));
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  /*
+   * Píldora de verdad: es lo que hace que se lea como una pieza flotando sobre la
+   * nota y no como una barra de herramientas pegada al techo. Un `border-radius`
+   * de 999px se convierte en la mitad del lado menor, así que funciona igual de
+   * bien con tres botones o con trece.
+   */
+  border-radius: 999px;
+  box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
+  backdrop-filter: blur(var(--skin-toolbar-blur));
+}
+
+.tool {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  color: var(--skin-toolbar-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.tool:hover {
+  color: var(--skin-toolbar-accent);
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.tool:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -2px;
+}
+
+/* Un botón que aquí no se puede: se enseña apagado, que es muy distinto de un
+   botón roto. */
+.tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.toolActive {
+  color: var(--skin-toolbar-accent);
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+/* Los iconos son markup del motor: traen su `fill="none"` y su trazo, así que
+   aquí solo se les da el tamaño de la caja. */
+.toolIcon {
+  display: grid;
+  place-items: center;
+}
+
+.toolIcon svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* Los cuatro de formato son letras de verdad: se leen de un vistazo y el peso,
+   la inclinación y el tachado los pone el propio glifo. */
+.glyphBold {
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.glyphItalic {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-size: 15px;
+}
+
+/* Como la cursiva: la letra es la misma y el subrayado lo pone el glifo. */
+.glyphUnderline {
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+.glyphStrike {
+  font-size: 14px;
+  text-decoration: line-through;
+}
+
+.glyphCode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+/* El enlace se escribe en la propia barra: un `prompt` en Tauri es un diálogo
+   que no aparece, y además se lleva la selección. */
+.linkInput {
+  min-width: 200px;
+  height: 26px;
+  flex: 1 1 auto;
+  padding: 0 8px;
+  color: var(--skin-input-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: var(--skin-input-radius);
+  outline: none;
+  font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
+  font-size: 12px;
+}
+
+.linkInput:focus {
+  border-color: var(--skin-input-focus);
+}
+
+/* --- El asa del bloque --------------------------------------------------- */
+
+.blockHandle {
+  position: absolute;
+  z-index: 24;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  color: var(--skin-toolbar-accent);
+  /* Se coloca pegado al borde del bloque y se lleva al hueco de la izquierda con
+     un `transform`, en vez de restarle el ancho aquí: el hueco es el margen de la
+     columna, que es del tema y depende de la pantalla, y calcularlo en el
+     componente era justo lo que se hace mal cuando la ventana cambia. */
+  transform: translateX(calc(-100% - 8px));
+}
+
+/*
+ * El asa está siempre en el DOM y se esconde con `visibility`: si solo existiera
+ * cuando hay un bloque al que anclarse, no se podría medir su propio rectángulo
+ * para colocar el `+`, que es lo que se le pide al pulsar.
+ */
+.blockHandle[data-show="false"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.handleAdd,
+.handleGrip {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  padding: 2px;
+  color: var(--skin-toolbar-accent);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.handleAdd svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+}
+
+/* El tirador es un punto de braille: se reconoce de un vistazo y no hace falta
+   dibujarlo. Sin `touch-action: none` en el móvil el gesto se lo queda el
+   desplazamiento de la página y el bloque no se mueve nunca. */
+.handleGrip {
+  font-size: 13px;
+  line-height: 1;
+  touch-action: none;
+}
+
+.handleAdd:hover,
+.handleGrip:hover {
+  color: var(--skin-toolbar-text);
+  background: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+  border-color: var(--skin-toolbar-border);
+}
+
+.handleAdd:focus-visible,
+.handleGrip:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -2px;
+}
+
+/* --- El menú del `+` ----------------------------------------------------- */
+
+/*
+ * Todo lo que se puede poner en la nota, no solo tipos de texto.
+ *
+ * Sale pegado al asa, que es justo lo que se ha pulsado, y es pequeño a propósito
+ * —220 px y filas de 26— porque son trece entradas y no tiene que tapar el texto
+ * que se está escribiendo. Los grupos llevan título porque sin él las tres
+ * «Insertar» se pierden entre las listas.
+ */
+.insertMenu {
+  position: absolute;
+  z-index: 32;
+  display: flex;
+  width: 220px;
+  max-width: calc(100% - 16px);
+  max-height: min(420px, calc(100vh - 120px));
+  flex-direction: column;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: var(--skin-toolbar-text);
+  font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: 10px;
+  box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
+  backdrop-filter: blur(var(--skin-toolbar-blur));
+  scrollbar-width: thin;
+  scrollbar-color: var(--skin-toolbar-textDim) transparent;
+}
+
+.insertMenu::-webkit-scrollbar {
+  width: 5px;
+}
+
+.insertMenu::-webkit-scrollbar-thumb {
+  background-color: var(--skin-toolbar-textDim);
+  border-radius: 999px;
+}
+
+.insertGroup + .insertGroup {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid var(--skin-toolbar-border);
+}
+
+.insertGroupTitle {
+  margin: 0;
+  padding: 3px 6px 2px;
+  color: var(--skin-toolbar-textDim);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.insertGroupItems {
+  display: flex;
+  flex-direction: column;
+}
+
+.insertItem {
+  display: flex;
+  width: 100%;
+  height: 26px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 7px;
+  color: var(--skin-toolbar-text);
+  font-size: 11.5px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--skin-button-radius) * 0.6);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.insertItem:hover,
+.insertItem:focus-visible {
+  color: var(--skin-toolbar-accent);
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-button-backgroundHover));
+}
+
+.insertItem:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -2px;
+}
+
+/* El tipo que ya tiene la línea. Solo uno: con más de un tipo en la selección no
+   hay un único tipo que poner. */
+.insertItemActive {
+  color: var(--skin-toolbar-accent);
+  font-weight: 600;
+}
+
+.insertItemIcon {
+  display: grid;
+  width: 15px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--skin-toolbar-textDim);
+}
+
+.insertItem:hover .insertItemIcon,
+.insertItem:focus-visible .insertItemIcon,
+.insertItemActive .insertItemIcon {
+  color: var(--skin-toolbar-accent);
+}
+
+.insertItemIcon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* --- El menú de la `/` --------------------------------------------------- */
+
+.slashMenu {
+  position: absolute;
+  z-index: 25;
+  display: flex;
+  width: min(292px, calc(100vw - 32px));
+  max-height: min(430px, calc(100vh - 110px));
+  flex-direction: column;
+  padding: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  color: var(--skin-toolbar-text);
+  font-family: var(--skin-editor-font, var(--skin-ui-font, inherit));
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: min(var(--skin-toolbar-radius, var(--skin-note-radius)), 14px);
+  box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
+  backdrop-filter: blur(var(--skin-toolbar-blur));
+  scrollbar-width: thin;
+  scrollbar-color: var(--skin-toolbar-textDim) transparent;
+}
+
+.slashMenu::-webkit-scrollbar {
+  width: 5px;
+}
+
+.slashMenu::-webkit-scrollbar-thumb {
+  background-color: var(--skin-toolbar-textDim);
+  border-radius: 999px;
+}
+
+.slashGroup + .slashGroup {
+  padding-top: 3px;
+  margin-top: 3px;
+  border-top: 1px solid var(--skin-toolbar-border);
+}
+
+.slashGroupTitle {
+  margin: 0;
+  padding: 6px 6px 3px;
+  color: var(--skin-toolbar-textDim);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.slashGroupItems {
+  display: flex;
+  flex-direction: column;
+}
+
+.slashItem {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 7px;
+  color: var(--skin-toolbar-text);
+  font-size: 11.5px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.slashItem:hover,
+.slashItem:focus-visible,
+.slashItemActive {
+  color: var(--skin-toolbar-accent);
+  background-color: var(--skin-toolbar-backgroundHover, var(--skin-sidebar-itemHover));
+}
+
+.slashItem:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -2px;
+}
+
+.slashItemIcon {
+  display: grid;
+  width: 17px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--skin-toolbar-accent);
+}
+
+.slashItemIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Nada coincide con lo escrito: es mejor decirlo que dejar una caja vacía. */
+.slashEmpty {
+  margin: 0;
+  padding: 10px 8px;
+  color: var(--skin-toolbar-textDim);
+  font-size: 11.5px;
+}
+
+/* --- La barrita de la tabla ---------------------------------------------- */
+
+/*
+ * Los controles de la tabla: once botones que solo aparecen con el cursor dentro
+ * de una tabla. Sin ellos, quien insertó una tabla no tenía forma de añadirle una
+ * fila, que es un callejón sin salida y no una mejora de lujo.
+ *
+ * `top` es el borde de arriba de la celda y el resto se sube con `translateY`:
+ * es lo único que no depende de saber cuánto mide la barrita, que no se sabe hasta
+ * que está pintada. Mismo truco que el asa del bloque.
+ */
+.tableControls {
+  position: absolute;
+  z-index: 28;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100% - 16px);
+  padding: 3px;
+  overflow-x: auto;
+  color: var(--skin-toolbar-text);
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: calc(var(--skin-toolbar-radius, 10px) * 1.2);
+  box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
+  backdrop-filter: blur(var(--skin-toolbar-blur));
+  transform: translateY(calc(-100% - 6px));
+}
+
+/*
+ * Se esconde con `visibility` y no con `display`, porque para colocarse la barrita
+ * necesita medirse —para no salirse de la columna— y un `display: none` no se puede
+ * medir. Es lo mismo que hace el asa.
+ */
+.tableControls[data-show="false"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.tableGroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Una raya entre grupo y grupo: once botones en hilada no se leen. */
+.tableSeparator {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 3px;
+  background-color: var(--skin-toolbar-border);
+}
+
+/* --- Estados ------------------------------------------------------------- */
+
+.loading {
+  position: absolute;
+  z-index: 2;
+  inset: 42px 54px auto;
+  padding: 12px;
+  color: var(--skin-sidebar-textDim);
+  text-align: center;
+  pointer-events: none;
+}
+
+.error {
+  color: var(--skin-note-accent);
+}
+
+/* --- Móvil --------------------------------------------------------------- */
+
+/*
+ * En una pantalla estrecha la columna deja 24 px de margen, y el asa no cabe a la
+ * izquierda del texto. Se queda pegada al borde con su fondo, como el botón
+ * flotante que hay en la barra de insertar, en vez de salirse de la pantalla.
+ */
+@media (max-width: 760px) {
+  /* En una pantalla estrecha la cinta se parte en dos filas antes que dejar el
+     nombre del estilo cortado a la mitad, que es peor que dos filas. */
+  .styleBar {
+    padding-bottom: 6px;
+  }
+
+  .styleSelector {
+    min-width: 104px;
+    padding: 0 6px;
+    font-size: 11px;
+  }
+
+  /* En una pantalla estrecha no hay hueco a la izquierda: la columna deja 24 px y
+     el asa necesita más. Se queda dentro, sobre el texto, con fondo propio —que
+     es lo que hacen los editores de móvil— y solo el `+`: el tirador de mover un
+     bloque con el dedo no cabe ni se acierta. */
+  .blockHandle {
+    padding: 2px;
+    background-color: var(--skin-toolbar-background);
+    border: var(--skin-toolbar-border);
+    border-radius: calc(var(--skin-button-radius) * 0.8);
+    box-shadow: var(--skin-toolbar-shadow);
+    transform: translateX(2px);
+  }
+
+  .handleGrip {
+    display: none;
+  }
+
+  .loading {
+    inset: 34px 24px auto;
+  }
+}

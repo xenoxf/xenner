@@ -204,9 +204,9 @@
 }
 
 /*
- * El editor tiene su propia hoja (la de Milkdown/Crepe) y gana en especificidad
- * al fondo de la selección; el texto seleccionado lo pone Xenner, porque la
- * de Crepe no lo pone. Ver `styles/components/MarkdownEditor.module.css`.
+ * El editor tiene su propia hoja (`styles/components/NoteEditor.module.css`) y
+ * gana en especificidad al fondo de la selección, así que el texto seleccionado
+ * dentro de la nota lo pone esa hoja con el token de la nota.
  */
 
 :root[data-color-scheme="dark"] {

@@ -104,7 +104,7 @@ function readToken(css: string, token: string): string | null {
 test("la selección del texto la manda la skin, no el navegador", () => {
   const global = readFileSync(new URL("../styles/global.css", import.meta.url), "utf-8");
   const editorCss = readFileSync(
-    new URL("../styles/components/MarkdownEditor.module.css", import.meta.url),
+    new URL("../styles/components/NoteEditor.module.css", import.meta.url),
     "utf-8",
   );
 
@@ -126,12 +126,13 @@ test("la selección del texto la manda la skin, no el navegador", () => {
     );
   }
 
-  // El editor trae su propia hoja, que pone el fondo de la selección con más
-  // especificidad que la global. Si su variable deja de apuntar al token, la
-  // selección del editor vuelve a ser la de fábrica.
+  // El editor trae su propia hoja, que gana en especificidad a la global: si sus
+  // reglas de selección dejaran de usar los tokens, dentro de la nota se vería la
+  // selección de fábrica en vez de la del tema. Se comprueba que **usa** el token,
+  // sin atar el test a cómo lo declare.
   assert.match(
     editorCss,
-    /--crepe-color-selected:\s*var\(--skin-note-selection\)/,
+    /\.ProseMirror[^{]*::selection[^{]*\{[^}]*var\(--skin-note-selection\)/,
     "el editor no usa el token de selección de la nota",
   );
   assert.match(

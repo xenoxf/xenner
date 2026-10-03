@@ -70,6 +70,16 @@ export function useExplorerController() {
   const [legacyNotes, setLegacyNotes] = createSignal<LegacyNote[]>([]);
   const [legacyIssue, setLegacyIssue] = createSignal<string | null>(null);
   const [cutEntry, setCutEntry] = createSignal<CutEntry | null>(null);
+  /**
+   * La ruta de la última carpeta creada, o `null`.
+   *
+   * La vista de móvil la necesita porque no puede deducirla del árbol: al crear
+   * una carpeta, el watcher de la biblioteca sondea cada 2,5 segundos y puede
+   * traer en el mismo breath una carpeta sincronizada de otra máquina. Comparar
+   * las carpetas de antes con las de después elegía la queFAULTara primero por
+   * orden alfabético, que no era necesariamente la propia.
+   */
+  const [createdPath, setCreatedPath] = createSignal<string | null>(null);
 
   function currentCut(): CutEntry | null {
     const entry = cutEntry();
@@ -108,6 +118,7 @@ export function useExplorerController() {
       const result = await createFolder(draft.parent, name);
       if (result) {
         setCreation(null);
+        setCreatedPath(result.path);
         notifySuccess("Carpeta creada", baseName(result.path));
       }
     } finally {
@@ -224,6 +235,7 @@ export function useExplorerController() {
   return {
     creation,
     creating,
+    createdPath,
     legacyNotes,
     legacyIssue,
     setCreation,

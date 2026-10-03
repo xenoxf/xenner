@@ -378,6 +378,7 @@ export default function App() {
         documentReloadToken={getDocumentReloadToken()}
         creation={explorer.creation()}
         creating={explorer.creating()}
+        createdPath={explorer.createdPath()}
         canPaste={Boolean(explorer.cutPath())}
         onOpenSettings={() => controller.setSettingsOpen(true)}
         onDismissError={closeWorkspaceError}

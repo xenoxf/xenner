@@ -23,10 +23,10 @@ export interface EditorToolbarProps {
  * tres acciones, iconos solos: un clic en vez de dos, y el dock se queda en lo
  * que es, una barra de tres botones.
  *
- * Los tipos de texto **no** están aquí, y no por capricho: se cambian en la barra
- * flotante que sale encima de lo seleccionado, junto a la negrita y la cursiva.
- * Ese es el sitio donde se cambia de qué trata el texto, y tenerlos también aquí
- * convertía los dos menús en el mismo sitio.
+ * Son **adjuntos e imágenes**, no formato del texto. El formato —tipo de bloque,
+ * negrita, cursiva, color— vive en la barra fija de la nota, que es donde está
+ * siempre visible; tener las dos cosas en el mismo sitio convertía dos menús en
+ * uno solo y hacía que nadie encontrara ninguna de las dos.
  */
 export function EditorToolbar(props: EditorToolbarProps) {
   return (

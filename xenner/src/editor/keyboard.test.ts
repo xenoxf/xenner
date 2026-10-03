@@ -25,11 +25,22 @@ import { EDITOR_SHORTCUTS, TECLAS_DE_OTROS, KeyboardNote, atajosDeBloque } from 
  * arnés vale tal cual, y el test mide la transacción en lugar de mirar quién llamó
  * a qué.
  *
- * Las teclas se pulsan **sin** `navigator`: aquí no hay plataforma, así que
- * `prosemirror-keymap` resuelve `Mod` a `Ctrl` y el evento lleva `ctrlKey`. En el
- * navegador esa decisión la toma el mismo `keydownHandler` según la plataforma, sin
- * tocar nada de este archivo.
+ * Las teclas se pulsan con la tecla que **`Mod` significa en la máquina que está
+ * ejecutando el test**, y no siempre con `Ctrl`.
+ *
+ * El motivo: `prosemirror-keymap` decide si `Mod` es `Ctrl` o `Meta` leyendo
+ * `navigator.platform`. En el navegador no hay duda —si es un Mac, el usuario
+ * pulsa ⌘—, pero **Node 21 y siguientes ya tienen `navigator` global**, con la
+ * plataforma del sistema. Un test que pulsara siempre `Ctrl` pasaba en Linux y en
+ * Windows y fallaba entero en macOS, que es donde la release tenía que funcionar.
+ *
+ * Aquí no se decide a mano: se deja que lo decida el mismo `keydownHandler` que
+ * usa la app, que es lo que hay que comprobar.
  */
+
+/** Si esta máquina es un Mac, donde `Mod` es ⌘ y no Ctrl. */
+const ES_MAC =
+  typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(navigator.platform ?? "");
 
 /** El `keyCode` de cada tecla que usa un atajo de bloque. */
 const KEYCODE: Record<string, number> = {
@@ -58,14 +69,17 @@ function eventoDe(atajo: string): KeyboardEvent {
   const code = KEYCODE[tecla];
   if (code == null) throw new Error(`El test no sabe pulsar la tecla «${tecla}»`);
   const conShift = partes.includes("Shift");
+  const conMod = partes.includes("Mod");
   return {
     keyCode: code,
     // Con `Shift`, el navegador entrega el carácter del modificador: sin esto el
     // atajo se resolvería por el camino fácil y no se comprobaría que también
     // funciona con el teclado de verdad, que es donde llega `&` en vez de `7`.
     key: conShift ? (CON_SHIFT[tecla] ?? tecla) : tecla,
-    ctrlKey: partes.includes("Mod"),
-    metaKey: false,
+    // `Mod` es la tecla que el sistema usa para «esto es un atajo»: Ctrl en
+    // Windows y Linux, ⌘ en macOS. Poner las dos a la vez falsearía la prueba.
+    ctrlKey: conMod && !ES_MAC,
+    metaKey: conMod && ES_MAC,
     shiftKey: conShift,
     altKey: partes.includes("Alt"),
   } as unknown as KeyboardEvent;
@@ -365,21 +379,25 @@ test("cada rótulo va con su tecla, y no hay dos atajos con la misma", () => {
   assert.ok(enEspanol.length > 0, "los rótulos no están en español");
 });
 
-test("Mod es Ctrl en este entorno y la otra tecla no se come el atajo", () => {
-  const conCtrl = crearEditorDePrueba([parrafo("Uno")]);
-  conCtrl.seleccionar("Uno");
-  assert.equal(pulsar(conCtrl, "Mod-Shift-7"), true);
+test("Mod es la tecla del sistema y la otra no se come el atajo", () => {
+  // `Mod` significa «la tecla que aquí es atajo»: Ctrl en Windows y Linux, ⌘ en
+  // macOS. Lo que no vale es que el atajo funcione con **las dos**, porque entonces
+  // no sería un atajo del sistema sino uno escrito a ojo.
+  const conMod = crearEditorDePrueba([parrafo("Uno")]);
+  conMod.seleccionar("Uno");
+  assert.equal(pulsar(conMod, "Mod-Shift-7"), true);
 
-  // El mismo atajo con la tecla de Mac, en un entorno donde `Mod` es `Ctrl`: no
-  // tiene que pasar nada. Es la comprobación de que el atajo no se ha escrito
-  // mirando `navigator.platform` en lugar de dejarlo en manos de la plataforma.
-  const conMeta = crearEditorDePrueba([parrafo("Uno")]);
-  conMeta.seleccionar("Uno");
+  const conLaotra = crearEditorDePrueba([parrafo("Uno")]);
+  conLaotra.seleccionar("Uno");
   const evento = eventoDe("Mod-Shift-7");
   const teclado = keydownHandler(atajosDeBloque());
-  const manejado = teclado(vistaDe(conMeta), { ...evento, ctrlKey: false, metaKey: true } as KeyboardEvent);
-  assert.equal(manejado, false);
-  assert.equal(conMeta.markdown(), "Uno");
+  const manejado = teclado(vistaDe(conLaotra), {
+    ...evento,
+    ctrlKey: ES_MAC,
+    metaKey: !ES_MAC,
+  } as KeyboardEvent);
+  assert.equal(manejado, false, "el atajo no debería funcionar con la tecla que no es Mod aquí");
+  assert.equal(conLaotra.markdown(), "Uno");
 });
 
 test("la extensión instala el teclado y el aviso llega al que lo pasa", () => {

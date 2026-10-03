@@ -3,3 +3,17 @@ dist
 agents
 dist
 .env
+
+# Lo que genera Gradle al compilar Android.
+#
+# No es descuido: una build de Android ocupa más de un gigabyte, con ficheros
+# sueltos de más de 200 MB, y GitHub **rechaza** el push por tamaño. Un commit con
+# esto dentro deja la rama entera sin poder subir.
+#
+# Siguen versionándose los ficheros que son fuente (`gen/android/app/src`,
+# `build.gradle.kts`, el proyecto de Rust): lo que se ignora es solo la carpeta de
+# compilación.
+src-tauri/gen/android/app/build/
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/build/
+src-tauri/target/

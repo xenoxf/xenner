@@ -179,6 +179,13 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      # Este job no compilaba nada, así que hasta ahora no necesitaba el código: se
+      # limitaba a bajar lo que el job anterior había subido. La comprobación del
+      # `.deb` lee `productName` de la config para no tener escritos a mano los
+      # nombres de dentro del paquete, y sin este checkout el fichero no existe en
+      # el runner.
+      - uses: actions/checkout@v7
+
       - name: Instalar herramientas de inspección
         run: |
           sudo apt-get update

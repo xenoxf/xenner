@@ -12,6 +12,9 @@ fn main() {
 
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "config_info",
+            "reveal_config_dir",
+            "choose_skin_asset",
             "scan_skins",
             "read_skin_file",
             "read_skin_asset",
@@ -35,6 +38,18 @@ fn main() {
             "read_asset",
             "update_asset",
             "delete_asset",
+            // Abrir y mostrar en la carpeta necesitan permiso propio por lo mismo que
+            // `import_attachment`: sin declararlos aquí no existe un
+            // `allow-open-asset` que la capability pueda pedir, y el fallo sale en
+            // el `build.rs` del propio crate («Permission allow-open-asset not
+            // found») antes de compilar una línea de la app.
+            "open_asset",
+            "reveal_asset",
+            // Exportar e importar un tema también: estaban en `lib.rs` y en la
+            // interfaz, pero sin permiso, así que el botón del creador de temas
+            // no podía hacer nada.
+            "export_skin",
+            "import_skin",
             "write_note",
             "create_note",
             "create_folder",

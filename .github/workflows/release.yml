@@ -243,10 +243,27 @@ jobs:
           ls -la paquetes/
 
       - name: El .deb está bien formado y trae lo suyo
+        env:
+          TAURI_CONF: xenner/src-tauri/tauri.conf.json
         run: |
           set -euo pipefail
           DEB=$(ls paquetes/*.deb | head -1)
           echo "Paquete: $DEB"
+
+          # Los nombres de dentro del paquete no son inventados: salen de
+          # `productName`. El binario sí se llama como el `identifier` (`xenner`),
+          # pero la carpeta de recursos y la entrada de menú llevan el nombre del
+          # producto, que pasó a ser "Xenner" con mayúscula. Con un
+          # `grep 'xenner.desktop'` a pelo esta comprobación cayó en la 1.4.0 con
+          # el paquete perfectamente construido, y lo que podía comprobar es que el
+          # nombre no se lo pone uno a mano. Se leen de la config, así que renombrar
+          # la app no vuelve a tumbarla.
+          PRODUCTO=$(python3 -c "
+          import json, sys
+          with open(sys.argv[1], encoding='utf-8') as fh:
+              print(json.load(fh)['productName'])
+          " "$TAURI_CONF")
+          echo "Nombre del producto en la config: $PRODUCTO"
 
           # `dpkg-deb -c` escribe en memoria mientras `grep -q` lee: en cuanto
           # grep encuentra lo suyo sale y dpkg se come un SIGPIPE. Con
@@ -256,9 +273,9 @@ jobs:
           dpkg-deb --contents "$DEB" > contenido.txt
           grep -q 'usr/bin/xenner' contenido.txt \
             || { echo "FALTA: no hay /usr/bin/xenner dentro del paquete"; exit 1; }
-          grep -q 'xenner.desktop' contenido.txt \
-            || { echo "FALTA: no hay la entrada de menú"; exit 1; }
-          grep -q 'usr/lib/xenner/skins/config.txt' contenido.txt \
+          grep -qi "applications/$PRODUCTO.desktop" contenido.txt \
+            || { echo "FALTA: no hay la entrada de menú ($PRODUCTO.desktop)"; exit 1; }
+          grep -q "usr/lib/$PRODUCTO/skins/config.txt" contenido.txt \
             || { echo "FALTA: no viajan las skins, la app arrancaría sin interfaz"; exit 1; }
           echo "Estructura correcta."
 

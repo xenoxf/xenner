@@ -499,8 +499,16 @@ function createNoteImageView(props: NodeViewRendererProps): NodeView {
     // Solo si es otro texto: reescribirlo mientras se escribe movería el cursor.
     if (caption.value !== alt) caption.value = alt;
     const align = alinearDe(actual.attrs?.align as string | null);
-    // `flex` viene puesto por el redimensionable; esto decide de qué lado se pega.
-    dom.style.justifyContent =
+    /*
+     * `align-items`, no `justify-content`.
+     *
+     * El contenedor es una flex **en columna** —así la pone el redimensionable— y
+     * en una columna el eje principal es el vertical: `justify-content` empujaba
+     * la foto hacia abajo, donde no se nota porque la caja no tiene altura de más,
+     * y la foto se quedaba donde estaba. El lado en el que se pega lo decide el eje
+     * transversal, que es el horizontal, y ese es `align-items`.
+     */
+    dom.style.alignItems =
       align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start";
     for (const boton of botonesAlign) {
       boton.setAttribute("aria-pressed", String(boton.dataset.align === align));

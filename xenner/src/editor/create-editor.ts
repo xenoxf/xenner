@@ -2,7 +2,7 @@ import { Editor } from "@tiptap/core";
 import type { MarkdownManager } from "@tiptap/markdown";
 
 import {
-  insertAttachmentLink,
+  insertAttachment,
   insertImage,
   insertWhiteboard,
   runCommand,
@@ -10,6 +10,7 @@ import {
 import { createDrawingId, serializeDrawing } from "./drawing.ts";
 import { createEditorExtensions } from "./extensions/index.ts";
 import type { EditorExtensionOptions } from "./extensions/index.ts";
+import type { NoteAttachmentActions } from "./extensions/note-attachment.ts";
 import { parseNoteMarkdown, serializeNoteMarkdown } from "./markdown/document.ts";
 import { createNoteSerializer } from "./serialize.ts";
 import type { NoteAssets } from "./markdown/assets.ts";
@@ -62,6 +63,16 @@ export interface CreateNoteEditorOptions extends EditorExtensionOptions {
   importWhiteboardAsset?(svg: string, fileName: string): Promise<ImportedEditorAsset>;
   /** Avisa de un fallo sin dejar la vista a medias. */
   reportFailure?(what: string, error: unknown): void;
+  /**
+   * Lo que la tarjeta de un adjunto necesita de la interfaz: abrir el archivo,
+   * mostrarlo en su carpeta, copiar su ruta y enseñar su menú.
+   *
+   * Lo inyecta quien monta el editor, porque son cosas que solo la interfaz puede
+   * hacer —preguntar al gateway, abrir un menú, copiar al portapapeles—. Sin esto
+   * el adjunto se ve como un enlace, que es como se veía antes: legible, pero sin
+   * forma de abrirlo.
+   */
+  attachment?: NoteAttachmentActions;
 }
 
 /** Con qué nombre se guarda una pizarra nueva dentro de `.assets`. */
@@ -99,7 +110,11 @@ export function createNoteEditor(options: CreateNoteEditorOptions): Editor {
     // El registro único decide qué tiene el editor, y solo él. `reportFailure` se
     // pasa para que los atajos y el pegado —que no tienen interfaz donde avisar—
     // lleguen a alguien: el `console.error` de antes no lo ve nadie.
-    extensions: createEditorExtensions({ ...options, reportFailure: avisar }),
+    extensions: createEditorExtensions({
+      ...options,
+      attachment: options.attachment,
+      reportFailure: avisar,
+    }),
     content: options.initialMarkdown,
     contentType: "markdown",
   });
@@ -198,10 +213,10 @@ export function createNoteEditor(options: CreateNoteEditorOptions): Editor {
       if (!insertado) avisar("no se pudo insertar la imagen", "el bloque no se insertó");
     },
 
-    insertAttachment(relativePath: string, label: string) {
-      if (editor.isDestroyed) return;
+    insertAttachment(relativePath: string, label: string, size?: number): boolean {
+      if (editor.isDestroyed) return false;
       editor.commands.focus();
-      runCommand(editor, insertAttachmentLink(relativePath, label, avisar));
+      return runCommand(editor, insertAttachment(relativePath, label, size, avisar));
     },
 
     markdown() {

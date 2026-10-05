@@ -138,6 +138,43 @@ test("enlace con y sin título", () => {
   assert.equal(manager.parse(conTitulo).content?.[0]?.content?.[0]?.marks?.[0]?.attrs?.title, "La web");
 });
 
+test("un adjunto es una tarjeta, y en el Markdown es un enlace de toda la vida", () => {
+  // El Markdown es lo que se guarda y lo que se lee en cualquier otro sitio: un
+  // enlace en su propia línea. Que en el editor sea una tarjeta es cosa de la vista,
+  // no del fichero.
+  const nota = "[informe.pdf](./.assets/9f2c1a0b7e4d.pdf)";
+  const doc = manager.parse(nota);
+  assert.deepEqual(doc.content?.[0], {
+    type: "noteAttachment",
+    // El tamaño no se serializa: es un dato del archivo, no de la nota.
+    attrs: { href: "./.assets/9f2c1a0b7e4d.pdf", label: "informe.pdf", size: null },
+  });
+  assert.equal(roundTrip(nota), nota);
+});
+
+test("un enlace escrito a mano no se convierte en una tarjeta", () => {
+  // El tokenizador solo acepta enlaces que apuntan a `.assets`, que es donde el
+  // editor guarda lo que se adjunta. Si aceptara cualquier enlace a un archivo, el
+  // editor se apropiaría de los enlaces que alguien escribió para leerlos: una nota
+  // con tres referencias a otras notas enseñaría tres tarjetas que, al abrirlas con
+  // un clic, intentarían abrir un `.md` con el visor del sistema.
+  const nota = [
+    "[Otra nota](carpeta/otra.md)",
+    "",
+    "[La web](https://ejemplo.com)",
+    "",
+    "Un enlace dentro de una frase [no cuenta](./.assets/datos.pdf) como tarjeta.",
+    "",
+    "[El archivo](./.assets/datos.pdf)",
+  ].join("\n");
+  const doc = manager.parse(nota);
+  assert.deepEqual(
+    (doc.content ?? []).map((nodo) => nodo.type),
+    ["paragraph", "paragraph", "paragraph", "noteAttachment"],
+  );
+  assert.equal(roundTrip(nota), nota);
+});
+
 test("imagen con pie", () => {
   const nota = `![El pie de la imagen](${PNG})`;
   const doc = manager.parse(nota);

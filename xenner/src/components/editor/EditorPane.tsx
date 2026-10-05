@@ -199,7 +199,7 @@ export function EditorPane(props: EditorPaneProps) {
     try {
       const imported = await chooseAttachmentForEditor(document.path);
       if (!imported || !editorHandle) return;
-      editorHandle.insertAttachment(imported.relativePath, imported.fileName);
+      editorHandle.insertAttachment(imported.relativePath, imported.fileName, imported.size);
       notifySuccess("Archivo adjuntado", imported.fileName);
     } catch (error) {
       notifyError("No se pudo adjuntar el archivo", error);
@@ -214,7 +214,7 @@ export function EditorPane(props: EditorPaneProps) {
     setAttachmentBusy(true);
     try {
       const imported = await importAttachmentForEditor(document.path, file);
-      editorHandle.insertAttachment(imported.relativePath, imported.fileName);
+      editorHandle.insertAttachment(imported.relativePath, imported.fileName, imported.size);
       notifySuccess("Archivo adjuntado", imported.fileName);
     } catch (error) {
       notifyError("No se pudo adjuntar el archivo", error);

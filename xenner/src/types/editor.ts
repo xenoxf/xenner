@@ -51,7 +51,13 @@ export interface NoteEditorHandle {
    */
   insertImage(asset: ImportedEditorAsset, alt?: string): Promise<void>;
   /** Escribe un enlace al archivo adjunto, con su nombre como texto del enlace. */
-  insertAttachment(relativePath: string, label: string): void;
+  /**
+   * Pone la tarjeta de un adjunto en la nota.
+   *
+   * El `size` es lo que muestra la tarjeta; no se guarda en el Markdown, que lo
+   * escribe como un enlace normal.
+   */
+  insertAttachment(relativePath: string, label: string, size?: number): boolean;
   /** El Markdown que hay en el editor ahora mismo. */
   markdown(): string;
   /**

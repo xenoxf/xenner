@@ -120,13 +120,12 @@ export interface WorkspaceGateway {
   moveEntry(relativePath: string, targetParent: string): Promise<string>;
   deleteEntry(relativePath: string): Promise<void>;
   /**
-   * Abre una entrada con el programa que el sistema tenga asociado.
+   * Abre un asset de una nota con el programa que el sistema tenga asociado.
    *
-   * Devuelve `false` —en vez de fallar— cuando la plataforma no puede: en Android
-   * no hay otra aplicación a la que pasárselo, y eso no es un error de quien
-   * escribe, es una capacidad que no existe. Por eso no lanza.
+   * Es lo que hace una tarjeta de adjunto: un clic la abre con la aplicación de
+   * siempre. Lanza si no se puede —el asset no está, o la ruta no vale—.
    */
-  openEntry(relativePath: string): Promise<boolean>;
-  /** Abre el explorador de archivos en la carpeta de la entrada. */
-  revealEntry(relativePath: string): Promise<boolean>;
+  openAsset(notePath: string, assetPath: string): Promise<void>;
+  /** Abre el explorador de archivos en la carpeta del asset. */
+  revealAsset(notePath: string, assetPath: string): Promise<void>;
 }

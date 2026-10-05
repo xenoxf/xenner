@@ -1895,45 +1895,73 @@ fn launch_file(_path: &Path) -> Result<(), String> {
     Err("en Android no se pueden abrir los adjuntos con otra aplicación".into())
 }
 
-fn open_entry_blocking(root: PathBuf, relative_path: String) -> Result<(), VaultError> {
-    let path = safe_existing_entry(&root, &relative_path)?;
+fn open_asset_blocking(
+    root: PathBuf,
+    note_path: String,
+    asset_path: String,
+) -> Result<(), VaultError> {
+    // La misma comprobación que hace `read_asset`: solo se abre algo que sea un
+    // asset de **esta** nota, dentro de `.assets` y dentro de la biblioteca. Es lo
+    // que impide que un Markdown escrito a mano pida abrir cualquier ruta.
+    let path = asset_file_path(&root, &note_path, &asset_path, true)?;
     if !is_plain_file(&path) {
         return Err(invalid_path("eso no es un archivo"));
     }
-    launch_file(&path).map_err(|message| internal(message))
+    launch_file(&path).map_err(internal)
 }
 
+/// Abre un asset de una nota —un adjunto— con el programa del sistema.
+///
+/// Es lo que hace una nota con un adjunto dentro: no es un enlace que se copia, es
+/// un archivo de verdad que se abre con la aplicación de siempre —un PDF con el
+/// visor, un `.xlsx` con la hoja de cálculo—.
+///
+/// La ruta se valida **antes** de lanzar nada: `asset_file_path` comprueba que el
+/// destino sea un archivo normal dentro del `.assets` de esa nota. Sin esa
+/// comprobación, un Markdown escrito a mano podría pedirle a la app que lanzara
+/// cualquier programa con cualquier ruta, que es justo lo que un plugin de
+/// apertura de URLs dejaría pasar.
 #[tauri::command]
-pub async fn open_entry(
+pub async fn open_asset(
     state: State<'_, VaultState>,
-    relative_path: String,
+    note_path: String,
+    asset_path: String,
 ) -> Result<(), VaultError> {
     let root = root_from_state(&state)?;
-    tauri::async_runtime::spawn_blocking(move || open_entry_blocking(root, relative_path))
-        .await
-        .map_err(|_| join_error())?
+    tauri::async_runtime::spawn_blocking(move || {
+        open_asset_blocking(root, note_path, asset_path)
+    })
+    .await
+    .map_err(|_| join_error())?
 }
 
-fn reveal_entry_blocking(root: PathBuf, relative_path: String) -> Result<(), VaultError> {
-    let path = safe_existing_entry(&root, &relative_path)?;
+fn reveal_asset_blocking(
+    root: PathBuf,
+    note_path: String,
+    asset_path: String,
+) -> Result<(), VaultError> {
+    let path = asset_file_path(&root, &note_path, &asset_path, true)?;
     let carpeta = path.parent().unwrap_or(&path).to_path_buf();
     crate::config::open_directory(&carpeta).map_err(internal)
 }
 
-/// Abre el explorador de archivos con la carpeta del elemento a la vista.
+/// Abre el explorador de archivos en la carpeta del asset.
 ///
 /// Es la opción de «mostrar en la carpeta» de cualquier gestor de archivos, y es
 /// lo que salva cuando el adjunto no se puede abrir con nada: por lo menos se ve
 /// dónde está para buscarlo a mano.
 #[tauri::command]
-pub async fn reveal_entry(
+pub async fn reveal_asset(
     state: State<'_, VaultState>,
-    relative_path: String,
+    note_path: String,
+    asset_path: String,
 ) -> Result<(), VaultError> {
     let root = root_from_state(&state)?;
-    tauri::async_runtime::spawn_blocking(move || reveal_entry_blocking(root, relative_path))
-        .await
-        .map_err(|_| join_error())?
+    tauri::async_runtime::spawn_blocking(move || {
+        reveal_asset_blocking(root, note_path, asset_path)
+    })
+    .await
+    .map_err(|_| join_error())?
 }
 
 #[cfg(test)]

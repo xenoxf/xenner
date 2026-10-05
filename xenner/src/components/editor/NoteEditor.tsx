@@ -18,6 +18,8 @@ import {
   type MenuItem,
 } from "../../editor/menu-content.ts";
 import { loadNoteAssets, type NoteAssets } from "../../editor/markdown/assets.ts";
+import type { NoteAttachmentActions, AttachmentMenuTarget } from "../../editor/extensions/index.ts";
+import { getWorkspaceGateway } from "../../services/workspace/gateway";
 import {
   deleteAssetForEditor,
   importImageForEditor,
@@ -33,6 +35,7 @@ import type {
   NoteEditorHandle,
 } from "../../types/editor.ts";
 import { BlockHandle } from "./BlockHandle.tsx";
+import { AttachmentMenu } from "./AttachmentMenu.tsx";
 import { EditorStyleBar } from "./EditorStyleBar.tsx";
 import { InsertMenu, itemKey } from "./InsertMenu.tsx";
 import { SlashMenu } from "./SlashMenu.tsx";
@@ -66,9 +69,15 @@ const PLACEHOLDER = "Escribe tu nota…";
 /** Los niveles de título que `setBlockType` no cubre: el menú `/` los tiene. */
 type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
+/** Dónde se coloca un menú, en coordenadas de la superficie. */
 interface Placement {
   left: number;
   top: number;
+}
+
+/** El menú de una tarjeta de adjunto, y sobre qué tarjeta. */
+interface AttachmentMenuState extends Placement {
+  target: AttachmentMenuTarget;
 }
 
 interface SlashState extends Placement {
@@ -169,6 +178,69 @@ export function NoteEditor(props: NoteEditorProps) {
   const [blockType, setBlockTypeNow] = createSignal<EditorBlockType | null>(null);
   const [slash, setSlash] = createSignal<SlashState | null>(null);
   const [slashKey, setSlashKey] = createSignal<string | null>(null);
+  const [attachmentMenu, setAttachmentMenu] = createSignal<AttachmentMenuState | null>(null);
+
+  /**
+   * Lo que una tarjeta de adjunto necesita de la interfaz.
+   *
+   * Va aquí porque son cuatro cosas que solo la app sabe hacer: preguntar al
+   * gateway por el archivo, copiar al portapapeles, avisar de un fallo y abrir un
+   * menú. El motor solo dibuja la tarjeta.
+   */
+  const attachmentActions: NoteAttachmentActions = {
+    notePath: () => props.notePath,
+    async open(notePath, assetPath) {
+      await getWorkspaceGateway().openAsset(notePath, assetPath);
+    },
+    async reveal(notePath, assetPath) {
+      await getWorkspaceGateway().revealAsset(notePath, assetPath);
+    },
+    async copy(_que, texto) {
+      await copyToClipboard(texto);
+    },
+    report(what, error) {
+      reportFailure(what, error);
+    },
+    menu(event, target) {
+      setAttachmentMenu({
+        target,
+        left: event.clientX,
+        top: event.clientY,
+      });
+    },
+  };
+
+  /**
+   * Copiar al portapapeles del sistema.
+   *
+   * El `navigator.clipboard` del WebView no está en todas las plataformas, así que
+   * hay un camino de reserva con un `<textarea>` fuera de la vista, que es lo que
+   * funciona de verdad en un WebView antiguo. Si los dos fallan, el error se propaga
+   * para que la tarjeta lo diga: un «Copiar» que no copia es peor que no tenerlo.
+   */
+  async function copyToClipboard(texto: string): Promise<void> {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(texto);
+        notifySuccess("Copiado", "");
+        return;
+      } catch {
+        // El WebView puede rechazarla; se intenta el camino de reserva.
+      }
+    }
+    if (typeof document === "undefined") throw new Error("El portapapeles no está disponible");
+    const area = document.createElement("textarea");
+    area.value = texto;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.append(area);
+    area.select();
+    const copiado = document.execCommand("copy");
+    area.remove();
+    if (!copiado) throw new Error("El portapapeles no está disponible");
+    notifySuccess("Copiado", "");
+  }
 
   /**
    * Avisa de un fallo sin enterrarlo y sin dejar la vista a medias.
@@ -599,6 +671,7 @@ export function NoteEditor(props: NoteEditorProps) {
           reloadSource,
           importWhiteboardAsset,
           reportFailure,
+          attachment: attachmentActions,
           // El motor entrega su handle al montar, y el dock es quien lo usa.
           onReady(instance) {
             handle = instance;
@@ -752,6 +825,16 @@ export function NoteEditor(props: NoteEditorProps) {
               activeKey={slashKey()}
               onHover={(item) => setSlashKey(itemKey(item))}
               onChoose={chooseSlashItem}
+            />
+          )}
+        </Show>
+        <Show when={attachmentMenu()} keyed>
+          {(estado) => (
+            <AttachmentMenu
+              target={estado.target}
+              x={estado.left}
+              y={estado.top}
+              onClose={() => setAttachmentMenu(null)}
             />
           )}
         </Show>

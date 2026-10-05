@@ -177,29 +177,28 @@ function ExplorerNode(props: NodeProps) {
       aria-expanded={props.node.kind === "directory" ? expanded() : undefined}
       /*
        * La carpeta entera —su fila y todo lo que cuelga debajo— es donde cae lo que
-       * se suelta encima. Es lo que hace el explorador de un solo clic: no hay que
-       * apuntar al borde de arriba de la carpeta para meter algo dentro, basta con
-       * soltarlo en cualquier parte de su sector. Antes los manejadores estaban en
-       * la fila, así que lo que caía entre dos hijas —el hueco, el «Vacía»— se
-       * iba a la raíz sin querer.
-       *
-       * En una nota no se puede soltar nada, y `stopPropagation` lo dice: sin esto
-       * el gesto seguiría subiendo y acabaría en la raíz, que no es lo que quiere
-       * quien ha soltado el elemento encima de una nota.
+       * se suelta encima, y en una nota cae en la carpeta que la contiene. Es lo que
+       * hace el explorador de un solo clic: apuntar a una subcarpeta mete el
+       * elemento **en esa** subcarpeta, y apuntar a un archivo de dentro lo deja en
+       * la carpeta de ese archivo. Antes los manejadores estaban en la fila, así
+       * que lo que caía entre dos hijas —el hueco, el «Vacía»— se iba a la raíz.
        */
       onDragOver={(event) => {
-        if (props.node.kind !== "directory") {
-          event.stopPropagation();
+        const destino = props.node.kind === "directory"
+          ? props.node.path
+          : parentPath(props.node.path);
+        if (!destino) {
+          // Una nota en la raíz: el destino es la raíz, que es lo que hay debajo.
+          props.onDragOver(event, "");
           return;
         }
-        props.onDragOver(event, props.node.path);
+        props.onDragOver(event, destino);
       }}
       onDrop={(event) => {
-        if (props.node.kind !== "directory") {
-          event.stopPropagation();
-          return;
-        }
-        props.onDrop(event, props.node.path);
+        const destino = props.node.kind === "directory"
+          ? props.node.path
+          : parentPath(props.node.path);
+        props.onDrop(event, destino);
       }}
     >
       <div

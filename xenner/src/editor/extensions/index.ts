@@ -10,12 +10,17 @@ import { common, createLowlight } from "lowlight";
 
 import { KeyboardNote } from "../keyboard.ts";
 import { PasteNote } from "../paste.ts";
+import { NoteAttachment } from "./note-attachment.ts";
+import type { NoteAttachmentActions } from "./note-attachment.ts";
 import { NoteImage } from "./note-image.ts";
 import { TextColor } from "./text-color.ts";
 import { Whiteboard } from "./whiteboard.ts";
 import type { WhiteboardViewOptions } from "./whiteboard.ts";
 
 export type { WhiteboardViewOptions };
+export { NoteAttachment };
+export type { NoteAttachmentActions, AttachmentMenuTarget } from "./note-attachment.ts";
+export { createNoteAttachmentView, pesoDe } from "./note-attachment.ts";
 
 /**
  * El registro de gramáticas, una sola vez.
@@ -30,6 +35,14 @@ export interface EditorExtensionOptions {
   /** Texto de una nota vacía. */
   placeholder: string;
   whiteboard?: WhiteboardViewOptions;
+  /**
+   * Lo que la tarjeta de un adjunto necesita de la interfaz.
+   *
+   * Sin esto la vista de nodo no se monta y el adjunto sale como un enlace: los
+   * tests, que no tienen interfaz, montan el mismo editor con la misma gramática y
+   * por eso no dependen de que haya acciones.
+   */
+  attachment?: NoteAttachmentActions;
   /**
    * A quién se le avisa de un fallo que no tiene a quién preguntarle.
    *
@@ -76,6 +89,7 @@ export function createEditorExtensions(options: EditorExtensionOptions): Extensi
     }),
     CodeBlockLowlight.configure({ lowlight, defaultLanguage: null }),
     NoteImage,
+    NoteAttachment.configure({ actions: options.attachment }),
     TableKit,
     TaskList,
     TaskItem.configure({ nested: true }),

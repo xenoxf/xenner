@@ -200,3 +200,117 @@
     display: none;
   }
 }
+
+/*
+ * La tarjeta de un adjunto.
+ *
+ * Va en esta hoja y no en el módulo del editor por el mismo motivo que la imagen:
+ * la vista de nodo es DOM plano, sin Solid, y los módulos CSS solo alcanzan a lo
+ * que Solid pinta.
+ *
+ * Es una tarjeta y no un enlace porque es un archivo: se lee de un vistazo qué es
+ * y cuánto pesa, y un clic lo abre. Los colores salen de los tokens del tema, como
+ * todo lo demás.
+ */
+.note-attachment {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  margin: 0.4em 0;
+  color: var(--skin-note-text);
+  font-family: var(--skin-editor-font, inherit);
+  background: var(--skin-note-backgroundHover);
+  border: 1px solid var(--skin-input-border);
+  border-radius: calc(var(--skin-note-radius) * 0.7);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.note-attachment:hover {
+  background: var(--skin-sidebar-itemHover);
+  border-color: var(--skin-toolbar-border);
+}
+
+.note-attachment:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+/* El tipo del archivo dentro de un cuadrado, como el icono de un adjunto. */
+.note-attachment__icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--skin-note-accent);
+  background: var(--skin-toolbar-background);
+  border: 1px solid var(--skin-input-border);
+  border-radius: calc(var(--skin-button-radius, 7px) * 0.9);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Nombre y peso en dos líneas: el nombre es lo que identifica el archivo. */
+.note-attachment__text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.note-attachment__name {
+  overflow: hidden;
+  color: var(--skin-note-text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-attachment__meta {
+  overflow: hidden;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-attachment__meta:empty {
+  display: none;
+}
+
+/* Solo se enseña al apuntar: es una acción, y una acción fija encima de cada
+   adjunto sería una fila de ruido en una nota con cinco archivos. */
+.note-attachment__open {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  color: var(--skin-toolbar-accent);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--skin-toolbar-border);
+  border-radius: calc(var(--skin-button-radius, 7px) * 0.7);
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.note-attachment:hover .note-attachment__open,
+.note-attachment:focus-visible .note-attachment__open,
+.ProseMirror-selectednode.note-attachment .note-attachment__open {
+  opacity: 1;
+}
+
+/* Un adjunto cuyo archivo no está: se ve que falta, no desaparece. */
+.note-attachment[data-broken="true"] {
+  border-style: dashed;
+}
+
+.note-attachment[data-broken="true"] .note-attachment__icon {
+  color: var(--skin-sidebar-textDim);
+}

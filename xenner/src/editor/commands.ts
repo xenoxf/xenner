@@ -478,13 +478,6 @@ function anclaDeTexto(selection: Selection): ResolvedPos {
     : TextSelection.near(selection.$from, 1).$from;
 }
 
-/** El nodo de enlace del editor, que es el que escribe un `[texto](ruta)`. */
-function marcaDeEnlace(esquema: Schema): MarkType {
-  const enlace = esquema.marks.link;
-  if (!enlace) throw new Error("El editor no tiene la marca de enlace");
-  return enlace;
-}
-
 /**
  * Un bloque de texto vacío, que es lo que se abre debajo de lo insertado para
  * poder seguir escribiendo sin tabular.
@@ -499,60 +492,90 @@ function bloqueVacio(esquema: Schema): Node {
 }
 
 /**
- * Escribe un enlace a un archivo adjunto.
+ * Inserta la tarjeta de un archivo adjunto.
  *
- * Va en su propia línea porque es como se lee: si el cursor estaba a media
- * frase, se parte el bloque y la frase queda arriba, el enlace en medio y el
- * resto debajo. Con texto seleccionado, ese texto se sustituye: adjuntar
- * encima de un texto significa que ese texto era el nombre del archivo.
+ * Entra como un bloque, no como un enlace dentro de una frase: una tarjeta es un
+ * bloque. Va en su propia línea porque es como se lee —si el cursor estaba a
+ * media frase, se parte el bloque y la frase queda arriba, la tarjeta en medio y el
+ * resto debajo— y con texto seleccionado ese texto se sustituye: adjuntar encima
+ * de un texto significa que ese texto era el nombre del archivo.
+ *
+ * El `size` se guarda porque la tarjeta lo enseña y leerlo del disco en cada pintado
+ * sería una llamada al sistema por cada adjunto de la nota cada vez que se
+ * repinta. No se serializa: sale en el Markdown como un enlace normal, que es lo
+ * que se lee en cualquier otro sitio.
  */
-export const insertAttachmentLink =
-  (relativePath: string, label: string, report: ReportFailure = POR_CONSOLA): Command =>
+/**
+ * El cursor en el primer sitio donde se puede escribir a partir de `pos`.
+ *
+ * Un bloque —una imagen, un adjunto— no tiene texto dentro, así que la posición que
+ * queda justo detrás no es un sitio válido: resolverla da el `doc`, no el párrafo
+ * siguiente, y una selección ahí es una selección rara en medio de la nota. Se
+ * avanza un paso y se busca el texto más cercano, que es lo único que ProseMirror
+ * garantiza.
+ */
+function textoDespues(tr: Transaction, pos: number): Selection {
+  const dentro = Math.max(0, Math.min(pos, tr.doc.content.size));
+  const $pos = tr.doc.resolve(dentro);
+  if ($pos.parent.isTextblock) return TextSelection.create(tr.doc, dentro);
+  return TextSelection.near(tr.doc.resolve(Math.min(dentro + 1, tr.doc.content.size)), 1);
+}
+
+export const insertAttachment =
+  (
+    relativePath: string,
+    label: string,
+    size?: number,
+    report: ReportFailure = POR_CONSOLA,
+  ): Command =>
   (props) => {
     const texto = label.trim() || "Archivo";
     try {
       const { state } = props;
-      const marca = marcaDeEnlace(state.schema).create({ href: relativePath });
+      const tipo = state.schema.nodes.noteAttachment;
+      if (!tipo) throw new Error("El editor no tiene el nodo de adjunto");
+      const nodo = crear(tipo, { href: relativePath, label: texto, size: size ?? null }, null);
       conValidacion(props, (tr) => {
-        // Sin un cursor de texto no hay sitio donde partir la frase: se va al más
-        // cercano, sin tocar el bloque que estuviera seleccionado.
+        // Sin un cursor de texto no hay sitio donde insertar: se va al más cercano,
+        // sin tocar el bloque que estuviera seleccionado.
         if (!tr.selection.$from.parent.isTextblock) {
           tr.setSelection(TextSelection.near(tr.selection.$from, 1));
         }
         if (!tr.selection.empty) tr.deleteSelection();
         const cursor = tr.selection.$from;
-        // El texto del enlace entra con su marca puesta de una vez, en un párrafo
-        // que ya está entero. Insertarlo así —en vez de escribir y después
-        // marcar— es lo que hace que no dependa de en qué posición exacta haya
-        // caído el corte del bloque.
-        const enBloqueVacio = cursor.parent.content.size === 0;
-        if (enBloqueVacio) {
-          tr.insertText(texto, cursor.pos, cursor.pos).addMark(
-            cursor.pos,
-            cursor.pos + texto.length,
-            marca,
-          );
+        // Al principio de un bloque de primer nivel la tarjeta entra **encima**, sin
+        // partirlo: partir por el principio dejaba un párrafo vacío delante, que en
+        // el Markdown son dos líneas en blanco al principio de la nota. Solo a
+        // nivel de bloque: dentro de una lista o una cita, `before()` sacaría la
+        // tarjeta de donde se está escribiendo.
+        const encima = cursor.parentOffset === 0 && cursor.depth === 1 && cursor.parent.content.size > 0;
+        let desde: number;
+        if (cursor.parent.content.size === 0) {
+          // En un párrafo vacío la tarjeta lo sustituye entero: si no, se quedaba
+          // una línea en blanco encima del archivo.
+          desde = cursor.before();
+          tr.replaceWith(desde, cursor.after(), nodo);
+        } else if (encima) {
+          desde = cursor.before();
+          tr.insert(desde, nodo);
         } else {
-          // Se parte el bloque, igual que al pulsar Enter: la frase queda arriba,
-          // el enlace en su propia línea y el resto debajo.
-          tr.insert(
-            cursor.pos,
-            crear(state.schema.nodes.paragraph, null, state.schema.text(texto, [marca])),
-          );
+          // A media frase se parte el bloque, igual que al pulsar Enter: la frase
+          // queda arriba, la tarjeta en medio y el resto debajo.
+          desde = cursor.pos;
+          tr.insert(desde, nodo);
         }
-        // El cursor se queda detrás del enlace, con nada seleccionado: dos saltos
-        // de más por el párrafo que se ha abierto al partir el bloque.
-        const fin = cursor.pos + texto.length + (enBloqueVacio ? 0 : 2);
-        tr.setSelection(TextSelection.create(tr.doc, fin));
+        // El cursor detrás de la tarjeta, en un sitio donde se pueda escribir:
+        // seguir escribiendo no puede borrar lo que se acaba de adjuntar.
+        tr.setSelection(textoDespues(tr, desde + nodo.nodeSize));
       });
       props.dispatch?.(props.tr.scrollIntoView());
       return true;
     } catch (error) {
       if (error instanceof ContenidoNoTextual) {
-        report("aquí no se puede escribir el enlace", error.message);
+        report("aquí no se puede poner el archivo", error.message);
         return false;
       }
-      report("no se pudo escribir el enlace al archivo", error);
+      report("no se pudo poner el archivo", error);
       return false;
     }
   };

@@ -363,13 +363,13 @@ export class PreviewWorkspaceGateway implements WorkspaceGateway {
     });
   }
 
-  async openEntry(): Promise<boolean> {
+  async openAsset(): Promise<void> {
     // En el navegador de la previsualización no hay sistema operativo detrás: no
-    // hay nada que abrir. Se dice que no, en vez de fingir que sí.
-    return false;
+    // hay nada que abrir. Se dice que no se puede, en vez de fingir que sí.
+    throw vaultError("unsupported", "En la previsualización no se pueden abrir adjuntos");
   }
 
-  async revealEntry(): Promise<boolean> {
-    return false;
+  async revealAsset(): Promise<void> {
+    throw vaultError("unsupported", "En la previsualización no hay explorador de archivos");
   }
 }

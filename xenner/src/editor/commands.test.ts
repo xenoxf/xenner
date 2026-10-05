@@ -6,7 +6,7 @@ import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 import type { EditorBlockType } from "../types/editor.ts";
 import {
-  insertAttachmentLink,
+  insertAttachment,
   insertImage,
   insertWhiteboard,
   leaveCaretBehind,
@@ -310,31 +310,48 @@ test("el cursor en el borde del documento cambia el primer bloque, no nada", () 
   assert.equal(editor.markdown(), "# Hola", editor.markdown());
 });
 
-test("adjuntar escribe un enlace con el nombre del archivo, en su propia línea", () => {
-  // Con el cursor a media frase se parte el bloque: la frase queda arriba, el
-  // enlace en su línea y el resto debajo. Es como se lee un adjunto en una nota.
+test("adjuntar pone una tarjeta, y en el Markdown un enlace en su propia línea", () => {
+  // Con el cursor a media frase se parte el bloque: la frase queda arriba, la
+  // tarjeta en su línea y el resto debajo. Es como se lee un adjunto en una nota.
   const editor = crearEditorDePrueba([parrafo("Frase a media frase")]);
   editor.cursorEn("media");
   const fallos: string[] = [];
   const ok = editor.ejecutar(
-    insertAttachmentLink(".assets/datos.pdf", "datos.pdf", (que, error) =>
+    insertAttachment("./.assets/datos.pdf", "datos.pdf", 240_000, (que, error) =>
       fallos.push(`${que} — ${String(error)}`),
     ),
   );
   assert.equal(ok, true, fallos.join("; "));
   editor.validar();
-  assert.deepEqual(bloques(editor), ["paragraph", "paragraph", "paragraph"]);
-  assert.match(editor.markdown(), /^\[datos\.pdf\]\(\.assets\/datos\.pdf\)$/m, editor.markdown());
+  assert.deepEqual(bloques(editor), ["paragraph", "noteAttachment", "paragraph"]);
+  // En el disco sale como Markdown de toda la vida: un enlace en su línea.
+  assert.match(editor.markdown(), /^\[datos\.pdf\]\(\.\/\.assets\/datos\.pdf\)$/m, editor.markdown());
   // Y el texto de alrededor se conserva entero.
   assert.deepEqual(
     editor.texto().split(/\s+/).filter(Boolean).sort(),
-    ["Frase", "a", "media", "datos.pdf", "frase"].sort(),
+    ["Frase", "a", "media", "frase"].sort(),
   );
-  // Con el cursor detrás del enlace y con nada seleccionado: seguir escribiendo
-  // no borra lo que se acaba de adjuntar.
+  // Con el cursor detrás de la tarjeta, en texto y con nada seleccionado: seguir
+  // escribiendo no borra lo que se acaba de adjuntar.
   const { selection } = editor.estado();
   assert.equal(selection.empty, true);
-  assert.equal(selection.$head.parent.textContent, "datos.pdf");
+  assert.equal(selection.$head.parent.type.name, "paragraph");
+  assert.equal(selection.$head.parent.textContent, "media frase");
+});
+
+test("la tarjeta de un adjunto es el enlace al abrir la nota", () => {
+  // El viaje completo —insertar, guardar y volver a abrir— es lo que no puede
+  // romperse, y la ida y vuelta de Markdown tiene su propio test en
+  // `markdown.test.ts`, que es donde vive el `MarkdownManager`. Aquí se comprueba
+  // que el nodo que sale del comando es una tarjeta, y no un enlace en un párrafo.
+  const editor = crearEditorDePrueba([parrafo("Antes")]);
+  editor.cursorEn("Antes");
+  editor.ejecutar(insertAttachment("./.assets/informe.pdf", "informe.pdf", 1024));
+  editor.validar();
+  // Al principio de la línea la tarjeta va **encima**, y no dejando un párrafo vacío
+  // delante: en el Markdown eso serían dos líneas en blanco al principio de la nota.
+  assert.deepEqual(bloques(editor), ["noteAttachment", "paragraph"]);
+  assert.equal(editor.markdown(), "[informe.pdf](./.assets/informe.pdf)\n\nAntes", editor.markdown());
 });
 
 test("adjuntar encima de un texto seleccionado sustituye ese texto", () => {
@@ -345,13 +362,14 @@ test("adjuntar encima de un texto seleccionado sustituye ese texto", () => {
   const fallos: string[] = [];
   assert.equal(
     editor.ejecutar(
-      insertAttachmentLink(".assets/informe.pdf", "informe.pdf", (que) => fallos.push(que)),
+      insertAttachment("./.assets/informe.pdf", "informe.pdf", 1024, (que) => fallos.push(que)),
     ),
     true,
     fallos.join("; "),
   );
   editor.validar();
-  assert.equal(editor.markdown(), "[informe.pdf](.assets/informe.pdf)", editor.markdown());
+  assert.deepEqual(bloques(editor), ["noteAttachment"]);
+  assert.equal(editor.markdown(), "[informe.pdf](./.assets/informe.pdf)", editor.markdown());
 });
 
 test("insertar una imagen o una pizarra deja una línea debajo", () => {

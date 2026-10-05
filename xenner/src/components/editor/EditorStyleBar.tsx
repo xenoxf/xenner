@@ -5,10 +5,13 @@ import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show }
 import {
   leaveCaretBehind,
   setBlockType,
+  setTextAlign,
   setTextStyle,
   type ReportFailure,
 } from "../../editor/commands.ts";
+import { alignInSelection, puedeAlinear, type TextAlign } from "../../editor/extensions/index.ts";
 import {
+  EDITOR_ALIGNMENTS,
   EDITOR_BLOCK_TYPES,
   EDITOR_BUTTON_LABELS,
   EDITOR_COLOR_ICONS,
@@ -499,10 +502,37 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
    */
   const activo = createMemo(leerEstiloActual);
 
+  /** El lado por el que va pegado el texto, para encender su botón. */
+  const alineacionActual = createMemo(leerAlineacionActual);
+
   /** Si una marca está puesta en lo seleccionado. */
   function marcaPuesta(nombre: string): boolean {
     props.version();
     return props.editor?.isActive(nombre) ?? false;
+  }
+
+  /**
+   * De qué lado está pegado el texto de lo seleccionado, o `null` si hay más de uno.
+   *
+   * Se lee del documento vivo con el mismo contrato que el resto de la barra: el
+   * `props.version()` es lo que hace que esto cambie cuando el editor cambia, y sin
+   * él el botón se quedaría enseñando el lado de hace tres palabras.
+   */
+  function leerAlineacionActual(): TextAlign | null {
+    props.version();
+    const editor = props.editor;
+    if (!editor || editor.isDestroyed) return null;
+    const { doc, selection } = editor.state;
+    return alignInSelection(doc, selection.from, selection.to);
+  }
+
+  /** El botón de alinear sale apagado cuando no hay ningún párrafo que alinear. */
+  function alineacionPosible(): boolean {
+    props.version();
+    const editor = props.editor;
+    if (!editor || editor.isDestroyed) return false;
+    const { doc, selection } = editor.state;
+    return puedeAlinear(doc, selection.from, selection.to);
   }
 
   /** La entrada del desplegable que toca, para poderle dar el foco. */
@@ -686,6 +716,23 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
     conRango(rango, (commandProps) => setTextStyle(target, valor, props.report)(commandProps));
   }
 
+  // --- La alineación del párrafo ---------------------------------------------
+
+  /**
+   * Alinea el texto de los párrafos que toca la selección.
+   *
+   * Va en su propia transacción y **no** deja el cursor detrás: alinear no termina
+   * lo que se estaba escribiendo, así que quien alinea un párrafo y sigue escribiendo
+   * —el gesto más natural del mundo— tiene que poder seguir donde estaba. Por eso
+   * aquí no se llama a `leaveCaretBehind`, que es para los que sí cambian el bloque.
+   */
+  function aplicarAlineacion(lado: TextAlign): void {
+    const editor = props.editor;
+    if (!editor || editor.isDestroyed) return;
+    editor.commands.command((commandProps) => setTextAlign(lado, props.report)(commandProps));
+    editor.view.focus();
+  }
+
   // --- Fuera del desplegable -----------------------------------------------
 
   createEffect(() => {
@@ -778,6 +825,43 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
             </button>
           )}
         </For>
+
+        {/*
+          * La alineación va con su propio grupo y su separador porque no es una
+          * marca: alinear es del bloque, y por eso se enciende con lo que tiene el
+          * párrafo. Mezclada entre las marcas, un «centrar» apagado al lado de una
+          * «negrita» encendida parece un botón roto.
+          */}
+        <span class={styles.barSeparator} aria-hidden="true" />
+
+        <div
+          class={styles.alignBar}
+          role="group"
+          aria-label={EDITOR_BUTTON_LABELS.alignBar}
+        >
+          <For each={EDITOR_ALIGNMENTS}>
+            {(lado) => (
+              <button
+                type="button"
+                class={`${styles.tool}${
+                  alineacionActual() === lado.value ? ` ${styles.toolActive}` : ""
+                }`}
+                aria-label={lado.label}
+                title={lado.label}
+                aria-pressed={alineacionActual() === lado.value}
+                // Apagado, no escondido: con el cursor en un título o una lista no
+                // hay párrafo que alinear, y un botón que aparece y desaparece
+                // hace que la barra se mueva mientras se está escribiendo.
+                disabled={!props.editor || !alineacionPosible()}
+                onClick={() => aplicarAlineacion(lado.value)}
+              >
+                <span class={styles.toolIcon} innerHTML={lado.icon} />
+              </button>
+            )}
+          </For>
+        </div>
+
+        <span class={styles.barSeparator} aria-hidden="true" />
 
         <button
           type="button"

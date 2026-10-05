@@ -362,4 +362,14 @@ export class PreviewWorkspaceGateway implements WorkspaceGateway {
       entries: state.entries.filter((candidate) => candidate.path !== relativePath),
     });
   }
+
+  async openEntry(): Promise<boolean> {
+    // En el navegador de la previsualización no hay sistema operativo detrás: no
+    // hay nada que abrir. Se dice que no, en vez de fingir que sí.
+    return false;
+  }
+
+  async revealEntry(): Promise<boolean> {
+    return false;
+  }
 }

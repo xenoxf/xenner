@@ -121,7 +121,7 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
    * Este era el fallo que hacía la píldora «funcionar unas veces y otras no». La
    * píldora está 8 px encima del texto, así que para llegar a ella hay un hueco, y
    * al cruzarlo el puntero sale del editor (`pointerleave`) y entraba en la píldora
-   * sin que hubiera还款 tiempo de ninguna de las dos cosas: se escondía justo
+   * sin que hubiera tiempo de ninguna de las dos cosas: se escondía justo
    * cuando ya casi se podía pulsar. Con la espera, hay tiempo de llegar; y si se
    * entra, se cancela.
    */
@@ -167,8 +167,17 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
    */
   const [gesto, setGesto] = createSignal<"teclado" | "puntero">("puntero");
 
-  /** Hay algo seleccionado y el editor está editable. */
+  /**
+   * Hay algo seleccionado y el editor está editable.
+   *
+   * El `props.version()` de la primera línea es lo que hace que esto pueda
+   * cambiar: leer la selección no engancha nada a Solid, así que sin él el memo se
+   * guardaba la respuesta de cuando se montó la barra —que era que no había nada
+   * seleccionado— y la píldora no salía nunca, ni con el ratón ni con el teclado.
+   * Es el mismo contrato que `leerEstiloActual` y `marcaPuesta`.
+   */
   const haySeleccion = createMemo(() => {
+    props.version();
     const instance = props.editor;
     if (!instance || instance.isDestroyed || !instance.isEditable) return false;
     return instance.state.selection.from !== instance.state.selection.to;
@@ -340,6 +349,10 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
       dom.addEventListener("pointerdown", apuntar);
       dom.addEventListener("pointerleave", salir);
       dom.addEventListener("pointerup", alSoltar);
+      // Un gesto cancelado no es un gesto: con el dedo, el navegador cancela el
+      // puntero en cuanto el dedo se pone a desplazar, y sin esto la píldora se
+      // quedaba encima de la nota con el texto ya movido de sitio.
+      dom.addEventListener("pointercancel", salir);
       dom.addEventListener("keydown", porTeclado);
       /**
        * La píldora va anclada a la selección, así que tiene que moverse con ella:
@@ -357,6 +370,7 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
         dom.removeEventListener("pointerdown", apuntar);
         dom.removeEventListener("pointerleave", salir);
         dom.removeEventListener("pointerup", alSoltar);
+        dom.removeEventListener("pointercancel", salir);
         dom.removeEventListener("keydown", porTeclado);
         window.removeEventListener("scroll", alMover, true);
         window.removeEventListener("resize", alMover);

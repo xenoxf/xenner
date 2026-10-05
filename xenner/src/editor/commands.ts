@@ -433,6 +433,15 @@ export const setBlockType =
  * texto entero: cambiar el tipo y seguir escribiendo —el gesto más natural del
  * mundo— borra lo que se acaba de formatear. El texto se conserva entero; lo
  * que se suelta es la selección, que ya hizo su trabajo.
+ *
+ * La posición sale de `tr.selection`, **no** de `state.selection`, y esa
+ * diferencia era un aviso de error en cada opción de bloque. Este comando va
+ * siempre después de otro que ya ha cambiado el documento, y dentro de la misma
+ * transacción: `state` es la foto que había antes de eso —Tiptap la crea al abrir
+ * el comando y solo la actualiza cuando alguien lee `state.tr`—, así que la
+ * selección que salía de ahí apuntaba al documento anterior. `tr.setSelection`
+ * exige que apunte al actual y tiraba un `RangeError`, que el `catch` de abajo
+ * traducía a «No se pudo aplicar el formato» con el texto ya cambiado en la nota.
  */
 export const leaveCaretBehind =
   (report: ReportFailure = POR_CONSOLA): Command =>
@@ -440,7 +449,7 @@ export const leaveCaretBehind =
     try {
       // Se calcula antes de tocar nada: si `near` no encuentra un sitio donde
       // escribir, la transacción del editor tiene que quedarse como estaba.
-      const final = TextSelection.near(props.state.selection.$to, 1);
+      const final = TextSelection.near(props.tr.selection.$to, 1);
       props.tr.setSelection(final);
       props.dispatch?.(props.tr.scrollIntoView());
       return true;

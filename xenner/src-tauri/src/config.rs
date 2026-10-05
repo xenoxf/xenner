@@ -272,6 +272,22 @@ pub fn ensure(app: &AppHandle) -> bool {
 ///
 /// Fuera de Android, que no tiene explorador de archivos y donde ni siquiera
 /// existe un `Command` con el que lanzar nada.
+/// Abre una carpeta con el explorador de archivos del sistema.
+///
+/// Vive aquí y no en `vault` porque lo usan los dos: la carpeta de Xenner y la de
+/// un adjunto de una nota. La comprobación de que es una carpeta de verdad va
+/// aquí, que es donde está el sentido de la función.
+#[cfg(any(not(target_os = "android"), test))]
+pub(crate) fn open_directory(path: &Path) -> Result<(), String> {
+    open_in_file_manager(path)
+}
+
+/// En Android no hay explorador de archivos, así que tampoco hay nada que abrir.
+#[cfg(target_os = "android")]
+pub(crate) fn open_directory(_path: &Path) -> Result<(), String> {
+    Err("en Android no hay explorador de archivos: la carpeta está dentro de la app".into())
+}
+
 #[cfg(any(not(target_os = "android"), test))]
 fn open_in_file_manager(path: &Path) -> Result<(), String> {
     if !is_plain_directory(path) {

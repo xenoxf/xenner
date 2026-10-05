@@ -29,6 +29,8 @@
     "allow-create-folder",
     "allow-rename-entry",
     "allow-move-entry",
+    "allow-open-entry",
+    "allow-reveal-entry",
     "allow-delete-entry"
   ],
   "platforms": ["windows", "linux", "macOS", "android", "iOS"]

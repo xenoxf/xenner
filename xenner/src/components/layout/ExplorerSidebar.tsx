@@ -15,7 +15,11 @@ export interface ExplorerSidebarProps {
   loading: boolean;
   canChooseWorkspace: boolean;
   error: VaultErrorShape | null;
-  selectedPath: string | null;
+  /**
+   * La fila enfocada del árbol —nota o carpeta—, que es la que marca dónde cae lo
+   * nuevo. No es la nota del editor: esa no puede ser una carpeta.
+   */
+  focusedPath: string | null;
   expandedPaths: ReadonlySet<string>;
   creation: CreationDraft | null;
   creating: boolean;
@@ -33,6 +37,7 @@ export interface ExplorerSidebarProps {
   onSubmitCreation(name: string): void;
   onCancelCreation(): void;
   onSelect(path: string): void;
+  onFocus(path: string): void;
   onToggle(path: string): void;
   onRename(path: string): void;
   onDelete(path: string): void;
@@ -173,12 +178,13 @@ export function ExplorerSidebar(props: ExplorerSidebarProps) {
         >
           <Explorer
             nodes={props.tree}
-            selectedPath={props.selectedPath}
+            focusedPath={props.focusedPath}
             expandedPaths={props.expandedPaths}
             creation={props.creation}
             busy={props.creating}
             canPaste={props.canPaste}
             onSelect={props.onSelect}
+            onFocus={props.onFocus}
             onToggle={props.onToggle}
             onStartCreation={props.onStartCreation}
             onSubmitCreation={props.onSubmitCreation}

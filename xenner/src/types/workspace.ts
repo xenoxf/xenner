@@ -119,4 +119,14 @@ export interface WorkspaceGateway {
   renameEntry(relativePath: string, name: string): Promise<string>;
   moveEntry(relativePath: string, targetParent: string): Promise<string>;
   deleteEntry(relativePath: string): Promise<void>;
+  /**
+   * Abre una entrada con el programa que el sistema tenga asociado.
+   *
+   * Devuelve `false` —en vez de fallar— cuando la plataforma no puede: en Android
+   * no hay otra aplicación a la que pasárselo, y eso no es un error de quien
+   * escribe, es una capacidad que no existe. Por eso no lanza.
+   */
+  openEntry(relativePath: string): Promise<boolean>;
+  /** Abre el explorador de archivos en la carpeta de la entrada. */
+  revealEntry(relativePath: string): Promise<boolean>;
 }

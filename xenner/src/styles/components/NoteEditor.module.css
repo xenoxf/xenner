@@ -129,6 +129,21 @@
   line-height: var(--skin-editor-line-height, 1.7);
 }
 
+/*
+ * El hueco entre párrafos lo pone esta hoja, no el navegador.
+ *
+ * Nadie le ponía `margin` a los `<p>` del editor, así que se quedaban con el
+ * `1em 0` de la hoja por defecto del navegador. Encima del interlineado de
+ * Apariencia —1.7 de serie— eso metía casi 43 px entre una línea y la siguiente
+ * al dar Intro: el hueco era casi el doble de la caja de línea, y ni Apariencia
+ * ni una skin lo podían cambiar, porque no era un token sino el valor por
+ * defecto de otra hoja. Es el mismo `0.2em` que llevan las listas: lo justo para
+ * separar dos párrafos sin abrir un claro en medio de la nota.
+ */
+.editor :global(.ProseMirror p) {
+  margin: 0.2em 0;
+}
+
 /* Red de seguridad: una URL larguísima o una palabra sin espacios no puede
    ensanchar la columna de lectura. */
 .editor :global(.ProseMirror p),

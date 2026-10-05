@@ -146,7 +146,10 @@ export function EditorPane(props: EditorPaneProps) {
     try {
       const imported = await chooseImageForEditor(document.path);
       if (!imported || !editorHandle) return;
-      await editorHandle.insertImage(imported, imported.fileName);
+      // Sin pie: el nombre del archivo **no** es el nombre de la imagen, y
+      // ponerlo de salida salía como un campo «Pie de la imagen» ya relleno en
+      // cuanto se insertaba. La imagen entra sola; el pie se escribe si se quiere.
+      await editorHandle.insertImage(imported);
       notifySuccess("Imagen insertada", imported.fileName);
     } catch (error) {
       notifyError("No se pudo insertar la imagen", error);
@@ -173,7 +176,8 @@ export function EditorPane(props: EditorPaneProps) {
     setImageBusy(true);
     try {
       const imported = await importImageForEditor(document.path, file);
-      await editorHandle.insertImage(imported, file.name);
+      // Como en `chooseImage`: entra la imagen, no un formulario con su nombre.
+      await editorHandle.insertImage(imported);
       notifySuccess("Imagen insertada", file.name);
     } catch (error) {
       notifyError("No se pudo insertar la imagen", error);

@@ -11,9 +11,11 @@ import { serializeNoteContent } from "../workspace/note";
 import {
   createFolder,
   createNote,
+  creationParent,
   deleteEntry,
   expandFolder,
   flushPendingSave,
+  focusEntry,
   getSelectedDocument,
   getSelectedPath,
   getWorkspace,
@@ -101,13 +103,23 @@ export function useExplorerController() {
     }
   }
 
-  function startCreation(kind: CreationKind, parent = ""): void {
-    if (parent) expandFolder(parent);
+  /**
+ * Empieza a crear algo, y dice **dónde** cae.
+ *
+ * Sin destino —que es lo que hacen los botones de la barra y el botón de «una
+ * nota para escribir»— se usa la carpeta enfocada, como en cualquier explorador
+ * de un solo clic: si elegiste una carpeta y la dejaste elegida, lo nuevo cae
+ * dentro de ella. El menú contextual, en cambio, siempre pasa su destino: «Nueva
+ * nota» sobre una carpeta es esa carpeta, aunque lo enfocado sea otra cosa.
+ */
+function startCreation(kind: CreationKind, parent?: string): void {
+    const destino = parent ?? creationParent();
+    if (destino) expandFolder(destino);
     if (kind === "note") {
-      void createUntitledNote(parent);
+      void createUntitledNote(destino);
       return;
     }
-    setCreation({ kind, parent });
+    setCreation({ kind, parent: destino });
   }
 
   async function submitCreation(name: string): Promise<void> {
@@ -173,6 +185,9 @@ export function useExplorerController() {
       return;
     }
     setCutEntry({ path, root });
+    // Lo cortado sigue enfocado: quien lo cortó lo quiere mover, y así el
+    // elemento se ve de dónde salió mientras está esperando el pegado.
+    focusEntry(path);
     notifySuccess("Elemento listo para mover", baseName(path));
   }
 

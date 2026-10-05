@@ -223,6 +223,40 @@ test("el gesto completo del menú —cambiar el tipo y soltar el cursor— no ro
   }
 });
 
+test("cambiar el tipo y soltar el cursor van en la MISMA transacción, y no falla", () => {
+  // El fallo que nació aquí: en la app las dos mitades del gesto se ejecutan con
+  // los **mismos** `props` —un solo comando, una sola transacción, un solo
+  // deshacer—, así que la que suelta el cursor va después de un documento que ya
+  // ha cambiado. Los tests de arriba pasaban por accidento: `editor.ejecutar`
+  // abre una transacción nueva en cada llamada, y el fallo no se podía ver.
+  //
+  // El aviso que salía era «No se pudo aplicar el formato / el cambio se aplicó
+  // pero el cursor no se quedó al final», en TODAS las opciones de bloque, con el
+  // texto ya cambiado: la selección se calculaba sobre el documento anterior y
+  // `tr.setSelection` la rechazaba por no apuntar al actual.
+  for (const tipo of TIPOS) {
+    const editor = crearEditorDePrueba([parrafo("Linea"), parrafo("Otra")]);
+    editor.seleccionar("Linea");
+    const fallos: string[] = [];
+    const avisar: ReportFailure = (que) => fallos.push(que);
+    const ok = editor.ejecutar((props) => {
+      if (!setBlockType(tipo, avisar)(props)) return false;
+      return leaveCaretBehind(avisar)(props);
+    });
+    editor.validar();
+    assert.deepEqual(fallos, [], `${tipo}: avisó de un fallo con el tipo ya aplicado`);
+    assert.equal(ok, true, `${tipo}: el gesto completo no se aplicó`);
+    assert.equal(editor.texto(), "Linea\nOtra", `con ${tipo}: el documento se rompió`);
+    const { selection } = editor.estado();
+    assert.ok(selection.$from.parent.isTextblock, `con ${tipo}: el cursor quedó fuera del texto`);
+    assert.equal(selection.empty, true, `con ${tipo}: la selección sigue puesta`);
+    assert.ok(
+      selection.from >= 0 && selection.to <= editor.estado().doc.content.size,
+      `con ${tipo}: el cursor quedó fuera de la nota`,
+    );
+  }
+});
+
 test("un bloque con algo que no es texto no se toca, y se explica por qué", () => {
   // Rehacer el bloque entero es lo que hace que el tipo cambie de verdad, y solo
   // se puede rehacer si lo que hay dentro es texto. Un separador —o una imagen,

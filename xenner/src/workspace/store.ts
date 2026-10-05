@@ -13,7 +13,7 @@ import { platformSupportsFolderPicker } from "../services/platform";
 import { getActiveWhiteboard, leaveEditor } from "../services/editorSession";
 import { forgetNoteHistory, recordNoteVersion, seedNoteHistory } from "../services/noteHistory";
 import { noteTitleFromPath, serializeNoteContent } from "./note";
-import { buildWorkspaceTree, isPathInside } from "./tree";
+import { buildWorkspaceTree, flattenTree, isPathInside, parentPath } from "./tree";
 
 const SAVE_DELAY_MS = 300;
 const WORKSPACE_WATCH_INTERVAL_MS = 2_500;
@@ -35,6 +35,20 @@ const [documentLoading, setDocumentLoading] = createSignal(false);
 const [documentReloadToken, setDocumentReloadToken] = createSignal(0);
 const [workspaceError, setWorkspaceError] = createSignal<VaultErrorShape | null>(null);
 const [expandedPaths, setExpandedPaths] = createSignal<Set<string>>(new Set());
+/**
+ * La fila enfocada del explorador, que puede ser una nota **o una carpeta**.
+ *
+ * No es lo mismo que `selectedPath`: esa es la nota que está abierta en el
+ * editor, y por eso está atada al documento —el guardado con retardo solo escribe
+ * si la nota seleccionada sigue siendo la suya—. Aquí lo que se recuerda es la
+ * fila sobre la que se ha hecho clic, y es lo que decide dónde cae lo nuevo: es
+ * lo que hace un explorador de verdad, donde pulsar «Nueva nota» con una carpeta
+ * enfocada la crea dentro de esa carpeta y no en la raíz.
+ *
+ * Se guarda aparte porque una carpeta no se puede abrir en el editor, y porque
+ * enfocar una carpeta no puede tocar lo que se está escribiendo.
+ */
+const [focusedPath, setFocusedPath] = createSignal<string | null>(null);
 
 const tree = createMemo(() => buildWorkspaceTree(workspace()?.entries ?? []));
 let pendingSave: PendingSave | null = null;
@@ -257,6 +271,39 @@ export function getExpandedPaths() {
   return expandedPaths();
 }
 
+export function getFocusedPath() {
+  return focusedPath();
+}
+
+/**
+ * Enfoca una fila del explorador.
+ *
+ * Es lo que llama el clic sobre una fila, venga del ratón o de las flechas: a
+ * partir de ahí, «Nueva nota», «Nueva carpeta» y «Pegar» caen dentro de esa
+ * carpeta. Enfocar una carpeta no la abre ni cambia lo que hay en el editor, que
+ * es justo lo que hace falta para «dejar la carpeta seleccionada» y seguir
+ * trabajando en la nota de al lado.
+ */
+export function focusEntry(path: string): void {
+  setFocusedPath(path);
+}
+
+/**
+ * La carpeta donde cae lo nuevo: la enfocada, o la que contiene lo enfocado.
+ *
+ * Es la regla del explorador de un solo clic: si la fila enfocada es una carpeta,
+ * lo nuevo va dentro; si es una nota, va junto a ella; si no hay nada enfocado —o
+ * lo enfocado ya no existe, porque se renombró o se borró desde fuera—, en la raíz.
+ */
+export function creationParent(): string {
+  const focus = focusedPath();
+  if (!focus) return "";
+  const node = flattenTree(tree()).find((candidate) => candidate.path === focus);
+  if (!node) return "";
+  if (node.kind === "directory") return node.path;
+  return parentPath(node.path);
+}
+
 export function workspaceSupportsFolderPicker(): boolean {
   // En Android el diálogo de Tauri no tiene selector de carpetas, aunque el
   // gateway diga que sí: la biblioteca es la de la app y no se puede cambiar.
@@ -304,6 +351,10 @@ export async function selectNote(path: string): Promise<boolean> {
     seedNoteHistory(path, document.body, document.updatedAt || Date.now());
     setSelectedPath(path);
     setSelectedDocument(document);
+    // Abrir una nota también la enfoca: «Nueva nota» al lado de la que se está
+    // escribiendo es lo que se espera, y antes de esto lo decidía solo la nota
+    // seleccionada y no una carpeta.
+    setFocusedPath(path);
     setSaveStatus("clean");
     const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
     if (parent) expandFolder(parent);
@@ -418,6 +469,10 @@ export async function createFolder(parent: string, name: string): Promise<Create
     await refreshWorkspace();
     if (parent) expandFolder(parent);
     expandFolder(created.path);
+    // La carpeta nueva queda elegida: es lo que hace el explorador de un solo
+    // clic, y además hace que el «Nueva nota» que venga detrás caiga dentro de
+    // ella en vez de en su padre.
+    setFocusedPath(created.path);
     setWorkspaceError(null);
     return created;
   } catch (error) {
@@ -500,6 +555,20 @@ export async function importLegacyNotes(notes: LegacyNote[]): Promise<number> {
   return imported;
 }
 
+/**
+ * Lleva la fila enfocada al sitio nuevo cuando lo que tenía enfocada se mueve.
+ *
+ * Sin esto, renombrar la carpeta que estaba resaltada dejaba la fila marcada en
+ * una ruta que ya no existe, y lo siguiente que se creara caía en la raíz: el
+ * fallo era invisible —no se rompía nada— y hacía que «Nueva nota» obedeciera a
+ * una carpeta que ya no estaba.
+ */
+function reubicarFoco(desde: string, hasta: string): void {
+  const focus = focusedPath();
+  if (!focus || !isPathInside(focus, desde)) return;
+  setFocusedPath(`${hasta}${focus.slice(desde.length)}`);
+}
+
 export async function renameEntry(path: string, name: string): Promise<string | null> {
   if (!(await leaveEditor())) return null;
   if (!(await flushPendingSave())) return null;
@@ -511,6 +580,7 @@ export async function renameEntry(path: string, name: string): Promise<string | 
   try {
     const nextPath = await gateway.renameEntry(path, name);
     await refreshWorkspace();
+    reubicarFoco(path, nextPath);
     if (previousSelection === path || (previousSelection && isPathInside(previousSelection, path))) {
       const suffix = previousSelection.slice(path.length);
       const nextSelectedPath = `${nextPath}${suffix}`;
@@ -558,6 +628,7 @@ export async function moveEntry(path: string, targetParent: string): Promise<str
   try {
     const nextPath = await gateway.moveEntry(path, targetParent);
     await refreshWorkspace();
+    reubicarFoco(path, nextPath);
     setExpandedPaths((previous) => {
       const next = new Set<string>();
       for (const expandedPath of previous) {
@@ -595,6 +666,12 @@ export async function deleteEntry(path: string): Promise<boolean> {
     await gateway.deleteEntry(path);
     forgetNoteHistory(removed);
     await refreshWorkspace();
+    // Lo enfocado se cae con lo borrado —incluido lo que hubiera dentro—, así que
+    // el foco pasa a la carpeta que lo contenía. Sin esto la fila marcada era una
+    // ruta muerta y lo nuevo volvía a caer en la raíz sin avisar.
+    if (focusedPath() === path || (focusedPath() && isPathInside(focusedPath()!, path))) {
+      setFocusedPath(parentPath(path));
+    }
     if (previousSelection === path || (previousSelection && isPathInside(previousSelection, path))) {
       const next = [
         ...flatEntries.slice(index + 1),
@@ -622,6 +699,8 @@ export async function chooseWorkspace(): Promise<boolean> {
     setWorkspace(scan);
     setSelectedPath(null);
     setSelectedDocument(null);
+    // La biblioteca anterior ya no existe: el foco tampoco puede quedar en ella.
+    setFocusedPath(null);
     setSaveStatus("clean");
     setExpandedPaths(new Set<string>());
     setWorkspaceError(null);

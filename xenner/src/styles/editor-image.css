@@ -101,9 +101,21 @@
  * El pie y los tres botones de alineación, en una fila.
  *
  * Vienen en la propia imagen en vez de en una barra fija porque así no están
- * encima de lo que se está leyendo: aparecen cuando la imagen está seleccionada.
+ * encima de lo que se está leyendo: aparecen cuando la imagen está seleccionada,
+ * como los pone Word cuando editas una imagen.
+ *
+ * El pie **no** estaba sujeto a esa regla y por eso al insertar una imagen salía
+ * debajo un campo de texto con el nombre del archivo: lo que se había pedido era
+ * una imagen, no un formulario para renombrarla. Ahora solo sale con la imagen
+ * elegida —un clic en ella— y con el puntero encima.
+ *
+ * Los dosselectores se repiten a propósito y no es un descuido: cada bloque pide
+ * su propio `display` (`flex` en los botones, el de un `input` en el pie), así
+ * que no se pueden fundir en una regla. Lo que no puede pasar es que uno se
+ * quede atrás: por eso están pegados y los dos dicen lo mismo.
  */
 .note-image__caption {
+  display: none;
   width: 100%;
   margin-top: 6px;
   padding: 3px 6px;
@@ -114,6 +126,11 @@
   background-color: transparent;
   border: 1px solid transparent;
   border-radius: calc(var(--skin-button-radius, 7px) * 0.7);
+}
+
+.ProseMirror-selectednode.note-image .note-image__caption,
+.note-image:hover .note-image__caption {
+  display: block;
 }
 
 .note-image__caption::placeholder {
@@ -139,6 +156,8 @@
   justify-content: center;
   margin-top: 2px;
 }
+
+/* Los dos `display` de la misma regla, por el motivo que explica el pie de arriba. */
 
 .ProseMirror-selectednode.note-image .note-image__align,
 .note-image:hover .note-image__align {

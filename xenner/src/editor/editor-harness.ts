@@ -1,4 +1,4 @@
-import { getSchema } from "@tiptap/core";
+import { getSchema, createChainableState } from "@tiptap/core";
 import type { Command, CommandProps } from "@tiptap/core";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
 import type { Transaction } from "@tiptap/pm/state";
@@ -94,15 +94,27 @@ export function crearEditorDePrueba(
    * Faltan el `editor` y la `view`, y a propósito: los comandos de este motor no
    * los tocan —todo lo que necesitan es el estado, la transacción y el
    * `dispatch`—, así que un `Editor` de mentira solo serviría para que un test
-   * pasara por algo que en el navegador no existe. El `dispatch` **aplica** la
-   * transacción, como el de la vista.
+   * pasara por algo que en el navegador no existe.
+   *
+   * El `state` es el de verdad, de `createChainableState`, que es lo que construye
+   * Tiptap: `state.doc` y `state.selection` son los **de la transacción**, y solo
+   * seactualizan al leer `state.tr`. Leerlos como si fueran el estado del editor
+   * es justo el error que hizo que las opciones de bloque avisaran de un fallo
+   * después de haber cambiado la nota.
+   *
+   * Y el `dispatch` **no hace nada**, también como en Tiptap: allí la transacción
+   * la despacha el comando mayor una sola vez, al terminar, y no cada comando por
+   * su cuenta. Con un `dispatch` que aplicase la transacción en mitad, dos
+   * comandos seguidos en la misma transacción —que es como funciona el menú del
+   * bloque— fallaban con «Applying a mismatched transaction» y el test no llegaba
+   * al fallo que había debajo.
    */
   const propsDe = (): CommandProps => {
     const tr = estado.tr;
     return {
       tr,
-      state: estado,
-      dispatch: despachar,
+      state: createChainableState({ state: estado, transaction: tr }),
+      dispatch: () => undefined,
     } as unknown as CommandProps;
   };
 
@@ -159,7 +171,15 @@ export function crearEditorDePrueba(
     },
     despachar,
     ejecutar(command: Command) {
-      return command(propsDe());
+      const props = propsDe();
+      if (!command(props)) return false;
+      // Igual que `runCommand`, que es el camino que sigue la app: la
+      // transacción se aplica **una vez**, al final, y solo si el comando se aplicó
+      // y algo cambió de verdad.
+      const { tr } = props;
+      if (!tr.docChanged && !tr.selectionSet) return true;
+      despachar(tr);
+      return true;
     },
     markdown: () => markdown.serialize(estado.doc.toJSON()),
     validar() {

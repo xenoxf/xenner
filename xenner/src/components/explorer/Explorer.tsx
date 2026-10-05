@@ -1,6 +1,7 @@
 import { createSignal, For, Show } from "solid-js";
 
 import type { WorkspaceTreeNode } from "../../types/workspace";
+import { parentPath } from "../../workspace/tree";
 import styles from "../../styles/components/Explorer.module.css";
 import { ChevronIcon, FolderIcon, NoteIcon } from "../ui/Icons";
 import { isDialogPending } from "../../services/dialogs";
@@ -17,14 +18,25 @@ export interface CreationDraft {
 
 interface ExplorerProps {
   nodes: WorkspaceTreeNode[];
-  selectedPath: string | null;
+  /**
+   * La fila enfocada: una nota o una carpeta.
+   *
+   * No es la nota abierta en el editor —esa es otra cosa, y solo puede ser una
+   * nota—. Es la fila sobre la que se ha hecho clic, y es la que decide dónde cae
+   * lo nuevo: con una carpeta enfocada, «Nueva nota» y «Nueva carpeta» crean
+   * dentro de ella. Es lo que hace el explorador de un solo clic, donde la
+   * carpeta que elegiste se queda elegida.
+   */
+  focusedPath: string | null;
   expandedPaths: ReadonlySet<string>;
   creation: CreationDraft | null;
   busy: boolean;
   canPaste: boolean;
   onSelect(path: string): void;
+  /** Enfoca una fila sin abrir nada: se usa al elegir una carpeta. */
+  onFocus(path: string): void;
   onToggle(path: string): void;
-  onStartCreation(kind: CreationKind, parent: string): void;
+  onStartCreation(kind: CreationKind, parent?: string): void;
   onSubmitCreation(name: string): void;
   onCancelCreation(): void;
   onRename(path: string): void;
@@ -65,6 +77,15 @@ function findNode(nodes: WorkspaceTreeNode[], path: string): WorkspaceTreeNode |
 }
 
 /**
+ * La carpeta donde cae lo pegado: la de la fila enfocada si es una carpeta, y la
+ * que la contiene si es una nota.
+ */
+function parentOf(node: WorkspaceTreeNode | null): string {
+  if (!node) return "";
+  return node.kind === "directory" ? node.path : parentPath(node.path);
+}
+
+/**
  * Una fila del árbol: chevron, icono y nombre, nada más.
  *
  * Antes cada fila llevaba sus botones encima —crear, renombrar, borrar— que se
@@ -79,7 +100,7 @@ function ExplorerNode(props: NodeProps) {
     props.creation?.parent === props.node.path ? props.creation : null;
   const hasCreation = () => activeCreation() !== null;
   const label = () => displayNodeName(props.node.name, props.node.kind);
-  const selected = () => props.node.path === props.selectedPath;
+  const selected = () => props.node.path === props.focusedPath;
   const isDropTarget = () => props.dropTarget() === props.node.path;
   const isDragging = () => props.draggingPath() === props.node.path;
 
@@ -154,6 +175,32 @@ function ExplorerNode(props: NodeProps) {
       data-kind={props.node.kind}
       data-selected={selected() ? "true" : undefined}
       aria-expanded={props.node.kind === "directory" ? expanded() : undefined}
+      /*
+       * La carpeta entera —su fila y todo lo que cuelga debajo— es donde cae lo que
+       * se suelta encima. Es lo que hace el explorador de un solo clic: no hay que
+       * apuntar al borde de arriba de la carpeta para meter algo dentro, basta con
+       * soltarlo en cualquier parte de su sector. Antes los manejadores estaban en
+       * la fila, así que lo que caía entre dos hijas —el hueco, el «Vacía»— se
+       * iba a la raíz sin querer.
+       *
+       * En una nota no se puede soltar nada, y `stopPropagation` lo dice: sin esto
+       * el gesto seguiría subiendo y acabaría en la raíz, que no es lo que quiere
+       * quien ha soltado el elemento encima de una nota.
+       */
+      onDragOver={(event) => {
+        if (props.node.kind !== "directory") {
+          event.stopPropagation();
+          return;
+        }
+        props.onDragOver(event, props.node.path);
+      }}
+      onDrop={(event) => {
+        if (props.node.kind !== "directory") {
+          event.stopPropagation();
+          return;
+        }
+        props.onDrop(event, props.node.path);
+      }}
     >
       <div
         class={`${styles.row} ${selected() ? styles.active : ""} ${isDropTarget() ? styles.dropTarget : ""} ${isDragging() ? styles.dragging : ""}`}
@@ -162,20 +209,6 @@ function ExplorerNode(props: NodeProps) {
         data-drop-target={isDropTarget() ? "true" : undefined}
         style={`--tree-depth: ${props.depth}`}
         onContextMenu={(event) => props.onContextMenu(event, props.node)}
-        onDragOver={(event) => {
-          if (props.node.kind === "directory") {
-            props.onDragOver(event, props.node.path);
-          } else {
-            event.stopPropagation();
-          }
-        }}
-        onDrop={(event) => {
-          if (props.node.kind === "directory") {
-            props.onDrop(event, props.node.path);
-          } else {
-            event.stopPropagation();
-          }
-        }}
       >
         <button
           type="button"
@@ -185,8 +218,17 @@ function ExplorerNode(props: NodeProps) {
           aria-label={props.node.kind === "directory" ? `Abrir carpeta ${label()}` : `Abrir nota ${label()}`}
           aria-current={selected() ? "page" : undefined}
           onClick={() => {
-            if (props.node.kind === "directory") props.onToggle(props.node.path);
-            else props.onSelect(props.node.path);
+            /*
+             * Elegir una carpeta la deja elegida y la abre o la cierra, que es lo
+             * que pasa en cualquier explorador de un solo clic. Quedarse elegida es
+             * lo que hace que «Nueva nota» caiga dentro de ella y no en la raíz.
+             * Enfocarla no abre nada: una carpeta no se abre en el editor, así que
+             * elegirla no puede tocar la nota que se está escribiendo.
+             */
+            if (props.node.kind === "directory") {
+              props.onFocus(props.node.path);
+              props.onToggle(props.node.path);
+            } else props.onSelect(props.node.path);
           }}
           onKeyDown={onRowKeyDown}
           onDragStart={(event) => props.onDragStart(event, props.node)}
@@ -313,33 +355,44 @@ export function Explorer(props: ExplorerProps) {
     // se seguirían detrás: abrir «Renombrar» con F2 y pulsar Supr encolaba una
     // pregunta de borrar que nadie había pedido. Un Escape la hacía aparecer.
     if (isDialogPending()) return;
-    const selected = props.selectedPath ? findNode(props.nodes, props.selectedPath) : null;
+    // La fila enfocada, no la nota abierta: si lo que está resaltado es una
+    // carpeta, `F2` la renombra a ella. Actuar sobre la nota abierta dejaría la
+    // fila resaltada y lo que se renombra sin ninguna relación.
+    const focused = props.focusedPath ? findNode(props.nodes, props.focusedPath) : null;
     const command = event.ctrlKey || event.metaKey;
-    if (event.key === "F2" && selected) {
+    if (event.key === "F2" && focused) {
       event.preventDefault();
-      props.onRename(selected.path);
+      props.onRename(focused.path);
       return;
     }
-    if (event.key === "Delete" && selected) {
+    if (event.key === "Delete" && focused) {
       event.preventDefault();
-      props.onDelete(selected.path);
+      props.onDelete(focused.path);
       return;
     }
     if (!command) return;
-    if (event.key.toLowerCase() === "c" && selected?.kind === "note") {
+    if (event.key.toLowerCase() === "n") {
+      // Sin destino: lo resuelve el controlador con la carpeta enfocada, que es
+      // justo lo que hizo el menú contextual al abrirse sobre ella. Los dos caminos
+      // tienen que crear en el mismo sitio o el atajo y el clic discrepan.
       event.preventDefault();
-      props.onCopyMarkdown(selected.path);
-    } else if (event.key.toLowerCase() === "x" && selected) {
+      props.onStartCreation(event.shiftKey ? "folder" : "note");
+      return;
+    }
+    if (event.key.toLowerCase() === "h" && focused?.kind === "note") {
       event.preventDefault();
-      props.onCut(selected.path);
+      props.onShowHistory(focused.path);
+      return;
+    }
+    if (event.key.toLowerCase() === "c" && focused?.kind === "note") {
+      event.preventDefault();
+      props.onCopyMarkdown(focused.path);
+    } else if (event.key.toLowerCase() === "x" && focused) {
+      event.preventDefault();
+      props.onCut(focused.path);
     } else if (event.key.toLowerCase() === "v" && props.canPaste) {
       event.preventDefault();
-      const parent = selected?.kind === "directory"
-        ? selected.path
-        : selected?.path.includes("/")
-          ? selected.path.slice(0, selected.path.lastIndexOf("/"))
-          : "";
-      props.onPaste(parent);
+      props.onPaste(parentOf(focused));
     }
   }
 

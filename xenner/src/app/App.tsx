@@ -3,6 +3,7 @@ import { createMemo, createSignal, Show, type JSX } from "solid-js";
 import { ToastRegion } from "../components/feedback/ToastRegion";
 import { AppShell } from "../components/layout/AppShell";
 import { ExplorerSidebar } from "../components/layout/ExplorerSidebar";
+import { EXPLORER_SHORTCUTS } from "../components/explorer/ExplorerContextMenu";
 import { ActivityBar } from "../components/layout/ActivityBar";
 import { CommandPalette, type PaletteCommand } from "../components/commands/CommandPalette";
 import { EditorPane } from "../components/editor/EditorPane";
@@ -14,9 +15,11 @@ import { isMobilePlatform } from "../services/platform";
 import {
   chooseWorkspace,
   closeWorkspaceError,
+  creationParent,
   getDocumentLoading,
   getDocumentReloadToken,
   getExpandedPaths,
+  getFocusedPath,
   getSaveStatus,
   getSelectedDocument,
   getSelectedPath,
@@ -24,6 +27,7 @@ import {
   getWorkspaceError,
   getWorkspaceLoading,
   getWorkspaceTree,
+  focusEntry,
   refreshWorkspaceTree,
   reloadSelectedDocument,
   retryPendingSave,
@@ -59,24 +63,28 @@ function Overlays(props: {
   const explorer = controller.explorer;
 
   /**
-   * La nota o carpeta sobre la que actúan los comandos: la seleccionada, o
-   * nada si no hay ninguna. La paleta solo enseña los comandos que tienen
-   * sobre qué actuar.
+   * La fila sobre la que actúan los comandos: la enfocada, o la nota abierta si
+   * no hay ninguna. La paleta solo enseña los comandos que tienen sobre qué
+   * actuar.
+   *
+   * Se mira la fila enfocada y no la nota del editor porque una carpeta no se
+   * puede abrir en el editor pero sí se puede renombrar, cortar o borrar, y quien
+   * la tiene resaltada es quien quiere que le pase.
    */
-  const selectedNode = () => {
-    const selected = getSelectedPath();
-    if (!selected) return null;
-    return flattenTree(getWorkspaceTree()).find((node) => node.path === selected) ?? null;
+  const focusedNode = () => {
+    const path = getFocusedPath() ?? getSelectedPath();
+    if (!path) return null;
+    return flattenTree(getWorkspaceTree()).find((node) => node.path === path) ?? null;
   };
 
-  /** Dónde cae algo nuevo o pegado: la carpeta elegida, la de la nota, o la raíz. */
-  const destinationForSelection = (): string => {
-    const node = selectedNode();
-    if (!node) return "";
-    if (node.kind === "directory") return node.path;
-    const separator = node.path.lastIndexOf("/");
-    return separator < 0 ? "" : node.path.slice(0, separator);
-  };
+  /**
+   * Dónde cae algo nuevo o pegado: la carpeta elegida, la de la nota, o la raíz.
+   *
+   * Es la misma cuenta que hace `startCreation` cuando no le dicen dónde, y por
+   * eso se pregunta una sola vez: si las dos se separaran, el botón de la barra
+   * y el comando de la paleta pondrían lo nuevo en sitios distintos.
+   */
+  const destinationForSelection = (): string => creationParent();
 
   const whereFor = (parent: string): string => (parent ? `En «${parent}»` : "En la raíz");
 
@@ -94,13 +102,14 @@ function Overlays(props: {
   // Todos los poderes sin ratón, en un solo sitio. Los que necesitan una nota o
   // una elegida solo aparecen cuando la hay; el resto siempre está.
   const paletteCommands = (): PaletteCommand[] => {
-    const node = selectedNode();
+    const node = focusedNode();
     const parent = destinationForSelection();
     const commands: PaletteCommand[] = [
       {
         id: "new-note",
         label: "Nueva nota",
         hint: whereFor(parent),
+        shortcut: EXPLORER_SHORTCUTS.newNote,
         run: () => {
           controller.setSidebarOpen(true);
           explorer.startCreation("note", parent);
@@ -110,6 +119,7 @@ function Overlays(props: {
         id: "new-folder",
         label: "Nueva carpeta",
         hint: whereFor(parent),
+        shortcut: EXPLORER_SHORTCUTS.newFolder,
         run: () => {
           controller.setSidebarOpen(true);
           explorer.startCreation("folder", parent);
@@ -148,6 +158,7 @@ function Overlays(props: {
       commands.push({
         id: "history",
         label: "Últimos cambios de la nota",
+        shortcut: EXPLORER_SHORTCUTS.history,
         run: () => history.open(node.path),
       });
     }
@@ -314,7 +325,7 @@ export default function App() {
                 loading={getWorkspaceLoading()}
                 canChooseWorkspace={workspaceSupportsFolderPicker()}
                 error={getWorkspaceError()}
-                selectedPath={getSelectedPath()}
+                focusedPath={getFocusedPath()}
                 expandedPaths={getExpandedPaths()}
                 creation={explorer.creation()}
                 creating={explorer.creating()}
@@ -331,6 +342,7 @@ export default function App() {
                 onSubmitCreation={(name) => void explorer.submitCreation(name)}
                 onCancelCreation={() => explorer.setCreation(null)}
                 onSelect={(path) => void selectNote(path)}
+                onFocus={focusEntry}
                 onToggle={toggleFolder}
                 onRename={(path) => explorer.rename(path)}
                 onDelete={(path) => explorer.remove(path)}

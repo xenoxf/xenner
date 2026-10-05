@@ -1840,6 +1840,102 @@ pub async fn delete_entry(
         .map_err(|_| join_error())?
 }
 
+/// Abre un archivo con el programa que el sistema tenga asociado a su extensión.
+///
+/// Es lo que hace una nota con un adjunto dentro: no es un enlace que se copia,
+/// es un archivo de verdad que se abre con la aplicación de siempre —un PDF con el
+/// visor, un `.xlsx` con la hoja de cálculo—, y por eso tiene que salir del
+/// WebView.
+///
+/// La ruta se valida **antes**: solo se abre algo que esté dentro de la
+/// biblioteca y que sea un archivo normal. Sin esa comprobación, un Markdown
+/// escrito a mano podría pedirle a la app que lanzara cualquier programa del
+/// sistema con cualquier ruta, que es justo lo que un plugin de apertura de URLs
+/// dejaría pasar.
+///
+/// Se hace con el comando de cada sistema en vez de con un plugin, igual que
+/// `open_in_file_manager`: son tres llamadas y una por sistema, y un plugin
+/// metería un permiso de apertura de URLs para poder abrir un archivo propio.
+#[cfg(any(not(target_os = "android"), test))]
+fn launch_file(path: &Path) -> Result<(), String> {
+    let candidates: &[&str] = if cfg!(target_os = "windows") {
+        &["explorer"]
+    } else if cfg!(target_os = "macos") {
+        &["open"]
+    } else {
+        &["xdg-open", "gio", "gnome-open", "kde-open", "wslview"]
+    };
+
+    let mut ultimo_error = String::new();
+    for programa in candidates {
+        // `gio` y `wslview` reciben un verbo delante de la ruta.
+        let con_verbo = *programa == "gio" || *programa == "wslview";
+        let mut comando = std::process::Command::new(programa);
+        if con_verbo {
+            comando.arg("open");
+        }
+        let spawned = comando
+            .arg(path)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+        match spawned {
+            Ok(_) => return Ok(()),
+            Err(error) => ultimo_error = error.to_string(),
+        }
+    }
+    Err(format!("no se pudo abrir el archivo: {ultimo_error}"))
+}
+
+/// En Android no hay otra aplicación a la que pasarle el archivo, y ni siquiera
+/// existe un `Command` con el que lanzar nada. Se responde con el motivo en vez de
+/// fingir que se ha abierto.
+#[cfg(target_os = "android")]
+fn launch_file(_path: &Path) -> Result<(), String> {
+    Err("en Android no se pueden abrir los adjuntos con otra aplicación".into())
+}
+
+fn open_entry_blocking(root: PathBuf, relative_path: String) -> Result<(), VaultError> {
+    let path = safe_existing_entry(&root, &relative_path)?;
+    if !is_plain_file(&path) {
+        return Err(invalid_path("eso no es un archivo"));
+    }
+    launch_file(&path).map_err(|message| internal(message))
+}
+
+#[tauri::command]
+pub async fn open_entry(
+    state: State<'_, VaultState>,
+    relative_path: String,
+) -> Result<(), VaultError> {
+    let root = root_from_state(&state)?;
+    tauri::async_runtime::spawn_blocking(move || open_entry_blocking(root, relative_path))
+        .await
+        .map_err(|_| join_error())?
+}
+
+fn reveal_entry_blocking(root: PathBuf, relative_path: String) -> Result<(), VaultError> {
+    let path = safe_existing_entry(&root, &relative_path)?;
+    let carpeta = path.parent().unwrap_or(&path).to_path_buf();
+    crate::config::open_directory(&carpeta).map_err(internal)
+}
+
+/// Abre el explorador de archivos con la carpeta del elemento a la vista.
+///
+/// Es la opción de «mostrar en la carpeta» de cualquier gestor de archivos, y es
+/// lo que salva cuando el adjunto no se puede abrir con nada: por lo menos se ve
+/// dónde está para buscarlo a mano.
+#[tauri::command]
+pub async fn reveal_entry(
+    state: State<'_, VaultState>,
+    relative_path: String,
+) -> Result<(), VaultError> {
+    let root = root_from_state(&state)?;
+    tauri::async_runtime::spawn_blocking(move || reveal_entry_blocking(root, relative_path))
+        .await
+        .map_err(|_| join_error())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

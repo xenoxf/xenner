@@ -107,4 +107,14 @@ export class TauriWorkspaceGateway implements WorkspaceGateway {
   async deleteEntry(relativePath: string): Promise<void> {
     await invokeWorkspace("delete_entry", { relativePath });
   }
+
+  async openEntry(relativePath: string): Promise<boolean> {
+    await invokeWorkspace("open_entry", { relativePath });
+    return true;
+  }
+
+  async revealEntry(relativePath: string): Promise<boolean> {
+    await invokeWorkspace("reveal_entry", { relativePath });
+    return true;
+  }
 }

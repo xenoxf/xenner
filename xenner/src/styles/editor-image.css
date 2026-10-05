@@ -106,13 +106,20 @@
  *
  * El pie **no** estaba sujeto a esa regla y por eso al insertar una imagen salía
  * debajo un campo de texto con el nombre del archivo: lo que se había pedido era
- * una imagen, no un formulario para renombrarla. Ahora solo sale con la imagen
- * elegida —un clic en ella— y con el puntero encima.
+ * una imagen, no un formulario para renombrarla. Ahora sale solo con la imagen
+ * **elegida**, y no al pasar el ratón por encima.
  *
- * Los dosselectores se repiten a propósito y no es un descuido: cada bloque pide
- * su propio `display` (`flex` en los botones, el de un `input` en el pie), así
- * que no se pueden fundir en una regla. Lo que no puede pasar es que uno se
- * quede atrás: por eso están pegados y los dos dicen lo mismo.
+ * Lo del hover es deliberado, y es la diferencia con los botones de alineación:
+ * aquellos son tres teclas pequeñas que aparecen al apuntar, como en Word, pero un
+ * campo de texto que aparece al pasar el ratón parece algo que se puede editar en
+ * cualquier momento y no lo es —hasta que se elige la imagen—, y además roba el
+ * foco en cuanto el puntero pasa por encima. Un campo que sale solo con la imagen
+ * elegida no necesita explicarse: se ve que es de la imagen que está elegida.
+ *
+ * Los dos selectores de este archivo se repiten a propósito y no es un descuido:
+ * cada bloque pide su propio `display` (`flex` en los botones, el de un `input` en
+ * el pie), así que no se pueden fundir en una regla. Lo que no puede pasar es que
+ * uno se quede atrás: por eso están pegados y los dos dicen lo mismo.
  */
 .note-image__caption {
   display: none;
@@ -128,8 +135,7 @@
   border-radius: calc(var(--skin-button-radius, 7px) * 0.7);
 }
 
-.ProseMirror-selectednode.note-image .note-image__caption,
-.note-image:hover .note-image__caption {
+.ProseMirror-selectednode.note-image .note-image__caption {
   display: block;
 }
 

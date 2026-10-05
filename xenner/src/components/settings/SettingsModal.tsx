@@ -1,7 +1,14 @@
 import { createSignal, For, onMount, Show } from "solid-js";
 
 import { DEFAULT_APPEARANCE, isDefaultAppearance } from "../../data/appearance";
-import { SETTINGS_SECTIONS, THEME_MODES, type SettingsNavigationItem, type SettingsSection } from "../../data/settings";
+import {
+  searchSettings,
+  SETTINGS_SECTIONS,
+  sectionDe,
+  THEME_MODES,
+  type SettingsNavigationItem,
+  type SettingsSection,
+} from "../../data/settings";
 import styles from "../../styles/components/SettingsModal.module.css";
 import type { Appearance } from "../../types/appearance";
 import type { SkinInfo } from "../../types/skin";
@@ -12,11 +19,13 @@ import {
   InfoIcon,
   MoonIcon,
   PlusIcon,
+  SearchIcon,
   ShapesIcon,
 } from "../ui/Icons";
 import { ConfigFolder } from "./ConfigFolder";
 import { FontSelect } from "./FontSelect";
 import { IconButton } from "../ui/IconButton";
+import { InfoHint } from "./InfoHint";
 import { ModalBackdrop } from "../ui/ModalBackdrop";
 import { SkinCreator } from "./SkinCreator";
 import { exportSkin, importSkin } from "../../services/skinExport";
@@ -81,13 +90,43 @@ const APPEARANCE_FIELDS: readonly AppearanceField[] = [
 
 export function SettingsModal(props: SettingsModalProps) {
   const [section, setSection] = createSignal<SettingsSection>("appearance");
+  /**
+   * Lo que se está buscando.
+   *
+   * Vacío significa «enseñar las secciones», no «no hay resultados»: con la
+   * búsqueda vacía la navegación es exactamente la de siempre, porque un buscador
+   * que cambia el panel de lado al borrarse obliga a reconstruir la lista mental cada
+   * vez que se equivoca una tecla.
+   */
+  const [consulta, setConsulta] = createSignal("");
+  /** El ajuste que se acaba de elegir en el buscador, para resaltarlo un momento. */
+  const [resaltado, setResaltado] = createSignal<string | null>(null);
   let dialog: HTMLDivElement | undefined;
 
   onMount(() => queueMicrotask(() => dialog?.focus()));
 
-  const current = (): SettingsNavigationItem => {
-    return SETTINGS_SECTIONS.find((item) => item.id === section()) ?? SETTINGS_SECTIONS[0];
-  };
+  const current = (): SettingsNavigationItem => sectionDe(section());
+
+  const resultados = () => searchSettings(consulta());
+
+  function buscar(texto: string): void {
+    setConsulta(texto);
+  }
+
+  /**
+   * Ir al ajuste que se ha elegido en el buscador.
+   *
+   * La búsqueda **no** se borra al elegir: quien escribe «oscuro» y ve tres
+   * resultados quiere poder seguir escribiendo para afinar, no que la lista se
+   * desvanezca bajo el dedo. El ajuste elegido se resalta un momento, que es lo que
+   * dice dónde ha caído: sin eso, elegir un resultado y no ver nada moverse es
+   * indistinguible de que no haya pasado.
+   */
+  function irA(id: SettingsSection, etiqueta: string): void {
+    setSection(id);
+    setResaltado(etiqueta);
+    window.setTimeout(() => setResaltado(null), 1600);
+  }
 
   const fieldValue = (field: AppearanceField): number => props.appearance[field.key];
 
@@ -110,6 +149,9 @@ export function SettingsModal(props: SettingsModalProps) {
     const name = activeSkinName();
     return name ? `Cambia con el tema «${name}»` : "Cambia con el tema elegido";
   };
+
+  /** El modo de color está bloqueado, y el aviso de por qué se ve abajo. */
+  const themeModeLockedHint = (): string => themeModeHint();
 
   const canReset = (): boolean =>
     section() === "appearance" && !isDefaultAppearance(props.appearance);
@@ -145,6 +187,11 @@ export function SettingsModal(props: SettingsModalProps) {
     }
   }
 
+  function elegirSection(id: SettingsSection): void {
+    setSection(id);
+    setConsulta("");
+  }
+
   // Con un tema abierto, «restablecer» no puede ser «volver a los valores de
   // fábrica» sin más: sería mentir, porque no es el tema de fábrica. Se dice lo
   // que va a pasar en su lugar.
@@ -168,89 +215,169 @@ export function SettingsModal(props: SettingsModalProps) {
         }}
       >
         <nav class={styles.nav} aria-label="Secciones de configuración">
-          <div class={styles.brand}>Configuración</div>
-          <For each={SETTINGS_SECTIONS}>
-            {(item) => (
+          {/*
+            El buscador va **encima** de la lista y no la sustituye: con la búsqueda
+            vacía se ve la navegación de siempre. Es lo que hace que probar no cueste
+            nada —si al borrar lo escrito volvieran las secciones, habría que aprender
+            a volver atrás sin querer—.
+          */}
+          <div class={styles.searchWrap}>
+            <SearchIcon />
+            <input
+              class={styles.search}
+              type="search"
+              value={consulta()}
+              placeholder="Buscar un ajuste"
+              aria-label="Buscar un ajuste"
+              // Enter elige el primer resultado, que es lo que quien busca «oscuro»
+              // espera: escribe, le da a Intro y ya está en el sitio.
+              onInput={(event) => buscar(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                const primero = resultados()[0];
+                if (primero) irA(primero.section, primero.label);
+              }}
+            />
+            <Show when={consulta()}>
               <button
                 type="button"
-                class={`${styles.section} ${section() === item.id ? styles.sectionActive : ""}`}
-                aria-current={section() === item.id ? "page" : undefined}
-                onClick={() => setSection(item.id)}
+                class={styles.searchClear}
+                aria-label="Borrar la búsqueda"
+                onClick={() => buscar("")}
               >
-                <span class={styles.sectionIcon} aria-hidden="true">
-                  <Show when={item.id === "appearance"}><MoonIcon /></Show>
-                  <Show when={item.id === "skins"}><ShapesIcon /></Show>
-                  <Show when={item.id === "create"}><PlusIcon /></Show>
-                </span>
-                <span class={styles.sectionText}>
-                  <strong>{item.label}</strong>
-                  <small>{item.hint}</small>
-                </span>
+                <CloseIcon />
               </button>
-            )}
-          </For>
-          <p class={styles.navFooter}>Los cambios se aplican al instante.</p>
+            </Show>
+          </div>
+
+          <div class={styles.sections}>
+            <Show
+              when={consulta()}
+              fallback={
+                <For each={SETTINGS_SECTIONS}>
+                  {(item) => (
+                    <button
+                      type="button"
+                      class={`${styles.section} ${section() === item.id ? styles.sectionActive : ""}`}
+                      aria-current={section() === item.id ? "page" : undefined}
+                      onClick={() => elegirSection(item.id)}
+                    >
+                      <span class={styles.sectionIcon} aria-hidden="true">
+                        <Show when={item.id === "appearance"}><MoonIcon /></Show>
+                        <Show when={item.id === "skins"}><ShapesIcon /></Show>
+                        <Show when={item.id === "create"}><PlusIcon /></Show>
+                      </span>
+                      <span class={styles.sectionText}>
+                        <strong>{item.label}</strong>
+                        <small>{item.hint}</small>
+                      </span>
+                    </button>
+                  )}
+                </For>
+              }
+            >
+              {/*
+                Los resultados se muestran en el **mismo** panel, no en otro sitio: el
+                buscador no cambia la forma del modal, solo lo que hay pintado en la
+                columna de la izquierda.
+              */}
+              <Show
+                when={resultados().length > 0}
+                fallback={<p class={styles.searchEmpty}>Nada con esa palabra.</p>}
+              >
+                <p class={styles.searchGroup}>Ajustes</p>
+                <For each={resultados()}>
+                  {(item) => (
+                    <button
+                      type="button"
+                      class={styles.searchResult}
+                      onClick={() => irA(item.section, item.label)}
+                    >
+                      <span class={styles.searchResultLabel}>{item.label}</span>
+                      <span class={styles.searchResultMeta}>
+                        {sectionDe(item.section).label} · {item.description}
+                      </span>
+                    </button>
+                  )}
+                </For>
+              </Show>
+            </Show>
+          </div>
+
+          {/* Sin pie de nada: «los cambios se aplican al instante» es una promesa que
+              el modal cumple, no una instrucción que haya que leer. */}
         </nav>
 
         <section class={styles.content}>
-          <header class={styles.header}>
-            <h2 id="settings-title">{current().label}</h2>
-            <div class={styles.headerActions}>
-              <Show when={canReset() || props.editingSkin}>
-                <button
-                  type="button"
-                  class={styles.reset}
-                  onClick={() => {
-                    if (props.editingSkin) props.onSkinEditCancel();
-                    else props.onAppearanceChange({ ...DEFAULT_APPEARANCE });
-                  }}
-                >
-                  {resetLabel()}
-                </button>
-              </Show>
-              <IconButton aria-label="Cerrar configuración" onClick={props.onClose}>
-                <CloseIcon />
-              </IconButton>
-            </div>
-          </header>
-
+          {/*
+            El título va dentro de lo que se desplaza, no en una cabecera fija. Con la
+            cabecera fija el nombre de la sección ocupa siempre 72 px y el contenido
+            útil no; sin ella, el nombre se va con el texto, que es lo que se lee de un
+            editor. Y la «X» flota encima de todo, en su esquina.
+          */}
           <div class={styles.scroll}>
             <div class={styles.body}>
+              <header class={styles.pageHeader}>
+                <div>
+                  <h1 id="settings-title" class={styles.pageTitle}>
+                    {current().label}
+                  </h1>
+                  <p class={styles.pageDescription}>{current().description}</p>
+                </div>
+                <Show when={canReset() || props.editingSkin}>
+                  <button
+                    type="button"
+                    class={styles.reset}
+                    onClick={() => {
+                      if (props.editingSkin) props.onSkinEditCancel();
+                      else props.onAppearanceChange({ ...DEFAULT_APPEARANCE });
+                    }}
+                  >
+                    {resetLabel()}
+                  </button>
+                </Show>
+              </header>
               <Show when={section() === "appearance"}>
+                {/*
+                  Sin cajas. Las secciones se separan con una raya fina y aire, y las
+                  filas no llevan fondo ni borde propio: el cromo de cada fila convierte
+                  la página en un tablero, y lo que se busca es el texto de un ajuste,
+                  no una tabla. Solo las rejillas de «elige un tema» —que son objetos
+                  que se pinchan— llevan tarjeta, porque ahí sí es una ficha.
+                */}
                 <div class={styles.group}>
-                  <h3 class={styles.groupTitle}>Modo de color</h3>
-                  <p class={styles.groupHint}>
-                    Elige si Xenner se ve claro, oscuro o como el sistema que uses.
-                  </p>
-                  <div class={styles.card}>
-                    <div class={styles.row}>
-                      <div class={styles.rowLabel}>
-                        <strong>Tema</strong>
-                        <small>{themeModeHint()}</small>
-                      </div>
-                      <div class={styles.rowControl}>
-                        <div
-                          class={styles.segmented}
-                          role="radiogroup"
-                          aria-label="Modo de color"
-                          aria-disabled={themeModeLocked() ? "true" : undefined}
-                        >
-                          <For each={THEME_MODES}>
-                            {(mode) => (
-                              <button
-                                type="button"
-                                role="radio"
-                                aria-checked={props.appearance.mode === mode.id}
-                                disabled={themeModeLocked()}
-                                onClick={() =>
-                                  props.onAppearanceChange({ ...props.appearance, mode: mode.id })
-                                }
-                              >
-                                {mode.label}
-                              </button>
-                            )}
-                          </For>
-                        </div>
+                  <h2 class={styles.groupTitle}>Modo de color</h2>
+                  <div class={styles.row}>
+                    <div class={styles.rowLabel}>
+                      <span class={styles.rowLabelText}>Tema</span>
+                      <InfoHint label="Qué hace el modo de color">
+                        {themeModeLockedHint()}. Elige si Xenner se ve claro, oscuro o como
+                        el sistema que uses.
+                      </InfoHint>
+                    </div>
+                    <div class={styles.rowControl}>
+                      <div
+                        class={styles.segmented}
+                        role="radiogroup"
+                        aria-label="Modo de color"
+                        aria-disabled={themeModeLocked() ? "true" : undefined}
+                      >
+                        <For each={THEME_MODES}>
+                          {(mode) => (
+                            <button
+                              type="button"
+                              role="radio"
+                              aria-checked={props.appearance.mode === mode.id}
+                              disabled={themeModeLocked()}
+                              onClick={() =>
+                                props.onAppearanceChange({ ...props.appearance, mode: mode.id })
+                              }
+                            >
+                              {mode.label}
+                            </button>
+                          )}
+                        </For>
                       </div>
                     </div>
                   </div>
@@ -266,92 +393,87 @@ export function SettingsModal(props: SettingsModalProps) {
                 </div>
 
                 <div class={styles.group}>
-                  <h3 class={styles.groupTitle}>Tipografías</h3>
-                  <p class={styles.groupHint}>
-                    La de la interfaz afecta a botones y menús; la del editor, al texto de tus
-                    notas.
-                  </p>
-                  <p class={styles.footnote}>
-                    Xenner no descarga tipografías: se aplican las que ya tengas instaladas en
-                    este equipo. Cada opción indica de qué se sustituye si falta.
-                  </p>
-                  <div class={styles.card}>
-                    <div class={styles.row}>
-                      <label class={styles.rowLabel} for="ui-font">
-                        <strong>Interfaz</strong>
-                        <small>Botones, menús y barras</small>
-                      </label>
-                      <div class={styles.rowControl}>
-                        <FontSelect
-                          id="ui-font"
-                          value={props.appearance.uiFont}
-                          onChange={(uiFont) =>
-                            props.onAppearanceChange({ ...props.appearance, uiFont })
-                          }
-                        />
-                      </div>
+                  <h2 class={styles.groupTitle}>Tipografías</h2>
+                  <div class={styles.row}>
+                    <label class={styles.rowLabel} for="ui-font">
+                      <span class={styles.rowLabelText}>Interfaz</span>
+                    </label>
+                    <div class={styles.rowControl}>
+                      <FontSelect
+                        id="ui-font"
+                        value={props.appearance.uiFont}
+                        onChange={(uiFont) =>
+                          props.onAppearanceChange({ ...props.appearance, uiFont })
+                        }
+                      />
                     </div>
-                    <div class={styles.row}>
-                      <label class={styles.rowLabel} for="editor-font">
-                        <strong>Editor</strong>
-                        <small>El texto de tus notas</small>
-                      </label>
-                      <div class={styles.rowControl}>
-                        <FontSelect
-                          id="editor-font"
-                          value={props.appearance.editorFont}
-                          onChange={(editorFont) =>
-                            props.onAppearanceChange({ ...props.appearance, editorFont })
-                          }
-                        />
-                      </div>
+                    <InfoHint label="Qué tipografía es la de la interfaz">
+                      La de la interfaz afecta a botones y menús; la del editor, al texto
+                      de tus notas. Xenner no descarga tipografías: se aplican las que ya
+                      tengas instaladas en este equipo, y cada opción indica de qué se
+                      sustituye si falta.
+                    </InfoHint>
+                  </div>
+                  <div class={styles.row}>
+                    <label class={styles.rowLabel} for="editor-font">
+                      <span class={styles.rowLabelText}>Editor</span>
+                    </label>
+                    <div class={styles.rowControl}>
+                      <FontSelect
+                        id="editor-font"
+                        value={props.appearance.editorFont}
+                        onChange={(editorFont) =>
+                          props.onAppearanceChange({ ...props.appearance, editorFont })
+                        }
+                      />
                     </div>
+                    <InfoHint label="Qué tipografía es la del editor">
+                      El texto de tus notas. Es la que se lee durante horas, así que
+                      conviene una que se lea bien en un texto largo.
+                    </InfoHint>
                   </div>
                 </div>
 
                 <div class={styles.group}>
-                  <h3 class={styles.groupTitle}>Lectura</h3>
-                  <p class={styles.groupHint}>Solo afecta a la nota que tengas abierta.</p>
-                  <div class={styles.card}>
-                    <For each={APPEARANCE_FIELDS}>
-                      {(field) => (
-                        <div class={styles.row}>
-                          <label class={styles.rowLabel} for={`appearance-${field.key}`}>
-                            <strong>{field.label}</strong>
-                            <small>{field.hint}</small>
-                          </label>
-                          <div class={styles.rowControl}>
-                            <input
-                              id={`appearance-${field.key}`}
-                              class={styles.range}
-                              type="range"
-                              min={field.min}
-                              max={field.max}
-                              step={field.step}
-                              value={fieldValue(field)}
-                              onInput={(event) =>
-                                setField(field, Number(event.currentTarget.value))
-                              }
-                            />
-                            <output>{field.format(fieldValue(field))}</output>
-                          </div>
+                  <h2 class={styles.groupTitle}>Lectura</h2>
+                  <For each={APPEARANCE_FIELDS}>
+                    {(field) => (
+                      <div
+                        class={`${styles.row}${
+                          resaltado() === field.label ? ` ${styles.resaltado}` : ""
+                        }`}
+                      >
+                        <label class={styles.rowLabel} for={`appearance-${field.key}`}>
+                          <span class={styles.rowLabelText}>{field.label}</span>
+                          <InfoHint label={`Qué es ${field.label.toLowerCase()}`}>
+                            {field.hint}.
+                          </InfoHint>
+                        </label>
+                        <div class={styles.rowControl}>
+                          <input
+                            id={`appearance-${field.key}`}
+                            class={styles.range}
+                            type="range"
+                            min={field.min}
+                            max={field.max}
+                            step={field.step}
+                            value={fieldValue(field)}
+                            onInput={(event) =>
+                              setField(field, Number(event.currentTarget.value))
+                            }
+                          />
+                          <output>{field.format(fieldValue(field))}</output>
                         </div>
-                      )}
-                    </For>
-                  </div>
+                      </div>
+                    )}
+                  </For>
                 </div>
               </Show>
 
               <Show when={section() === "skins"}>
                 <div class={styles.group}>
                   <div class={styles.groupHeader}>
-                    <div>
-                      <h3 class={styles.groupTitle}>Elige un tema</h3>
-                      <p class={styles.groupHint}>
-                        Cada tema cambia los colores y las formas de toda la aplicación. Se aplica
-                        al momento.
-                      </p>
-                    </div>
+                    <h2 class={styles.groupTitle}>Elige un tema</h2>
                     <button
                       type="button"
                       class={styles.groupAction}
@@ -361,6 +483,11 @@ export function SettingsModal(props: SettingsModalProps) {
                       <span>Traer un tema</span>
                     </button>
                   </div>
+                  {/*
+                    El aviso se queda **visible**: es lo único de esta página que hay
+                    que leer después de actuar, porque dice dónde ha acabado el archivo.
+                    Es la clase de texto que no va detrás de un ⓘ.
+                  */}
                   <Show when={aviso()}>
                     <p class={styles.status} role="status">
                       {aviso()}
@@ -443,7 +570,9 @@ export function SettingsModal(props: SettingsModalProps) {
 
               <Show when={section() === "create"}>
                 <div class={styles.group}>
-                  <h3 class={styles.groupTitle}>{props.editingSkin ? "Edita tu tema" : "Crea un tema"}</h3>
+                  <h2 class={styles.groupTitle}>
+                    {props.editingSkin ? "Edita tu tema" : "Crea un tema"}
+                  </h2>
                   <p class={styles.groupHint}>
                     {props.editingSkin
                       ? "Estás editando un tema que ya habías creado. Los cambios se guardan en los mismos archivos de antes."
@@ -465,6 +594,18 @@ export function SettingsModal(props: SettingsModalProps) {
                 </div>
               </Show>
             </div>
+          </div>
+
+          {/*
+            La «X» flota en su esquina en vez de vivir en una cabecera. Sin cabecera
+            fija, la única cosa que hay en ese rincón es cerrar, y ponerle una fila
+            entera de 72 px para un botón sería gastar la parte más ancha de la
+            pantalla en no mostrar nada.
+          */}
+          <div class={styles.corner}>
+            <IconButton aria-label="Cerrar configuración" onClick={props.onClose}>
+              <CloseIcon />
+            </IconButton>
           </div>
         </section>
       </div>

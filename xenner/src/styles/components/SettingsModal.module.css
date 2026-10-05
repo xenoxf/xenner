@@ -1,14 +1,28 @@
 /*
- * Configuración. Sigue el mismo patrón que el resto del app: cabecera con
- * fondo de toolbar y eyebrow en versalitas, contenido en tarjetas divididas por
- * líneas, y tokens de skin en vez de colores sueltos.
+ * Configuración.
+ *
+ * Tres ideas, y las tres están escritas aquí porque una regla que se puede romper en
+ * dos líneas no está en ningún sitio:
+ *
+ * - **La lista de la izquierda y el contenido se desplazan solos.** El buscador va
+ *   pegado arriba de la lista y no se va nunca, así que se puede seguir escribiendo
+ *   con la lista desplazada. El contenido sí se desplaza entero, con el título
+ *   dentro: el nombre de la sección se va con el texto, que es lo que se lee de un
+ *   editor, y la «X» flota en su esquina sin robar una fila de 72 px.
+ * - **Sin cajas.** Las secciones se separan con una raya fina y aire, y las filas no
+ *   llevan fondo ni borde. Solo las fichas de «elige un tema» llevan tarjeta, porque
+ *   ahí sí se está eligiendo un objeto y no activando un ajuste.
+ * - **El texto explicativo va detrás de un ⓘ.** Lo visible se reserva para lo que hay
+ *   que leer siempre: un aviso, un estado, un error.
+ *
+ * Los colores y las medidas salen de los tokens de la skin, como en el resto del app.
  */
 
 .modal {
   display: grid;
-  grid-template-columns: 244px minmax(0, 1fr);
-  width: min(920px, 94vw);
-  height: min(640px, 90vh);
+  grid-template-columns: 248px minmax(0, 1fr);
+  width: min(1000px, 94vw);
+  height: min(660px, 90vh);
   overflow: hidden;
   color: var(--skin-note-text);
   background-color: var(--skin-note-background);
@@ -24,32 +38,150 @@
   display: flex;
   min-height: 0;
   flex-direction: column;
-  padding: 18px 10px 12px;
+  padding: 14px 10px 12px;
   background-color: var(--skin-sidebar-background);
   border-right: var(--skin-sidebar-border);
 }
 
-.brand {
-  padding: 2px 10px 20px;
-  color: var(--skin-sidebar-text);
+/* El buscador va pegado arriba y la lista debajo se desplaza sola. */
+.searchWrap {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.searchWrap > svg {
+  position: absolute;
+  left: 8px;
+  width: 14px;
+  height: 14px;
+  color: var(--skin-sidebar-textDim);
+  pointer-events: none;
+}
+
+.search {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 26px 6px 27px;
+  color: var(--skin-input-text);
+  background-color: var(--skin-input-background);
+  border: var(--skin-input-border);
+  border-radius: var(--skin-input-radius);
+  font: inherit;
   font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+}
+
+.search:focus {
+  border-color: var(--skin-input-focus);
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: -1px;
+}
+
+.search::placeholder {
+  color: var(--skin-input-placeholder);
+}
+
+/* El aspa de «borrar» es el mismo icono que el de cerrar, en pequeño y sin caja. */
+.searchClear {
+  position: absolute;
+  right: 5px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  color: var(--skin-sidebar-textDim);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.searchClear:hover {
+  color: var(--skin-sidebar-text);
+  background: var(--skin-sidebar-itemHover);
+}
+
+.searchClear svg {
+  width: 12px;
+  height: 12px;
 }
 
 .sections {
   display: flex;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.searchGroup {
+  margin: 2px 8px 4px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Un resultado del buscador: el nombre del ajuste y, debajo, de qué sección es.
+   Con la sección a la vista no hace falta adivinarla. */
+.searchResult {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  color: var(--skin-sidebar-text);
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--skin-sidebar-radius) * 0.45);
+  font: inherit;
+  cursor: pointer;
+}
+
+.searchResult:hover,
+.searchResult:focus-visible {
+  background: var(--skin-sidebar-itemHover);
+  outline: none;
+}
+
+.searchResultLabel {
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.searchResultMeta {
+  overflow: hidden;
+  color: var(--skin-sidebar-textDim);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.searchEmpty {
+  margin: 6px 10px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .section {
-  position: relative;
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px 9px 13px;
+  padding: 8px 10px;
   color: var(--skin-sidebar-text);
   background: transparent;
   border: 1px solid transparent;
@@ -63,24 +195,16 @@
 }
 
 .section:hover {
-  background-color: var(--skin-sidebar-itemHover);
+  background: var(--skin-sidebar-itemHover);
 }
 
+/*
+ * La sección elegida se marca con un fondo plano y **sin raya a la izquierda**: la
+ * raya empujaba el texto y hacía que la lista «saltara» al cambiar de sección.
+ */
 .sectionActive {
-  color: var(--skin-note-accent);
+  color: var(--skin-note-text);
   background-color: var(--skin-sidebar-itemActive);
-}
-
-/* Marca de sección activa que no depende solo del color. */
-.sectionActive::before {
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 4px;
-  width: 2px;
-  background-color: var(--skin-note-accent);
-  border-radius: 999px;
-  content: "";
 }
 
 .section:focus-visible {
@@ -122,72 +246,28 @@
   gap: 1px;
 }
 
-.navFooter {
-  margin-top: auto;
-  padding: 12px 10px 2px;
-  color: var(--skin-sidebar-textDim);
-  font-size: 11px;
-}
-
 /* --------------------------------------------------------------------- cuerpo */
 
+/* `relative` para que la «X» de la esquina se posicione contra esta columna y no
+   contra la ventana. */
 .content {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: 0;
   flex-direction: column;
 }
 
-.header {
-  display: flex;
-  min-height: 72px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 24px 16px 28px;
-  background-color: var(--skin-toolbar-background);
-  border-bottom: var(--skin-toolbar-border);
-}
-
-.header h2 {
-  margin: 0;
-  color: var(--skin-toolbar-text);
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.headerActions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Solo aparece cuando algo se ha apartado de lo que trae Xenner. */
-.reset {
-  padding: 6px 10px;
-  color: var(--skin-toolbar-textDim);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--skin-button-radius);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition:
-    color var(--motion-fast) ease,
-    background-color var(--motion-fast) ease;
-}
-
-.reset:hover {
-  color: var(--skin-toolbar-text);
-  background-color: var(--skin-button-backgroundHover);
-}
-
-.reset:focus-visible {
-  outline: 2px solid var(--skin-input-focus);
-  outline-offset: 1px;
+/*
+ * La «X» flota en su esquina en vez de vivir en una cabecera. Sin cabecera fija, lo
+ * único que hay en ese rincón es cerrar, y ponerle una fila entera de 72 px para
+ * un botón sería gastar la parte más ancha de la pantalla en no mostrar nada.
+ */
+.corner {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
 }
 
 .scroll {
@@ -198,99 +278,226 @@
   scrollbar-width: thin;
 }
 
+/*
+ * La columna de contenido.
+ *
+ * `container` es lo que hace que las filas se repartan según el ancho **de esta
+ * columna** y no el de la ventana: con el modal en una ventana estrecha, un `@media`
+ * decidía con un ancho que no es el que se ve.
+ */
 .body {
-  max-width: 660px;
-  padding: 26px 28px 34px;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 26px 32px 40px;
+  container: settings / inline-size;
 }
 
-/* ------------------------------------------------------------------- tarjetas */
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-bottom: 18px;
+}
 
-/* Los grupos van separados por una línea fina: menos cajas, más aire. */
+/* El título de la página se ve **más apagado** que los títulos de sección: es el
+   nombre de dónde estás, no el contenido. */
+.pageTitle {
+  margin: 0;
+  color: var(--skin-sidebar-textDim);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.pageDescription {
+  margin: 3px 0 0;
+  color: var(--skin-sidebar-textDim);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------------- secciones */
+
+/*
+ * Una raya al 60 % y aire. Sin cajas: el cromo de cada fila convierte la página en
+ * un tablero, y aquí lo que se busca es un ajuste. Solo las fichas de «elige un
+ * tema» llevan tarjeta, porque ahí sí se está eligiendo un objeto.
+ */
 .group + .group {
-  margin-top: 22px;
-  padding-top: 20px;
+  margin-top: 26px;
+  padding-top: 24px;
   border-top: 1px solid var(--skin-sidebar-border);
 }
 
+/* La primera sección no necesita raya: no hay nada arriba que separar. */
+.body > .group:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
 .groupTitle {
-  margin: 0 0 4px;
+  margin: 0 0 10px;
   color: var(--skin-note-text);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 650;
 }
 
 .groupHint {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   color: var(--skin-sidebar-textDim);
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
-.footnote {
-  margin: 10px 0 0;
-  color: var(--skin-sidebar-textDim);
-  font-size: 11px;
-  line-height: 1.6;
-}
+/* ----------------------------------------------------------------------- filas */
 
-.card {
-  border: var(--skin-input-border);
-  border-radius: calc(var(--skin-note-radius) * 0.7);
-  overflow: hidden;
-}
-
+/*
+ * Una fila: el nombre a la izquierda con un ancho fijo y el control a la derecha.
+ *
+ * El ancho fijo es lo que hace que una columna de deslizadores se lea como una
+ * columna y no como un zigzag. Y por debajo de `34rem` de **esta columna** la fila
+ * se apila —el control debajo de su nombre—, porque con el modal en una ventana
+ * estrecha no caben los dos en una línea.
+ */
 .row {
   display: flex;
-  min-height: 58px;
   align-items: center;
-  gap: 20px;
-  padding: 13px 16px;
+  gap: 8px;
+  padding: 7px 0;
 }
 
 .row + .row {
-  border-top: var(--skin-input-border);
-}
-
-.row:hover {
-  background-color: var(--skin-note-backgroundHover);
+  border-top: 1px solid var(--skin-sidebar-border);
 }
 
 .rowLabel {
   display: flex;
   min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
+  flex: 0 0 13rem;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
 }
 
-.rowLabel strong {
+/* El nombre del ajuste no va en negrita: la lista de ajustes es un índice, y con todo
+   en negrita no hay jerarquía. */
+.rowLabelText {
   color: var(--skin-note-text);
   font-size: 13px;
-  font-weight: 550;
-}
-
-.rowLabel small {
-  color: var(--skin-sidebar-textDim);
-  font-size: 11px;
-  line-height: 1.5;
+  font-weight: 400;
 }
 
 .rowControl {
   display: flex;
-  flex: 0 0 auto;
+  min-width: 0;
+  flex: 1 1 auto;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
 }
 
 .rowControl output {
-  min-width: 46px;
+  min-width: 52px;
   color: var(--skin-note-accent);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
+/* Apilado: el nombre arriba, el control debajo y a todo lo ancho. */
+@container settings (width < 34rem) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .rowLabel {
+    flex: 1 0 100%;
+  }
+
+  .rowControl {
+    flex: 1 0 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Un ajuste recién elegido en el buscador: se resalta un momento para que se vea
+   dónde ha caído, y se apaga solo. Sin esto, elegir un resultado y no ver nada
+   moverse es indistinguible de que no haya pasado nada. */
+.resaltado {
+  animation: settings-resaltar 1.6s ease-out;
+}
+
+@keyframes settings-resaltar {
+  0%,
+  35% {
+    background-color: var(--skin-note-backgroundHover);
+  }
+}
+
+/* ---------------------------------------------------------------------- el ⓘ */
+
+/*
+ * El icono de la explicación. 20 px y en color apagado: tiene que estar ahí sin
+ * llamar la atención por encima del nombre del ajuste, que es lo que se busca.
+ */
+.infoHint {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.infoHintButton {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  color: var(--skin-sidebar-textDim);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: help;
+}
+
+.infoHintButton:hover,
+.infoHintButton[aria-expanded="true"] {
+  color: var(--skin-note-text);
+  background: var(--skin-note-backgroundHover);
+}
+
+.infoHintButton:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 1px;
+}
+
+.infoHintButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Va en un portal, en coordenadas de la ventana: dentro del modal, un ajuste del
+   final de la página abriría el globo cortado por el borde. */
+.infoHintBox {
+  position: fixed;
+  z-index: calc(var(--z-modal) + 1);
+  width: max-content;
+  max-width: 280px;
+  padding: 8px 10px;
+  color: var(--skin-note-text);
+  font-size: 12px;
+  line-height: 1.55;
+  background-color: var(--skin-toolbar-background);
+  border: var(--skin-toolbar-border);
+  border-radius: var(--skin-input-radius);
+  box-shadow: var(--skin-note-shadow);
+}
+
 /* ------------------------------------------------------------------ controles */
+
 
 .input {
   min-height: 34px;

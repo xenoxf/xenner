@@ -1,62 +1,86 @@
-## Xenner 1.3.0
+## Xenner 1.4.0
 
-El editor está rehecho. Es la misma idea —escribes como en un procesador de
-textos y Xenner guarda Markdown— pero ahora el motor es Tiptap, y con él se han
-podido arreglar cosas que antes fallaban.
+Todo lo que hay aquí son arreglos y cosas que se piden. **El formato de tus notas no
+cambia**: los archivos siguen siendo Markdown, se abren en cualquier editor y tus
+notas antiguas se abren tal cual.
 
-**Tus notas no cambian de formato.** Los archivos siguen siendo Markdown, se
-abren en cualquier editor y se siguen viendo igual fuera de Xenner. Lo único
-nuevo son dos detalles en las imágenes, abajo.
+### Los fallos que más molestaban
 
-### Escribir sin saber Markdown
+- **El salto de línea al Intro era enorme.** Al dar Intro se metía casi el doble del
+  alto del texto de espacio en blanco. Venía de que el hueco entre párrafos lo ponía
+  el navegador por su cuenta, encima del interlineado que tú eliges en Apariencia:
+  dos cosas que no se hablan y que ninguna de las dos se podía cambiar. Ahora el
+  ritmo es tuyo y de nadie más.
+- **La barrita de formato no salía nunca.** La que aparece encima del texto que
+  seleccionas para poner negrita, elegir el estilo o poner un enlace: seleccionabas y
+  no pasaba nada. Ya aparece, tanto si seleccionas con el ratón como con el teclado.
+- **Cada opción de bloque decía que no se había podido aplicar.** Poner «Título 2» o
+  «Viñetas» funcionaba, la nota cambiaba entera… y salía un aviso rojo de que no se
+  había podido. El cambio estaba hecho; lo que fallaba era dejar el cursor donde
+  tocaba.
+- **Alinear una imagen no hacía nada.** Los tres botones de izquierda, centro y
+  derecha salían, se pulsaban y la foto no se movía. Estaba mirando el eje que no
+  era.
+- **Al poner una imagen salía un campo para renombrarla.** Debajo de cada foto
+  aparecía un campo de texto con el nombre del archivo, y eso no es una imagen, es un
+  formulario. Ahora entra la imagen y ya. El pie sigue ahí, pero solo si eliges la
+  foto.
 
-Es lo que se pedía: poder escribir una nota entera sin encontrase nunca con un
-asterisco suelto.
+### El explorador hace lo que se espera
 
-- **Barra de formato encima del texto que selects.** Elige el estilo con su
-  nombre —Texto, Título, Cita, Viñetas, Numerada, Tareas, Separador— y la
-  píldora **te dice en cuál estás**, así que no hay que abrir nada para
-  averiguarlo. Sale al pasar el ratón por encima de lo seleccionado y se queda
-  quieta mientras la usas.
-- **Las tablas se pueden tocar.** Antes se insertaba una tabla y no había forma
-  de añadirle una fila: era un callejón sin salida. Ahora, con el cursor en una
-  celda, sale una barrita encima para añadir o quitar filas y columnas, mover la
-  tabla, poner cabecera y alinear el texto.
-- **Atajos de bloque.** `Ctrl+Alt+0` a `Ctrl+Alt+6` para los títulos,
-  `Ctrl+Shift+7` viñetas, `Ctrl+Shift+8` numerada, `Ctrl+Shift+9` tareas y
-  `Ctrl+Shift+.` cita. En Mac, `⌘` en lugar de `Ctrl`.
-- **Si pegas algo de otra parte, aterriza bien.** El Markdown que copies de
-  cualquier sitio se convierte en bloques de verdad, y el texto que copies de
-  Word, LibreOffice o Google Docs deja de traerse por delante sus estilos.
+Es lo que se hace en cualquier explorador de un clic, y aquí no lo hacía.
 
-### Imágenes
+- **Puedes elegir una carpeta y se queda elegida.** Pinchas una carpeta, la pliega o
+  la despliegas, y a partir de ahí «Nueva nota», «Nueva carpeta» y «Pegar» caen
+  **dentro de ella** en vez de en la raíz. Si pinchas una nota, lo nuevo va junto a
+  ella.
+- **Soltar dentro de una carpeta ya no es puntería de francotirador.** No hace falta
+  acertar a su borde: si sueltas el elemento en cualquier parte de la carpeta, cae
+  dentro. Y si lo sueltas encima de un archivo que está dentro de una subcarpeta,
+  cae en **esa** subcarpeta, no en la de arriba.
+- **Las carpetas se pueden mover y renombrar con el teclado**, y `F2` o `Supr` actúan
+  sobre lo que esté resaltado, que ahora puede ser una carpeta y no solo una nota.
 
-Se pueden **redimensionar arrastrando** y **alinear** a izquierda, centro o
-derecha, con botones que salen junto al pie de la foto.
+### Los adjuntos se abren
 
-Aquí hay un cambio en el fichero, y conviene saberlo: el tamaño y la alineación
-se guardan en el *título* de la imagen, con un prefijo `@`.
+Un archivo adjuntado era un enlace de texto y ya. Ahora es una **tarjeta**, como en
+un chat: se ve el tipo y el peso, y **un clic lo abre** con el programa de siempre —un
+PDF con el visor, una hoja de cálculo con su aplicación—.
 
-```
-![El pie](./.assets/captura.png "El pie @600 @center")
-```
+Con el **botón derecho** salen las cuatro cosas que se pueden hacer con un archivo:
 
-Markdown no tiene forma de decir el tamaño de una imagen, y esa es la única
-casilla donde cabía sin inventar HTML. Si abres esa nota en otro visor, verás el
-título tal cual y el resto se ve igual: **degrada sin perder nada**. Tus notas
-antiguas no se tocan: las que no llevan nada de esto se abren tal cual.
+| | |
+|---|---|
+| Abrir | `Ctrl+O` |
+| Mostrar en la carpeta | `Ctrl+Shift+O` |
+| Copiar la ruta | `Ctrl+C` |
+| Copiar el enlace Markdown | `Ctrl+Shift+C` |
 
-### Lo que se ha arreglado
+En la nota sigue siendo un enlace de Markdown de toda la vida, así que se lee igual
+en cualquier otro sitio. Y no hay «Abrir como…» porque la app no puede enseñarte el
+diálogo del sistema para elegir programa: si un archivo no se abre con nada,
+«Mostrar en la carpeta» lo deja a un clic de abrirlo como quieras.
 
-- **Cambiar el tipo de texto ya no come la nota.** Poner «Cita» y luego «Título 2»
-  dejaba una cita con un título dentro y no había forma de quitarlo. Ahora
-  sustituye.
-- **La app ya no se ralentiza al escribir.** Antes se convertía la nota entera a
-  Markdown en cada tecla; ahora espera a que pares.
-- **Crear y guardar van a la par.** Escribir y cambiar de nota ya no
-  pierde lo último que escribiste.
-- **La primera vez que se abre una nota va más rápido.** El editor se descarga al
-  abrir una nota, no al arrancar la app.
+### El menú de la lista tiene atajo en todo
+
+El menú contextual de una nota o una carpeta enseñaba atajo en cinco de sus ocho
+opciones, y dos de las que faltaban eran las de crear. Ahora **todas** lo tienen, a la
+derecha de la opción, y los mismos atajos funcionan desde el árbol:
+
+`Ctrl+N` nota nueva · `Ctrl+Shift+N` carpeta nueva · `Ctrl+H` últimos cambios ·
+`Ctrl+C` copiar · `Ctrl+X` cortar · `Ctrl+V` pegar · `F2` renombrar · `Supr` eliminar.
+
+### La configuración se ha rehecho
+
+- **Buscador.** Escribe arriba y salen los ajustes que casan, con la sección de la que
+  son. `Intro` lleva al primero. Sin escribir, la lista de secciones es la de siempre.
+- **Sin cajas.** Las secciones se separan con una raya fina y aire. Antes cada grupo
+  era una caja con borde y la página parecía un tablero.
+- **Las explicaciones están detrás de un ⓘ.** Se abren al pasar el ratón por encima
+  **y al pulsar**, que es lo que hace falta en una pantalla táctil. Lo que se sigue
+  viendo siempre son los avisos y los estados.
+- **El título va con el texto** y la «X» flota en la esquina, en vez de una cabecera
+  fija que ocupaba una franja entera de la pantalla.
 
 ### Problemas
 

@@ -144,27 +144,6 @@
   margin: 0.2em 0;
 }
 
-/*
- * De qué lado se pega el texto.
- *
- * El atributo lo pone `note-paragraph.ts` y sale como `data-align`, no como
- * `style="text-align"`: así el tema decide, el HTML copiado lleva un dato legible en
- * vez de una cadena de estilo, y pegar de otro sitio no arrastra un `text-align`
- * que nadie pidió. Los cuatro valores del comando, y ninguno más: un
- * `data-align` que no sea uno de ellos se queda a la izquierda.
- */
-.editor :global(.ProseMirror p[data-align="center"]) {
-  text-align: center;
-}
-
-.editor :global(.ProseMirror p[data-align="right"]) {
-  text-align: right;
-}
-
-.editor :global(.ProseMirror p[data-align="justify"]) {
-  text-align: justify;
-}
-
 /* Red de seguridad: una URL larguísima o una palabra sin espacios no puede
    ensanchar la columna de lectura. */
 .editor :global(.ProseMirror p),
@@ -502,26 +481,12 @@
   font-size: 9px;
 }
 
-/* La raya que separa el grupo de marcas del de alineación, y el de alineación del
-   enlace. */
+/* La raya que separa el selector de las marcas. */
 .barSeparator {
   width: 1px;
   align-self: stretch;
   margin: 3px 4px;
   background-color: var(--skin-toolbar-border);
-}
-
-/*
- * Los cuatro lados, juntos.
- *
- * `flex` sin hueco porque cada botón ya lleva su borde al pulsarse, y separarlos un
- * píxel más de lo que separa los demás los haría leer como un grupo aparte dentro del
- * grupo.
- */
-.alignBar {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
 }
 
 /*

@@ -11,13 +11,11 @@ import {
   insertWhiteboard,
   leaveCaretBehind,
   setBlockType,
-  setTextAlign,
   setTextStyle,
 } from "./commands.ts";
 import type { ReportFailure } from "./commands.ts";
 import { crearEditorDePrueba } from "./editor-harness.ts";
 import type { TestEditor } from "./editor-harness.ts";
-import { puedeAlinear } from "./extensions/note-paragraph.ts";
 import { EDITOR_BLOCK_TYPES } from "./menu-content.ts";
 
 /**
@@ -372,79 +370,6 @@ test("adjuntar encima de un texto seleccionado sustituye ese texto", () => {
   editor.validar();
   assert.deepEqual(bloques(editor), ["noteAttachment"]);
   assert.equal(editor.markdown(), "[informe.pdf](./.assets/informe.pdf)", editor.markdown());
-});
-
-test("alinear el texto pone el atributo sin tocar el bloque", () => {
-  // Alinear no es cambiar el tipo: un párrafo centrado conserva su texto, sus marcas
-  // y su posición. Y el cursor se queda donde estaba, porque alinear no termina lo
-  // que se estaba escribiendo.
-  const editor = crearEditorDePrueba([
-    { type: "paragraph", content: [{ type: "text", marks: [{ type: "bold" }], text: "Frase" }] },
-    parrafo("Otra"),
-  ]);
-  editor.seleccionar("Frase");
-  const antes = editor.estado().selection.from;
-  const fallos: string[] = [];
-  assert.equal(
-    editor.ejecutar(setTextAlign("center", (que) => fallos.push(que))),
-    true,
-    fallos.join("; "),
-  );
-  editor.validar();
-  assert.deepEqual(fallos, []);
-  assert.deepEqual(bloques(editor), ["paragraph", "paragraph"]);
-  assert.deepEqual(
-    editor.estado().doc.firstChild?.attrs.align,
-    "center",
-    "el párrafo no quedó centrado",
-  );
-  assert.equal(editor.markdown(), '<p align="center">**Frase**</p>\n\nOtra', editor.markdown());
-  // El cursor no se ha movido: alinear y seguir escribiendo tiene que poder ser lo
-  // mismo.
-  assert.equal(editor.estado().selection.from, antes);
-});
-
-test("alinear solo toca los párrafos y solo los que tocan la selección", () => {
-  // Con el cursor en un párrafo se alinea ese y ninguno más. Y un bloque que no es
-  // texto —una imagen— se queda como estaba en vez de comerse el cambio: alinear
-  // eligiendo media nota no significa que media nota se mueva.
-  const editor = crearEditorDePrueba([
-    parrafo("Uno"),
-    parrafo("Dos"),
-    { type: "horizontalRule" },
-  ]);
-  editor.cursorEn("Dos");
-  assert.equal(editor.ejecutar(setTextAlign("right")), true);
-  editor.validar();
-  const alineados = editor.estado().doc.content.content.map((nodo) => nodo.attrs.align);
-  assert.deepEqual(alineados, ["left", "right", undefined]);
-});
-
-test("alinear un párrafo que ya está así no avisa de un fallo", () => {
-  // Pedir lo que ya tiene no es un fallo: es un botón que responde.
-  const editor = crearEditorDePrueba([parrafo("Frase")]);
-  editor.cursorEn("Frase");
-  editor.ejecutar(setTextAlign("center"));
-  const fallos: string[] = [];
-  assert.equal(editor.ejecutar(setTextAlign("center", (que) => fallos.push(que))), true);
-  assert.deepEqual(fallos, []);
-});
-
-test("dentro de una lista la alineación está apagada, y es por algo", () => {
-  // El bloque de primer nivel es la lista, así que no hay párrafo propio que
-  // alinear. Y no es solo que no se pueda: un párrafo dentro de un elemento de lista
-  // sale del Markdown como `<p align>` y eso **parte la lista en dos** al guardar.
-  // Es peor que un botón apagado: es una nota que cambia de forma al abrirla.
-  const editor = crearEditorDePrueba([lista("Uno", "Dos")]);
-  editor.cursorEn("Dos");
-  editor.ejecutar(setTextAlign("justify"));
-  editor.validar();
-  assert.equal(editor.markdown(), "- Uno\n- Dos", editor.markdown());
-  assert.equal(
-    puedeAlinear(editor.estado().doc, editor.estado().selection.from, editor.estado().selection.to),
-    false,
-    "los botones deberían estar apagados dentro de una lista",
-  );
 });
 
 test("insertar una imagen o una pizarra deja una línea debajo", () => {

@@ -13,7 +13,6 @@ import { PasteNote } from "../paste.ts";
 import { NoteAttachment } from "./note-attachment.ts";
 import type { NoteAttachmentActions } from "./note-attachment.ts";
 import { NoteImage } from "./note-image.ts";
-import { NoteParagraph } from "./note-paragraph.ts";
 import { TextColor } from "./text-color.ts";
 import { Whiteboard } from "./whiteboard.ts";
 import type { WhiteboardViewOptions } from "./whiteboard.ts";
@@ -22,14 +21,6 @@ export type { WhiteboardViewOptions };
 export { NoteAttachment };
 export type { NoteAttachmentActions, AttachmentMenuTarget } from "./note-attachment.ts";
 export { createNoteAttachmentView, pesoDe } from "./note-attachment.ts";
-export {
-  NoteParagraph,
-  TEXT_ALIGNS,
-  alignInSelection,
-  puedeAlinear,
-  alinearDe,
-} from "./note-paragraph.ts";
-export type { TextAlign } from "./note-paragraph.ts";
 
 /**
  * El registro de gramáticas, una sola vez.
@@ -86,8 +77,6 @@ export function createEditorExtensions(options: EditorExtensionOptions): Extensi
       // El bloque de código es el de `lowlight`, no el de StarterKit: sin
       // resaltado un bloque de código es media nota.
       codeBlock: false,
-      // El párrafo es el de Xenner, que además sabe en qué lado se pega el texto.
-      paragraph: false,
       heading: { levels: [1, 2, 3, 4, 5, 6] },
       link: {
         // Un enlace se abre con el menú o con Ctrl, no con un clic perdido
@@ -100,7 +89,6 @@ export function createEditorExtensions(options: EditorExtensionOptions): Extensi
     }),
     CodeBlockLowlight.configure({ lowlight, defaultLanguage: null }),
     NoteImage,
-    NoteParagraph,
     NoteAttachment.configure({ actions: options.attachment }),
     TableKit,
     TaskList,

@@ -413,49 +413,7 @@ export const EDITOR_BUTTON_LABELS = {
   styleMenu: "Estilos de bloque",
   /** La barrita que aparece dentro de una tabla. */
   table: "Controles de la tabla",
-  /** Los cuatro lados de los que se pega el texto de un párrafo. */
-  alignLeft: "Alinear a la izquierda",
-  alignCenter: "Centrar el texto",
-  alignRight: "Alinear a la derecha",
-  alignJustify: "Justificar el texto",
-  /** El rótulo de la barrita de alineación, para quien la recorre con el teclado. */
-  alignBar: "Alineación del párrafo",
 } as const;
-
-/**
- * Los cuatro botones de alinear el texto de un párrafo.
- *
- * Se separan del resto de las marcas porque no son marcas: alinear es del **bloque**,
- * y por eso el botón se enciende con lo que tiene el párrafo y no con lo que tiene el
- * texto. El valor va delante en vez de esconderse en un `switch`, que es lo mismo que
- * hace la barrita de la tabla con sus tres botones: el mismo comando con otro valor.
- *
- * Los iconos son de Material Symbols y están dibujados con `text-align` de verdad —
- * unas rayas de distinta longitud— porque con un icono genérico no se sabe de qué
- * botón se trata sin leer el `title`.
- */
-export const EDITOR_ALIGNMENTS = [
-  {
-    value: "left",
-    label: EDITOR_BUTTON_LABELS.alignLeft,
-    icon: svg(`<path d="M4 6h16M4 10h10M4 14h16M4 18h10" />`),
-  },
-  {
-    value: "center",
-    label: EDITOR_BUTTON_LABELS.alignCenter,
-    icon: svg(`<path d="M4 6h16M7 10h10M4 14h16M7 18h10" />`),
-  },
-  {
-    value: "right",
-    label: EDITOR_BUTTON_LABELS.alignRight,
-    icon: svg(`<path d="M4 6h16M10 10h10M4 14h16M10 18h10" />`),
-  },
-  {
-    value: "justify",
-    label: EDITOR_BUTTON_LABELS.alignJustify,
-    icon: svg(`<path d="M4 6h16M4 10h16M4 14h16M4 18h16" />`),
-  },
-] as const;
 
 // ---------------------------------------------------------------------------
 // Los controles de tabla

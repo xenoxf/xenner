@@ -7,7 +7,6 @@ import type { Fragment, MarkType, Node, NodeType, ResolvedPos, Schema } from "@t
 import type { DrawingTool } from "../types/drawing";
 import type { EditorBlockType, ImportedEditorAsset } from "../types/editor";
 import { normalizeTextColor } from "./extensions/text-color.ts";
-import { alinearDe, type TextAlign } from "./extensions/note-paragraph.ts";
 
 /**
  * Lo que el editor **hace** cuando alguien pulsa algo.
@@ -506,54 +505,6 @@ function bloqueVacio(esquema: Schema): Node {
  * repinta. No se serializa: sale en el Markdown como un enlace normal, que es lo
  * que se lee en cualquier otro sitio.
  */
-/**
- * Alinea el texto de los párrafos que toca la selección.
- *
- * Se pone un **atributo** del bloque con `setNodeMarkup`, no se rehace el bloque
- * entero como hace `setBlockType`: alinear no cambia el tipo, así que un párrafo
- * centrado conserva su texto y sus marcas enteras. Y `setNodeMarkup` es además lo
- * que hace que el cursor **no se mueva**: con `replaceWith` sobre el bloque entero,
- * una selección dentro de él se.mapping() al borde y se quedaba pegada al final.
- * Alinear y seguir escribiendo tiene que poder ser lo mismo.
- *
- * Solo los `paragraph` de primer nivel. Lo que no es texto se deja como estaba y no
- * es un fallo —quien alinea eligiendo media nota espera que media nota no se mueva—,
- * y **dentro de una lista tampoco**: un párrafo en un elemento de lista sale del
- * Markdown como `<p align>` y eso parte la lista en dos al guardar. Un botón apagado
- * es mejor que una nota que cambia de forma al abrirla.
- */
-export const setTextAlign =
-  (align: TextAlign, report: ReportFailure = POR_CONSOLA): Command =>
-  (props) => {
-    try {
-      const { state } = props;
-      const rango = rangoDeTexto(state);
-      const cambios: { pos: number; attrs: Record<string, unknown> }[] = [];
-      state.doc.forEach((nodo, offset) => {
-        const fin = offset + nodo.nodeSize;
-        if (offset >= rango.to || fin <= rango.from) return;
-        if (nodo.type.name !== "paragraph") return;
-        if (alinearDe(nodo.attrs.align) === align) return;
-        cambios.push({ pos: offset, attrs: { ...nodo.attrs, align } });
-      });
-      if (!cambios.length) return true;
-      conValidacion(props, (tr) => {
-        for (const cambio of cambios) {
-          tr.setNodeMarkup(cambio.pos, undefined, cambio.attrs);
-        }
-      });
-      props.dispatch?.(props.tr.scrollIntoView());
-      return true;
-    } catch (error) {
-      if (error instanceof ContenidoNoTextual) {
-        report("aquí no se puede alinear el texto", error.message);
-        return false;
-      }
-      report("no se pudo alinear el texto", error);
-      return false;
-    }
-  };
-
 /**
  * El cursor en el primer sitio donde se puede escribir a partir de `pos`.
  *

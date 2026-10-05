@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "xenner",
+  "productName": "Xenner",
   "version": "1.3.0",
   "identifier": "xenner",
   "build": {
@@ -48,6 +48,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "Xenner - Editor de notas",
+    "longDescription": "Aplicación de escritorio para crear y organizar notas.",
     "resources": {
       "../skins/": "skins/"
     },

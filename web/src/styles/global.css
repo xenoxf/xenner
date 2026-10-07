@@ -526,6 +526,23 @@ ol {
   white-space: nowrap;
 }
 
+/* La fila que separa un grupo de ganchos del siguiente. Sin ella, una tabla de
+   cincuenta filas se lee como una sola y nadie sabe dónde acaba la lista de
+   notas y empieza la nota. */
+.prose table.hooks .zone th {
+  padding-top: 1.4rem;
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.prose table.hooks tbody tr.zone:first-child th {
+  padding-top: 0.7rem;
+}
+
 /* ---------- una clave, explicada ---------- */
 
 .key {

@@ -1,7 +1,7 @@
 /**
  * El índice de la documentación.
  *
- * Ocho páginas, una por capítulo. Es la fuente de verdad de las barras de
+ * Nueve páginas, una por capítulo. Es la fuente de verdad de las barras de
  * navegación (la de la izquierda, la de la derecha y el cajón del móvil), del
  * «anterior» y el «siguiente», y de las tarjetas del final. No se escribe a
  * mano en tres sitios: `doc.test.ts` compara esto contra los encabezados que

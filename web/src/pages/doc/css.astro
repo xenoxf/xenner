@@ -2,13 +2,60 @@
 import DocsLayout from '../../layouts/DocsLayout.astro';
 import { pagina } from '../../data/doc';
 import { esc, md } from '../../data/texto';
-import { HOOKS } from '../../data/skins';
+import { HOOKS, HOOK_STATES, type HookDoc } from '../../data/skins';
 
 const doc = pagina('/doc/css/');
 
-const hookRows = HOOKS.map(
-  (hook) => '<tr><td><code>' + esc(hook.hook) + '</code></td><td><strong>' +
-    esc(hook.name) + '</strong> &mdash; ' + md(hook.sees) + '</td></tr>',
+/**
+ * La tabla de ganchos, agrupada por zona de la ventana.
+ *
+ * Cincuenta y tantos ganchos en una sola lista son ilegibles: quien busca «la
+ * barra de formato» no gana nada recorriendo los de la lista de notas para
+ * llegar a ella. Se ordenan por la zona en la que ya se está mirando —la
+ * ventana, la lista, la nota, el móvil— y cada grupo sale con su encabezado.
+ */
+const ZONAS: readonly { id: HookDoc['zone']; titulo: string }[] = [
+  { id: 'ventana', titulo: 'La ventana y la barra de secciones' },
+  { id: 'lista', titulo: 'La columna de la lista de notas' },
+  { id: 'nota', titulo: 'La nota y el editor' },
+  { id: 'movil', titulo: 'La vista de móvil' },
+];
+
+const tablasPorZona = ZONAS.map((zona) => {
+  const hooks = HOOKS.filter((hook) => hook.zone === zona.id);
+  const filas = hooks
+    .map(
+      (hook) =>
+        '<tr><td><code>' +
+        esc(hook.hook) +
+        '</code></td><td><strong>' +
+        esc(hook.name) +
+        '</strong> &mdash; ' +
+        md(hook.sees) +
+        '</td></tr>',
+    )
+    .join('\n');
+  return {
+    ...zona,
+    html:
+      '<tr class="zone"><th colspan="2">' +
+      esc(zona.titulo) +
+      '</th></tr>\n' +
+      filas,
+  };
+}).filter((zona) => zona.html.includes('<td>'));
+
+const hookRows = tablasPorZona.map((zona) => zona.html).join('\n');
+
+const stateRows = HOOK_STATES.map(
+  (state) =>
+    '<tr><td><code>' +
+    esc(state.state) +
+    '</code></td><td>' +
+    md(state.where) +
+    '</td><td>' +
+    md(state.values) +
+    '</td></tr>',
 ).join('\n');
 ---
 
@@ -71,7 +118,7 @@ const hookRows = HOOKS.map(
     <div class="files__file">[data-x="sidebar"]        <span class="files__opt">la columna izquierda</span></div>
   </div>
 
-  <table>
+  <table class="hooks">
     <thead>
       <tr>
         <th><code>data-x</code></th>
@@ -81,7 +128,21 @@ const hookRows = HOOKS.map(
     <tbody set:html={hookRows} />
   </table>
 
-  <p>Se pueden combinar, y hay estados que se marcan con atributos aparte:</p>
+  <p>
+    Se pueden combinar con un atributo de estado, que dice <em>en qué momento</em>
+    en vez de <em>dónde</em>. Estos son todos:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Atributo</th>
+        <th>Dónde se pone</th>
+        <th>Qué significa</th>
+      </tr>
+    </thead>
+    <tbody set:html={stateRows} />
+  </table>
 
   <pre is:raw><code><span>/* la nota que está abierta */</span>
 [data-x="tree-row"][data-selected] { background: #ffd166; }
@@ -90,7 +151,20 @@ const hookRows = HOOKS.map(
 [data-x="tree-item"][data-kind="directory"] { ... }
 
 <span>/* solo el botón grande de "Nueva nota" */</span>
-[data-x="button"][data-x-role="primary"] { ... }</code></pre>
+[data-x="button"][data-x-role="primary"] { ... }
+
+<span>/* el móvil, que es la misma lista con otras formas */</span>
+[data-x="mobile-note-row"][data-selected] { ... }</code></pre>
+
+  <div class="callout">
+    <span class="callout__label">El gancho que no está en la lista</span>
+    <p>
+      Un selector que no encuentra nada no da error: no hace nada y ya está. Si
+      una regla se te queda sin efecto, mira que el gancho exista en la tabla y
+      que esté en el elemento que crees: <code>editor</code> es la envoltura y
+      <code>editor-root</code> es el texto editable de dentro, y no son lo mismo.
+    </p>
+  </div>
 
   <h3 id="y-dentro-del-texto-de-la-nota">Y dentro del texto de la nota</h3>
 

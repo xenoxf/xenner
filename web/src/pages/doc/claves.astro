@@ -3,7 +3,6 @@ import DocsLayout from '../../layouts/DocsLayout.astro';
 import { pagina } from '../../data/doc';
 import { esc, md } from '../../data/texto';
 import {
-  HOOKS,
   SHARED_KEYS,
   SKIN_COMPONENT_DOCS,
   type SkinComponentDoc,
@@ -18,6 +17,9 @@ import {
  * `data/skins.ts`, que es la misma lista de la que se sirve la aplicación. Si
  * mañana se añade una clave, sale aquí sin que nadie tenga que acordarse de
  * escribirla dos veces.
+ *
+ * Los ganchos de `custom.css` no están aquí: son otra cosa y tienen su capítulo,
+ * en <a href="/doc/css/">Cambiarlo todo con CSS</a>.
  *
  * Los `id` de los apartados (`componente-note`…) los genera `seccion()` al
  * pintar, así que no aparecen en este archivo. `doc.test.ts` lo tiene en cuenta
@@ -76,10 +78,6 @@ const totalClaves =
 
 const sharedCards = SHARED_KEYS.map(card).join('');
 const componentSections = SKIN_COMPONENT_DOCS.map(seccion).join('\n');
-const hookRows = HOOKS.map(
-  (hook) => '<tr><td><code>' + esc(hook.hook) + '</code></td><td><strong>' +
-    esc(hook.name) + '</strong> &mdash; ' + md(hook.sees) + '</td></tr>',
-).join('\n');
 ---
 
 <DocsLayout doc={doc}>

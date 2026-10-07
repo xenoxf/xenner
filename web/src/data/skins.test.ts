@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import test from 'node:test';
 
-import { HOOKS, SHARED_KEYS, SKIN_COMPONENT_DOCS } from './skins.ts';
+import { HOOKS, HOOK_STATES, SHARED_KEYS, SKIN_COMPONENT_DOCS } from './skins.ts';
 
 /**
  * La documentación y el parser tienen que decir lo mismo.
@@ -90,5 +91,77 @@ test('todos los ganchos tienen nombre y descripción', () => {
   for (const hook of HOOKS) {
     assert.match(hook.hook, /^[a-z][a-z-]*$/, `${hook.hook} no parece un data-x`);
     assert.ok(hook.sees.length > 20, `${hook.hook} no explica qué es`);
+  }
+});
+
+/**
+ * Los ganchos documentados y los que la aplicación escribe, en las dos
+ * direcciones.
+ *
+ * Esto ya salió mal una vez: la tabla se quedó con la del editor anterior —que
+ * tenía `toolbar-button`, un gancho que ya no existe— y en la otra dirección
+ * faltaban veinte, los del editor nuevo y los del móvil. Nadie lo notó porque
+ * la web compila igual: la comprobación de `skins.test.ts` que compara las
+ * claves con `keys.ts` ya existía, y esta faltaba justo para los ganchos.
+ *
+ * Como el de las claves, se salta si la app no está a mano (se despliega `web/`
+ * solo): es una red de seguridad, no un requisito de compilación.
+ */
+const COMPONENTES = fileURLToPath(new URL('../../../xenner/src/components/', import.meta.url));
+
+const hayApp = existsSync(COMPONENTES);
+
+/** Todos los `data-x="…"` que aparecen escritos en los componentes de la app. */
+function ganchosDeLaApp(): string[] {
+  const vistos = new Set<string>();
+  const recorrer = (carpeta: string) => {
+    for (const nombre of readdirSync(carpeta)) {
+      const ruta = join(carpeta, nombre);
+      if (statSync(ruta).isDirectory()) {
+        recorrer(ruta);
+      } else if (nombre.endsWith('.tsx')) {
+        const fuente = readFileSync(ruta, 'utf-8');
+        for (const coincidencia of fuente.matchAll(/data-x="([a-z][a-z-]*)"/g)) {
+          vistos.add(coincidencia[1]);
+        }
+      }
+    }
+  };
+  recorrer(COMPONENTES);
+  return [...vistos].sort();
+}
+
+test('los ganchos documentados son los que la aplicación escribe', { skip: !hayApp }, () => {
+  const documentados = HOOKS.map((hook) => hook.hook).sort();
+
+  assert.deepEqual(
+    documentados,
+    ganchosDeLaApp(),
+    'los data-x de la web y los de la aplicación no coinciden',
+  );
+});
+
+test('los estados dicen dónde se ponen y qué valores tienen', () => {
+  const repetidos = HOOK_STATES.map((state) => state.state).filter(
+    (state, index, todas) => todas.indexOf(state) !== index,
+  );
+  assert.deepEqual(repetidos, [], 'un estado aparece dos veces en la tabla');
+
+  for (const state of HOOK_STATES) {
+    assert.match(state.state, /^data-[a-z-]+$/, `${state.state} no parece un atributo`);
+    assert.ok(state.where.length > 10, `${state.state} no dice dónde se pone`);
+    assert.ok(state.values.length > 20, `${state.state} no explica sus valores`);
+    // Lo que se pone en el `where` tiene que ser un gancho de verdad: un
+    // `data-selected` en un trozo que no existe no lo lleva nadie. Los atributos
+    // que empiezan por `data-` se saltan: ahí no se cita un gancho, se cita otro
+    // atributo.
+    for (const citado of state.where.matchAll(/`([a-z][a-z-]*)`/g)) {
+      const hook = citado[1];
+      if (hook.startsWith('data-')) continue;
+      assert.ok(
+        HOOKS.some((documentado) => documentado.hook === hook),
+        `${state.state} habla de «${hook}», que no está en la lista de ganchos`,
+      );
+    }
   }
 });

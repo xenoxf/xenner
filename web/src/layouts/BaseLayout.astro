@@ -10,6 +10,15 @@ interface Props {
   /** Token de Search Console. Por defecto, el ya verificado en el repo. */
   googleVerification?: string;
   /**
+   * La versión que se anuncia en los datos estructurados.
+   *
+   * Estaba escrita a mano y se quedó en 1.2.0 mientras la app iba ya por la
+   * 1.3.0: un dato que se queda viejo solo no se nota, y los buscadores leen
+   * este campo. La pasa quien tiene la release a la vista —la portada, que la
+   * lee durante el build— y por eso aquí es solo un respaldo.
+   */
+  softwareVersion?: string;
+  /**
    * A dónde lleva el enlace «Saltar al contenido». Cada layout tiene su
    * contenedor y por eso lo declara: el de la documentación es su propio
    * `<main>`, no el `<main id="contenido">` de las páginas de la guía. Con un
@@ -27,6 +36,7 @@ const {
     import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION ??
     'fa6zFON181emDwrvIUEtbd_oiy5bwslWzIokdl-_An4',
   skipHref = '#contenido',
+  softwareVersion = '1.3.0',
 } = Astro.props;
 
 /* El título por defecto lleva la palabra que se busca ("creador de notas") y
@@ -64,7 +74,7 @@ const structuredData = {
       '@id': `${siteURL.href}#app`,
       name: 'Xenner',
       description,
-      softwareVersion: '1.2.0',
+      softwareVersion,
       applicationCategory: 'UtilitiesApplication',
       operatingSystem: 'Windows, macOS, Linux',
       softwareRequirements: 'Node 22.12 o superior, pnpm y Rust estable (para compilar desde el código)',

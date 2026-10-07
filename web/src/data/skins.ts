@@ -10,7 +10,11 @@
  * técnico en CSS. Quien va a hacer una skin no sabe qué es un `token`; sí sabe
  * que el texto de la lista de notas sale apagado.
  *
- * Origen de verdad: `xenner/docs/SKIN_SPEC.md` y `xenner/src/skin/keys.ts`.
+ * Origen de verdad: `xenner/src/skin/keys.ts` para las claves y los `data-x` que
+ * cada componente escribe, uno a uno. El `SKIN_SPEC.md` que citaba antes aquí ya
+ * no está en el repositorio —se fue con la migración del editor— así que esta web
+ * es la documentación: por eso `skins.test.ts` la compara con el código y se
+ * rompe si divergen, en las dos direcciones.
  */
 
 export interface SkinKeyDoc {
@@ -163,16 +167,17 @@ export const SKIN_COMPONENT_DOCS: readonly SkinComponentDoc[] = [
     keys: [
       {
         key: 'backgroundHover',
-        sees: 'El aviso que sale cuando se selecciona un texto o una imagen.',
+        sees: 'El fondo de los cuadros que salen encima de la nota: el aviso de «texto copiado», el historial y el del diálogo de ajustes.',
         type: 'un color',
         example: '"#f7f7f5"',
+        note: 'Aquí no hay ningún botón al que pasar el ratón: son las cajas que aparecen y desaparecen. El color de la letra sale de `text` y el borde, de `accent`.',
       },
     ],
   },
   {
     file: 'button.txt',
     name: 'Los botones',
-    sees: 'El botón «Nueva nota», los botones de la cabecera y los de cada fila.',
+    sees: 'El botón «Nueva nota», los de las cabeceras y los de los menús.',
     keys: [
       {
         key: 'backgroundHover',
@@ -217,11 +222,11 @@ export const SKIN_COMPONENT_DOCS: readonly SkinComponentDoc[] = [
   {
     file: 'toolbar.txt',
     name: 'La barra del editor',
-    sees: 'La barra flotante que aparece sobre el texto, con negrita, títulos, listas y demás.',
+    sees: 'Todo lo que flota por encima: la barra de abajo de la nota, la de formato, los menús, la paleta de comandos y los diálogos.',
     keys: [
       {
         key: 'textDim',
-        sees: 'El texto gris de la barra: los botones que son un separador o un detalle.',
+        sees: 'Lo apagado de la barra, y también los rótulos que no son botones: «Preparando editor…» y el estado del archivo.',
         type: 'un color',
         example: '"#9b9b98"',
       },
@@ -235,49 +240,154 @@ export const SKIN_COMPONENT_DOCS: readonly SkinComponentDoc[] = [
   },
 ];
 
-/** Los ganchos `data-x`, para la página de `custom.css`. */
+/**
+ * Los ganchos `data-x`, para la página de `custom.css`.
+ *
+ * Cada trozo de la ventana lleva el suyo, y es la lista pública: no cambia sin
+ * avisar. Lo que se documenta aquí es exactamente lo que la aplicación escribe en
+ * el DOM —`skins.test.ts` recorre los componentes y compara en las dos
+ * direcciones—, porque una lista que se queda corta hace que alguien descubra un
+ * gancho probando, y una que se queda larga hace que una skin apunte al vacío.
+ */
 export interface HookDoc {
+  /** El `data-x`, tal cual se escribe en el selector y sin las comillas. */
   hook: string;
+  /** Cómo lo llama quien hace la skin, no el código. */
   name: string;
+  /** Qué se ve en pantalla. Una frase. */
   sees: string;
+  /** La zona de la ventana, para no perder a nadie en una tabla de cincuenta filas. */
+  zone: 'ventana' | 'lista' | 'nota' | 'movil';
 }
 
 export const HOOKS: readonly HookDoc[] = [
-  { hook: 'app', name: 'La ventana', sees: 'El fondo de todo, detrás de los paneles.' },
-  { hook: 'app-rail', name: 'La casilla de la barra', sees: 'La franja más estrecha del todo, a la izquierda.' },
-  { hook: 'app-notes', name: 'La casilla de la lista', sees: 'Donde vive la lista de notas.' },
-  { hook: 'app-editor', name: 'La casilla del editor', sees: 'Donde vive la nota abierta.' },
-  { hook: 'activity-bar', name: 'La barra de secciones', sees: 'La columna más estrecha, a la izquierda del todo.' },
-  { hook: 'activity-bar-top', name: 'Las secciones de arriba', sees: 'Donde está el icono de la lista de notas.' },
-  { hook: 'activity-bar-bottom', name: 'La sección de abajo', sees: 'Donde está el engranaje de configuración.' },
-  { hook: 'activity-tip', name: 'El rótulo de un icono', sees: 'El nombre que sale al pasar el ratón por encima.' },
-  { hook: 'sidebar', name: 'La lista de notas', sees: 'La columna de la izquierda, al lado de la barra.' },
-  { hook: 'sidebar-header', name: 'La cabecera', sees: 'El rótulo «Notas» y los botones de su esquina.' },
-  { hook: 'sidebar-window-actions', name: 'Los botones de ventana', sees: 'Abrir carpeta y recargar. Los ajustes están en la barra de secciones.' },
-  { hook: 'sidebar-toolbar', name: 'La fila de arriba', sees: '«Nueva nota» y el contador.' },
-  { hook: 'sidebar-count', name: 'El contador', sees: 'El número con cuántas notas hay en total.' },
-  { hook: 'sidebar-resizer', name: 'El tirador', sees: 'La franja del borde derecho que cambia el ancho del panel.' },
-  { hook: 'tree', name: 'El área de la lista', sees: 'Donde se hace scroll, con las notas dentro.' },
-  { hook: 'tree-item', name: 'Una nota o carpeta', sees: 'La línea entera. Con `data-kind="note"` o `="directory"` para distinguirlas.' },
-  { hook: 'tree-row', name: 'La fila', sees: 'La parte pulsable. Con `data-selected="true"` si está abierta.' },
-  { hook: 'tree-row-chevron', name: 'La flechita', sees: 'La que indica si una carpeta está abierta.' },
-  { hook: 'tree-row-icon', name: 'El icono', sees: 'El de nota o el de carpeta.' },
-  { hook: 'tree-row-label', name: 'El nombre', sees: 'El nombre de la nota o carpeta, en una fila.' },
-  { hook: 'note', name: 'El editor', sees: 'La superficie grande de la derecha.' },
-  { hook: 'note-empty', name: 'Sin nota abierta', sees: 'El estado en el que se pide crear una nota.' },
-  { hook: 'note-workspace', name: 'La zona de trabajo', sees: 'La que acepta soltar una imagen.' },
-  { hook: 'note-scroll', name: 'El texto con scroll', sees: 'La parte que se desplaza.' },
-  { hook: 'note-document', name: 'La columna de texto', sees: 'La columna de texto, la que tiene el ancho de lectura.' },
-  { hook: 'note-heading', name: 'La fila de arriba de la nota', sees: 'La ruta y el estado de guardado.' },
-  { hook: 'note-path', name: 'La ruta', sees: 'El nombre de la carpeta y del archivo, apagado.' },
-  { hook: 'note-status', name: 'El estado', sees: '«Guardado», «Sin guardar»…' },
-  { hook: 'note-title', name: 'El título', sees: 'El campo de arriba, que también es el nombre del archivo.' },
-  { hook: 'editor', name: 'El texto', sees: 'El editor. Dentro hay etiquetas normales: `h1`, `blockquote`, `code`…' },
-  { hook: 'editor-surface', name: 'El editor por fuera', sees: 'Para poner algo detrás con `::before`.' },
-  { hook: 'toolbar', name: 'La barra del editor', sees: 'La flotante sobre el texto.' },
-  { hook: 'toolbar-button', name: 'Un botón de la barra', sees: 'Con `data-x-open="true"` si su menú está abierto.' },
-  { hook: 'button', name: 'Cualquier botón', sees: 'Con `data-x-role="primary"`, `"icon"`, `"rail"` o `"default"`, y `data-x-size` en los de icono.' },
-  { hook: 'modal', name: 'Una ventana emergente', sees: 'Con `data-x-modal="settings"`, `"history"` o `"command-palette"`.' },
+  // ---- La ventana ----
+  { hook: 'app', name: 'La ventana', sees: 'El fondo de todo, detrás de los paneles.', zone: 'ventana' },
+  { hook: 'app-rail', name: 'La casilla de la barra', sees: 'La franja más estrecha del todo, a la izquierda.', zone: 'ventana' },
+  { hook: 'app-notes', name: 'La casilla de la lista', sees: 'Donde vive la lista de notas.', zone: 'ventana' },
+  { hook: 'app-editor', name: 'La casilla del editor', sees: 'Donde vive la nota abierta.', zone: 'ventana' },
+  { hook: 'activity-bar', name: 'La barra de secciones', sees: 'La columna más estrecha, a la izquierda del todo.', zone: 'ventana' },
+  { hook: 'activity-bar-top', name: 'Las secciones de arriba', sees: 'Donde está el icono de la lista de notas.', zone: 'ventana' },
+  { hook: 'activity-bar-bottom', name: 'La sección de abajo', sees: 'Donde está el engranaje de configuración.', zone: 'ventana' },
+  { hook: 'activity-tip', name: 'El rótulo de un icono', sees: 'El nombre que sale al pasar el ratón por encima.', zone: 'ventana' },
+  { hook: 'modal', name: 'Una ventana emergente', sees: 'Ajustes, historial o paleta de comandos, encima de todo lo demás.', zone: 'ventana' },
+
+  // ---- La lista de notas ----
+  { hook: 'sidebar', name: 'La lista de notas', sees: 'La columna de la izquierda, al lado de la barra.', zone: 'lista' },
+  { hook: 'sidebar-header', name: 'La cabecera', sees: 'El rótulo «Notas» y los botones de su esquina.', zone: 'lista' },
+  { hook: 'sidebar-window-actions', name: 'Los botones de ventana', sees: 'Abrir carpeta y recargar. Los ajustes están en la barra de secciones.', zone: 'lista' },
+  { hook: 'sidebar-toolbar', name: 'La fila de arriba', sees: '«Nueva nota» y el contador.', zone: 'lista' },
+  { hook: 'sidebar-count', name: 'El contador', sees: 'El número con cuántas notas hay en total.', zone: 'lista' },
+  { hook: 'sidebar-resizer', name: 'El tirador', sees: 'La franja del borde derecho que cambia el ancho del panel.', zone: 'lista' },
+  { hook: 'tree', name: 'El área de la lista', sees: 'Donde se hace scroll, con las notas dentro.', zone: 'lista' },
+  { hook: 'tree-item', name: 'Una nota o carpeta', sees: 'La línea entera, con su margen y su sangría.', zone: 'lista' },
+  { hook: 'tree-row', name: 'La fila', sees: 'La parte pulsable, la que se pinta al pasar el ratón y al estar abierta.', zone: 'lista' },
+  { hook: 'tree-row-chevron', name: 'La flechita', sees: 'La que indica si una carpeta está abierta.', zone: 'lista' },
+  { hook: 'tree-row-icon', name: 'El icono', sees: 'El de nota o el de carpeta.', zone: 'lista' },
+  { hook: 'tree-row-label', name: 'El nombre', sees: 'El nombre de la nota o carpeta, en una fila.', zone: 'lista' },
+  { hook: 'button', name: 'Cualquier botón', sees: 'Los de la lista, los de la nota y los de los menús. Los que tienen un papel llevan `data-x-role`.', zone: 'lista' },
+
+  // ---- La nota ----
+  { hook: 'note', name: 'La nota', sees: 'La superficie grande de la derecha, la que se colorea con `note.txt`.', zone: 'nota' },
+  { hook: 'note-empty', name: 'Sin nota abierta', sees: 'El estado en el que se pide crear una nota.', zone: 'nota' },
+  { hook: 'note-empty-icon', name: 'El dibujo de espera', sees: 'El icono grande de la pantalla en blanco, antes de que haya nota.', zone: 'nota' },
+  { hook: 'note-workspace', name: 'La zona de trabajo', sees: 'La que acepta soltar una imagen o un archivo.', zone: 'nota' },
+  { hook: 'note-scroll', name: 'El texto con scroll', sees: 'La parte que se desplaza.', zone: 'nota' },
+  { hook: 'note-document', name: 'La columna de texto', sees: 'La que tiene el ancho de lectura y el margen a los lados.', zone: 'nota' },
+  { hook: 'note-heading', name: 'La fila de arriba de la nota', sees: 'La ruta, el estado de guardado y el título.', zone: 'nota' },
+  { hook: 'note-path', name: 'La ruta', sees: 'El nombre de la carpeta y del archivo, apagado.', zone: 'nota' },
+  { hook: 'note-status', name: 'El estado', sees: '«Guardado», «Sin guardar»…', zone: 'nota' },
+  { hook: 'note-title', name: 'El título', sees: 'El campo de arriba, que también es el nombre del archivo.', zone: 'nota' },
+  { hook: 'editor', name: 'El texto', sees: 'La envoltura del editor. Dentro hay etiquetas normales: `h1`, `blockquote`, `code`…', zone: 'nota' },
+  { hook: 'editor-root', name: 'El texto que se escribe', sees: 'La parte editable en sí, la que recibe lo que escribes.', zone: 'nota' },
+  { hook: 'editor-surface', name: 'El editor por fuera', sees: 'Para poner algo detrás con `::before`.', zone: 'nota' },
+  { hook: 'toolbar', name: 'La barra de insertar', sees: 'La franja de abajo, con los tres botones que insertan: imagen, pizarra y adjunto.', zone: 'nota' },
+  { hook: 'style-bar', name: 'La barra de formato', sees: 'La de encima del texto, con el tipo de bloque, los estilos y los colores.', zone: 'nota' },
+  { hook: 'style-menu', name: 'El menú de estilos', sees: 'La lista que se abre desde el botón de estilos de la barra de formato.', zone: 'nota' },
+  { hook: 'block-handle', name: 'El asa del bloque', sees: 'El tirador que aparece al lado del párrafo en el que está el cursor.', zone: 'nota' },
+  { hook: 'insert-menu', name: 'El menú del asa', sees: 'La lista que se abre al pulsar el `+` del asa: texto, listas e inserts.', zone: 'nota' },
+  { hook: 'slash-menu', name: 'El menú de la barra oblicua', sees: 'La lista que se abre al escribir una `/`: bloques y estilos.', zone: 'nota' },
+  { hook: 'table-controls', name: 'Los botones de la tabla', sees: 'La barrita que sale encima de la celda en la que estás.', zone: 'nota' },
+  { hook: 'input', name: 'Un campo de escritura', sees: 'Los campos con borde propio, como el buscador del móvil.', zone: 'nota' },
+
+  // ---- El móvil ----
+  { hook: 'mobile', name: 'La pantalla del móvil', sees: 'La pantalla completa cuando Xenner corre en un teléfono.', zone: 'movil' },
+  { hook: 'mobile-topbar', name: 'La barra de arriba', sees: 'El título de la lista y sus botones.', zone: 'movil' },
+  { hook: 'mobile-search', name: 'El buscador', sees: 'La caja de buscar notas.', zone: 'movil' },
+  { hook: 'mobile-note-list', name: 'La lista', sees: 'Las notas, en la pantalla de la lista.', zone: 'movil' },
+  { hook: 'mobile-note-row', name: 'Una nota en la lista', sees: 'Una fila pulsable de la pantalla del móvil.', zone: 'movil' },
+  { hook: 'mobile-note-row-icon', name: 'El icono de la fila', sees: 'El de nota o el de carpeta, en el móvil.', zone: 'movil' },
+  { hook: 'mobile-note-empty', name: 'La lista vacía', sees: 'Lo que sale cuando no hay ninguna nota que enseñar.', zone: 'movil' },
+  { hook: 'mobile-folder-strip', name: 'La tira de carpetas', sees: 'Las carpetas, en fila, para filtrar la lista.', zone: 'movil' },
+  { hook: 'mobile-folder-chip', name: 'Una carpeta de la tira', sees: 'Una de las carpetas de la tira horizontal.', zone: 'movil' },
+  { hook: 'mobile-editor', name: 'La pantalla de la nota', sees: 'La pantalla donde se escribe, en el móvil.', zone: 'movil' },
+  { hook: 'mobile-editor-bar', name: 'La barra de la nota', sees: 'La de arriba de la pantalla de escritura, con la flecha de volver.', zone: 'movil' },
+  { hook: 'mobile-fab', name: 'El botón de nueva nota', sees: 'El círculo flotante de abajo a la derecha.', zone: 'movil' },
+];
+
+/**
+ * Los atributos de estado, para atacar «solo cuando…».
+ *
+ * Un gancho dice **dónde**; un estado dice **en qué momento**. Los dos van en el
+ * mismo selector, y esta lista está para que la combinación se escriba sin
+ * adivinar: `[data-x="tree-row"][data-selected]` es la fila abierta, y sin la
+ * segunda mitad se estaría pintando también la fila por la que pasa el ratón.
+ */
+export interface HookStateDoc {
+  /** El atributo, tal cual se escribe en el selector. */
+  state: string;
+  /** En qué ganchos se pone. */
+  where: string;
+  /** Qué significa cada valor. */
+  values: string;
+}
+
+export const HOOK_STATES: readonly HookStateDoc[] = [
+  {
+    state: 'data-selected',
+    where: '`tree-item`, `tree-row`, `mobile-note-row` y `mobile-folder-chip`',
+    values: 'Sin valor o con `="true"`: la nota que está abierta, o la carpeta elegida en la tira.',
+  },
+  {
+    state: 'data-kind',
+    where: '`tree-item`',
+    values: '`="note"` o `="directory"`. Sirve para pintar las carpetas de otra manera.',
+  },
+  {
+    state: 'data-x-role',
+    where: '`button`, en toda la aplicación',
+    values: '`="primary"` el botón grande de «Nueva nota», `="icon"` el que solo lleva un dibujo, `="rail"` los de la barra de secciones, `="default"` el resto.',
+  },
+  {
+    state: 'data-x-size',
+    where: '`button`, pero solo en los de `data-x-role="icon"`',
+    values: '`="default"`, `="compact"` o `="small"`, de menos a más pequeños.',
+  },
+  {
+    state: 'data-x-active',
+    where: 'Los botones de `activity-bar`',
+    values: '`="true"` en la sección que está abierta, `="false"` en las demás.',
+  },
+  {
+    state: 'data-x-modal',
+    where: '`modal`, la ventana emergente',
+    values: '`="settings"` en Ajustes, `="history"` en Últimos cambios, `="command-palette"` en la paleta de comandos.',
+  },
+  {
+    state: 'data-show',
+    where: '`block-handle` y `table-controls`',
+    values: '`="true"` cuando están a la vista, `="false"` cuando se esconden. El elemento sigue montado, así que se puede animar.',
+  },
+  {
+    state: 'data-visible',
+    where: '`style-bar`, la barra de formato',
+    values: '`="true"` cuando la barra se está enseñando.',
+  },
+  {
+    state: 'data-x-mobile',
+    where: 'La pantalla de móvil y sus trozos',
+    values: '`="shell"` la pantalla entera, `="list"` la de la lista, `="topbar"` y `="topbar-actions"` su barra, `="search"` el buscador, `="note-list"` y `="note-row"` la lista y una fila, `="folder-strip"` y `="folder-chip"` la tira de carpetas, `="editor"` la pantalla de escritura, `="editor-bar"` y `="editor-bar-title"` su barra, y `="fab"` el botón de nueva nota.',
+  },
 ];
 
 /** Extensiones que se pueden dejar en `assets/`. */

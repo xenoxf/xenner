@@ -6,6 +6,7 @@ import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import { REPO } from '../config';
 import { fetchLatestRelease } from '../data/release';
+import { normalizeVersion } from '../scripts/releases.ts';
 
 /* La release se lee en el build y se deja escrita en el HTML. Así las tarjetas
    de descarga se ven al instante y sin JavaScript; el script del cliente
@@ -13,6 +14,11 @@ import { fetchLatestRelease } from '../data/release';
    nueva enseña los instaladores sin reconstruir la web. */
 const release = await fetchLatestRelease();
 const snapshot = release ? JSON.stringify(release) : null;
+
+/* La misma release, para los datos estructurados. Sin esto, el `softwareVersion`
+   que anuncia el sitio a los buscadores era un número escrito a mano que se
+   quedó atrás en cuanto la app publicó una versión nueva. */
+const softwareVersion = normalizeVersion(release?.tag_name);
 
 /* Preguntas que se hacen buscando "creador de notas". Respondidas en la propia
    página, sin marcado especial: es lo que la gente busca antes de decidir. */
@@ -61,7 +67,7 @@ const ORGANIZE = [
 ];
 ---
 
-<BaseLayout>
+<BaseLayout softwareVersion={softwareVersion || undefined}>
   <Header />
 
   <main id="contenido">

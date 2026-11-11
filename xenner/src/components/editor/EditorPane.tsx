@@ -13,6 +13,7 @@ import {
   getActiveWhiteboard,
   getEditorMode,
   setEditorMode,
+  toggleNoteInsertMenu,
 } from "../../services/editorSession";
 import styles from "../../styles/components/EditorPane.module.css";
 import type { DrawingTool } from "../../types/drawing";
@@ -438,6 +439,11 @@ export function EditorPane(props: EditorPaneProps) {
                     onChooseImage={() => void chooseImage()}
                     onChooseAttachment={() => void chooseAttachment()}
                     onInsertWhiteboard={(tool) => void insertWhiteboard(tool)}
+                    onToggleInsertMenu={(anchor) => {
+                      // Si el editor no está montado todavía el botón está
+                      // deshabilitado: se ignora la petición.
+                      toggleNoteInsertMenu(anchor);
+                    }}
                   />
                 </Show>
               </div>

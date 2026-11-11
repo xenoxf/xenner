@@ -61,13 +61,22 @@ export function BlockHandle(props: BlockHandleProps) {
     }
     const block = dom.getBoundingClientRect();
     const surfaceRect = surface.getBoundingClientRect();
+    // El asa mide lo que mide **renderizada**: se lee su anchura y no se
+    // estima, para que nunca se salga de la superficie.
+    const asa = host?.offsetWidth ?? 58;
+    const blockLeft = Math.max(0, block.left - surfaceRect.left);
+    // Si hay hueco a la izquierda —el margen de la columna, que es del tema y
+    // cambia con la pantalla—, el asa va ahí, que es lo que hace Notion. Si el
+    // bloque está pegado al borde porque no cabe el hueco, el asa se queda
+    // dentro, sobre el texto: un botón medio fuera del contenedor con
+    // `overflow: hidden` no se ve, y eso es justo el fallo que tenía.
+    const ideal = blockLeft - asa - 8;
+    const left = ideal >= 2 ? ideal : blockLeft + 2;
+    const altoSuperficie = Math.max(0, surface.scrollHeight - asa);
     setAnchor({
       pos: blockPos,
-      // Alineado con el borde del bloque. Lo de llevarlo al hueco de la izquierda
-      // lo hace el CSS con un `transform`, y no la cuenta: el hueco depende del
-      // margen de la columna, que es del tema y cambia con la pantalla.
-      left: Math.max(0, block.left - surfaceRect.left),
-      top: block.top - surfaceRect.top,
+      left,
+      top: Math.max(0, Math.min(altoSuperficie, block.top - surfaceRect.top)),
     });
   });
 
@@ -140,8 +149,8 @@ export function BlockHandle(props: BlockHandleProps) {
       <button
         type="button"
         class={styles.handleAdd}
-        aria-label="Insertar en la nota"
-        title="Insertar en la nota"
+        aria-label="Insertar en la línea siguiente"
+        title="Insertar en la línea siguiente"
         // El menú se abre con un clic, pero sin que el botón se lleve el foco: si
         // lo hiciera, el editor perdería el cursor de texto y el tipo se aplicaría
         // al bloque equivocado.

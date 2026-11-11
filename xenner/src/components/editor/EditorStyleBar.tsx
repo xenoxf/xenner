@@ -14,9 +14,7 @@ import {
   EDITOR_COLOR_ICONS,
   normalizeLinkHref,
   STYLE_BLOCKS,
-  STYLE_BAR_INSERT_ACTIONS,
   stylesInSelection,
-  type MenuItem,
   type StyleBlockId,
   type StyleBlockItem,
 } from "../../editor/menu-content.ts";
@@ -68,6 +66,14 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
   const [estiloAbierto, setEstiloAbierto] = createSignal(false);
   /** Qué entrada del desplegable está resaltada, para recorrerlo con las flechas. */
   const [estiloResaltado, setEstiloResaltado] = createSignal(0);
+  /**
+   * Hacia qué lado abre el desplegable.
+   *
+   * Abajo no siempre hay sitio: en la última línea de la nota el menú se abría
+   * fuera de la pantalla. Se mide lo que hay debajo y arriba de la píldora y se
+   * va por el lado que quepa; si cabe en los dos, se prefiere abajo.
+   */
+  const [menuHaciaArriba, setMenuHaciaArriba] = createSignal(false);
   const [enlaceAbierto, setEnlaceAbierto] = createSignal(false);
   const [enlaceUrl, setEnlaceUrl] = createSignal("");
 
@@ -185,9 +191,20 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
     return instance.state.selection.from !== instance.state.selection.to;
   });
 
-  /** Visible si hay selección y el puntero está en el texto o en la propia barra. */
+  /**
+   * Visible si hay selección y el puntero está en el texto o en la propia barra —
+   * o hay un menú abierto.
+   *
+   * Con el desplegable de estilos abierto, soltar el puntero en cualquier sitio
+   * hacía que la píldora se ocultara a los pocos milisegundos y se cerrase el
+   * menú de golpe: quien estaba mirando la lista tenía que elegir en 220 ms o
+   * perderla. Un menú abierto es una razón para que la píldora se quede, igual
+   * que el teclado.
+   */
   const visible = createMemo(
-    () => haySeleccion() && (sobreSeleccion() || sobreLaBarra() || gesto() === "teclado"),
+    () =>
+      haySeleccion() &&
+      (sobreSeleccion() || sobreLaBarra() || gesto() === "teclado" || estiloAbierto() || enlaceAbierto()),
   );
 
   /**
@@ -238,6 +255,25 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
       left: Math.min(Math.max(MARGEN, centro), limite),
       top: arriba >= MARGEN ? arriba : fin.bottom + HUECO,
     });
+    if (estiloAbierto()) medirAperturaMenu();
+  }
+
+  /**
+   * Decide si el desplegable abierto abre hacia arriba o hacia abajo.
+   *
+   * El menú cuelga de la píldora, cuya posición solo se conoce ya en pantalla:
+   * se mide lo que hay debajo y arriba y se prefiere abajo cuando cabe. Sin
+   * esta cuenta, en la última línea de la nota el menú se abría fuera de la
+   * ventana.
+   */
+  function medirAperturaMenu(): void {
+    const caja = barra?.getBoundingClientRect();
+    if (!caja) return;
+    const alto = menuEstilo?.offsetHeight ?? 320;
+    const debajo = window.innerHeight - caja.bottom - 4;
+    const arriba = caja.top - 4;
+    // Abajo gana si cabe; si no cabe y arriba tiene más sitio, se abre arriba.
+    setMenuHaciaArriba(debajo < alto && arriba > debajo);
   }
 
   /**
@@ -537,6 +573,9 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
     // cierra el otro.
     setEnlaceAbierto(false);
     setEstiloAbierto(true);
+    // La altura del menú solo existe con él montado: se mide en la microtarea,
+    // que es cuando ya está en el DOM.
+    queueMicrotask(medirAperturaMenu);
     // Con el ratón el foco se queda en el editor —la barra cancela el
     // `pointerdown`— y no hay que tocar nada. Con el teclado hay que llevar el foco
     // al desplegable, o los botones no se pueden recorrer con las flechas.
@@ -603,49 +642,11 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
   }
 
   /**
-   * Las entradas del desplegable, en orden: los estilos y lo que se puede insertar.
-   *
-   * El teclado recorre las dos listas como una sola, así que el índice de una
-   * entrada depende de dónde empiece la segunda: esto es ese sitio.
+   * Recorre el desplegable con las flechas, dando el foco a la entrada.
    */
-  const PRIMER_INSERT_INDEX = STYLE_BLOCKS.length;
-  const TOTAL_ENTRADAS = STYLE_BLOCKS.length + STYLE_BAR_INSERT_ACTIONS.length;
-
-  /**
-   * Lo que la barra no sabe poner como estilo: las cuatro cosas de Markdown que
-   * son un bloque entero —tarea, código, tabla y fórmula—.
-   *
-   * No llevan rango: se insertan donde está el cursor, que es lo que quieren quien
-   * ha elegido «Tabla» con el cursor suelto en una línea vacía. Los comandos se
-   * encadenan con `focus()` porque con el teclado el foco se ha ido al botón, y sin
-   * eso el bloque caería en el sitio de antes.
-   */
-  function aplicarInsercion(accion: MenuItem): void {
-    const editor = props.editor;
-    setEstiloAbierto(false);
-    if (!editor || editor.isDestroyed) return;
-    switch (accion.kind) {
-      case "taskList":
-        editor.chain().focus().toggleTaskList().run();
-        return;
-      case "codeBlock":
-        editor.chain().focus().toggleCodeBlock().run();
-        return;
-      case "table":
-        editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-        return;
-      case "math":
-        editor.chain().focus().insertBlockMath({ latex: "x^2" }).run();
-        return;
-      default:
-        props.report("ese botón no existe", accion.kind);
-    }
-  }
-
-  /** Recorre el desplegable con las flechas, dando el foco a la entrada. */
   function moverEstilo(paso: number): void {
-    const siguiente =
-      (((estiloResaltado() + paso) % TOTAL_ENTRADAS) + TOTAL_ENTRADAS) % TOTAL_ENTRADAS;
+    const total = STYLE_BLOCKS.length;
+    const siguiente = (((estiloResaltado() + paso) % total) + total) % total;
     setEstiloResaltado(siguiente);
     queueMicrotask(() => entradaDeEstilo(siguiente)?.focus());
   }
@@ -899,7 +900,9 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
       <Show when={estiloAbierto()}>
         <div
           ref={(element) => (menuEstilo = element)}
-          class={`${styles.insertMenu} ${styles.styleMenu}`}
+          class={`${styles.insertMenu} ${styles.styleMenu}${
+            menuHaciaArriba() ? ` ${styles.styleMenuUp}` : ""
+          }`}
           data-x="style-menu"
           role="menu"
           aria-label={EDITOR_BUTTON_LABELS.styleMenu}
@@ -924,34 +927,9 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
               </button>
             )}
           </For>
-
-          <div class={styles.styleMenuSeparator} role="separator" />
-          <section role="group" aria-label="Insertar">
-            <p class={styles.insertGroupTitle}>Insertar</p>
-            <div class={styles.insertGroupItems}>
-              <For each={STYLE_BAR_INSERT_ACTIONS}>
-                {(accion, indiceBase) => {
-                  const indice = () => PRIMER_INSERT_INDEX + indiceBase();
-                  return (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      class={`${styles.insertItem}${
-                        indice() === estiloResaltado() ? ` ${styles.insertItemActive}` : ""
-                      }`}
-                      onPointerEnter={() => setEstiloResaltado(indice())}
-                      onClick={() => aplicarInsercion(accion)}
-                    >
-                      <span class={styles.insertItemIcon} innerHTML={accion.icon} />
-                      {accion.label}
-                    </button>
-                  );
-                }}
-              </For>
-            </div>
-          </section>
         </div>
       </Show>
+
     </div>
   );
 }

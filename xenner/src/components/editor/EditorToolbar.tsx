@@ -1,6 +1,6 @@
 import styles from "../../styles/components/EditorToolbar.module.css";
 import type { DrawingTool } from "../../types/drawing";
-import { ImageIcon, PaperclipIcon, PencilIcon } from "../ui/Icons";
+import { ImageIcon, PaperclipIcon, PencilIcon, PlusIcon } from "../ui/Icons";
 
 export interface EditorToolbarProps {
   loading: boolean;
@@ -12,21 +12,27 @@ export interface EditorToolbarProps {
   onChooseImage(): void;
   onChooseAttachment(): void;
   onInsertWhiteboard(tool: DrawingTool): void;
+  /**
+   * Abre el menú de insertar del editor, anclado al rectángulo del propio botón.
+   * El dock **no** monta su copia del menú: el editor es quien sabe dónde cae
+   * lo que se elija y cómo resaltar la entrada actual; el dock solo pide.
+   */
+  onToggleInsertMenu?(anchor: DOMRect): void;
 }
 
 /**
- * El dock: tres botones, uno por cosa que se inserta.
+ * El dock: los cuatro botones de lo que se pone en la nota.
  *
  * Antes había un botón «Insertar» con un menú **y** los tres botones al lado, y
  * los dos caminos hacían lo mismo. Dos caminos para la misma acción obligan a
  * decidir cuál es el bueno y hacen la barra más grande de lo que hace falta. Con
- * tres acciones, iconos solos: un clic en vez de dos, y el dock se queda en lo
- * que es, una barra de tres botones.
+ * un `+` para las cosas de Markdown y tres iconos para los gestos, una acción por
+ * botón: un clic en vez de dos.
  *
- * Son **adjuntos e imágenes**, no formato del texto. El formato —tipo de bloque,
- * negrita, cursiva, color— vive en la barra fija de la nota, que es donde está
- * siempre visible; tener las dos cosas en el mismo sitio convertía dos menús en
- * uno solo y hacía que nadie encontrara ninguna de las dos.
+ * Son **adjuntos, imágenes y el menú del `+`**, no formato del texto. El formato
+ * —tipo de bloque, negrita, cursiva, color— vive en la barra fija de la nota, que
+ * es donde está siempre visible; tener las dos cosas en el mismo sitio convertía
+ * dos menús en uno solo y hacía que nadie encontrara ninguna de las dos.
  */
 export function EditorToolbar(props: EditorToolbarProps) {
   return (
@@ -43,6 +49,19 @@ export function EditorToolbar(props: EditorToolbarProps) {
         event.preventDefault();
       }}
     >
+      <button
+        type="button"
+        class={styles.iconButton}
+        disabled={props.loading || !props.ready}
+        aria-label="Insertar"
+        title="Insertar"
+        data-x="dock-insert"
+        onClick={(event) => {
+          props.onToggleInsertMenu?.(event.currentTarget.getBoundingClientRect());
+        }}
+      >
+        <PlusIcon />
+      </button>
       <button
         type="button"
         class={`${styles.iconButton} ${props.imageBusy ? styles.busy : ""}`}

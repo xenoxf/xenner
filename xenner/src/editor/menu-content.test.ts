@@ -13,7 +13,6 @@ import {
   normalizeLinkHref,
   SLASH_MENU,
   STYLE_BLOCKS,
-  STYLE_BAR_INSERT_ACTIONS,
   stylesInSelection,
   TABLE_ACTION_GROUPS,
   type MenuActionKind,
@@ -118,7 +117,6 @@ test("el menú del `+` sale de los catálogos, sin copiar iconos", () => {
   const delCatalogo = new Set([
     ...EDITOR_BLOCKS.map((item) => item.icon),
     ...STYLE_BLOCKS.map((item) => item.icon),
-    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.icon),
   ]);
   for (const item of itemsOf(INSERT_MENU)) {
     if (item.kind !== "block" && item.kind !== "divider") continue;
@@ -193,7 +191,6 @@ test("todos los rótulos están en español y ninguno se queda vacío", () => {
     ...INSERT_MENU.map((group) => group.group),
     ...SLASH_MENU.map((group) => group.group),
     ...STYLE_BLOCKS.map((item) => item.label),
-    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.label),
     ...TABLE_ACTION_GROUPS.map((group) => group.group),
     ...TABLE_ACTION_GROUPS.flatMap((group) => group.items.map((item) => item.label)),
     ...Object.values(EDITOR_BUTTON_LABELS),
@@ -217,7 +214,6 @@ test("ningún rótulo enseña sintaxis de Markdown", () => {
     ...INSERT_MENU.map((group) => group.group),
     ...SLASH_MENU.map((group) => group.group),
     ...STYLE_BLOCKS.map((item) => item.label),
-    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.label),
     ...TABLE_ACTION_GROUPS.map((group) => group.group),
     ...TABLE_ACTION_GROUPS.flatMap((group) => group.items.map((item) => item.label)),
     ...Object.values(EDITOR_BUTTON_LABELS),
@@ -248,7 +244,6 @@ test("todos los iconos son SVG con `viewBox` y cerrados", () => {
   const iconos = [
     ...EDITOR_BLOCKS.map((item) => item.icon),
     ...STYLE_BLOCKS.map((item) => item.icon),
-    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.icon),
     ...TABLE_ACTION_GROUPS.flatMap((group) => group.items.map((item) => item.icon)),
     ...itemsOf(INSERT_MENU).map((item) => item.icon),
     ...itemsOf(SLASH_MENU).map((item) => item.icon),
@@ -278,7 +273,6 @@ test("el catálogo de tipos y el menú `+` no tienen dos copias del mismo dibujo
   const delCatalogo = new Set([
     ...EDITOR_BLOCKS.map((item) => item.icon),
     ...STYLE_BLOCKS.map((item) => item.icon),
-    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.icon),
   ]);
   for (const item of [...itemsOf(INSERT_MENU), ...itemsOf(SLASH_MENU)]) {
     if (item.kind === "block") {
@@ -336,20 +330,6 @@ test("la barra ofrece los seis títulos, los tres bloques y el separador", () =>
       `la barra no puede poner ${tipo}`,
     );
   }
-});
-
-test("la barra ofrece las cuatro cosas de Markdown que no caben como estilo", () => {
-  // Tarea, código, tabla y fórmula son un bloque entero, no un estilo de bloque:
-  // por eso viven en la sección «Insertar» del desplegable y no en la lista de
-  // estilos. Si una falta, esa cosa solo se puede llegar por la `/`.
-  assert.deepEqual(
-    STYLE_BAR_INSERT_ACTIONS.map((item) => item.kind),
-    ["taskList", "codeBlock", "table", "math"],
-  );
-  assert.deepEqual(
-    STYLE_BAR_INSERT_ACTIONS.map((item) => item.label),
-    ["Tareas", "Código", "Tabla", "Fórmula"],
-  );
 });
 
 test("el estilo del cursor es el que hay, con el nivel exacto del título", () => {

@@ -38,6 +38,46 @@ let saveInFlight: Promise<boolean> | null = null;
 let flushNote: (() => void) | null = null;
 
 /**
+ * Cómo abrir o cerrar el menú de insertar del editor vivo.
+ *
+ * El dock (`EditorPane`) vive fuera del editor y necesita pedirle lo mismo que
+ * el asa: abrir el menú del `+`. El editor es el dueño del menú —su posición,
+ * qué entrada está resaltada, dónde se aplica—, así que el dock no monta una
+ * copia: le pide al vivo que alterne, con el rectángulo del botón, para que el
+ * menú se ancle a él. Es un único registro, igual que la entrega: solo hay un
+ * editor de nota vivo a la vez.
+ */
+type InsertToggle = (anchor: DOMRect, fromDock: boolean) => void;
+let insertToggle: InsertToggle | null = null;
+
+/**
+ * Registra cómo se alterna el menú de insertar del editor vivo.
+ *
+ * Devuelve la función que **deshace** el registro, para llamarla al desmontar
+ * el editor. Sin ella, un editor ya destruido seguiría recibiendo la petición
+ * del dock y montaría el menú sobre una nota que ya no es la suya.
+ */
+export function registerNoteInsertToggle(toggle: InsertToggle): () => void {
+  insertToggle = toggle;
+  return () => {
+    if (insertToggle === toggle) insertToggle = null;
+  };
+}
+
+/**
+ * Alterna el menú de insertar del editor vivo, anclado a `anchor`.
+ *
+ * Devuelve `false` cuando no hay editor montado —el dock va a estar listo en
+ * ese instante—, que es quien llama quien decide qué hacer.
+ */
+export function toggleNoteInsertMenu(anchor: DOMRect): boolean {
+  const toggle = insertToggle;
+  if (!toggle) return false;
+  toggle(anchor, true);
+  return true;
+}
+
+/**
  * Registra cómo entrega el editor de la nota lo que tiene pendiente.
  *
  * Devuelve la función que **deshace** el registro, para llamarla al desmontar el

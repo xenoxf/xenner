@@ -507,6 +507,19 @@
   top: calc(100% + 4px);
   left: 0;
   pointer-events: auto;
+  /* Mismo techo que el menú del `+`: con la ventana pequeña no cabe entero y
+     sin `overflow` se cortarían las últimas entradas sin poder llegar a ellas. */
+  max-height: min(440px, calc(100dvh - 80px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Cuando debajo de la píldora no cabe, el menú sale por arriba. Sin esto, el
+   desplegable se abre fuera de la pantalla justo en la última línea de la nota,
+   que es donde más se necesita. */
+.styleMenuUp {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 
 /*
@@ -642,13 +655,19 @@
   z-index: 24;
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
+  padding: 3px;
   color: var(--skin-toolbar-accent);
-  /* Se coloca pegado al borde del bloque y se lleva al hueco de la izquierda con
-     un `transform`, en vez de restarle el ancho aquí: el hueco es el margen de la
-     columna, que es del tema y depende de la pantalla, y calcularlo en el
-     componente era justo lo que se hace mal cuando la ventana cambia. */
-  transform: translateX(calc(-100% - 8px));
+  /* Fondo y borde propios: en el hueco de la izquierda el asa se pierde si el
+     color del tema se parece al del papel. Con el chip se ve siempre, esté
+     donde esté colocada y sea cual sea el tema. */
+  background-color: var(--skin-toolbar-background);
+  border: 1px solid var(--skin-toolbar-border);
+  border-radius: calc(var(--skin-button-radius) * 0.8);
+  box-shadow: var(--skin-toolbar-shadow, var(--skin-note-shadow));
+  /* La posición la pone el componente, leyendo la anchura real del asa: con
+     un `transform` negativo se salía del contenedor cuando no cabía el hueco
+     de la izquierda, y con `overflow: hidden` ahí no se veía nada. */
 }
 
 /*
@@ -722,11 +741,14 @@
   position: absolute;
   z-index: 32;
   display: flex;
-  width: 220px;
-  max-width: calc(100% - 16px);
-  max-height: min(420px, calc(100vh - 120px));
+  /* Ni más ancho que el hueco del viewport ni más alto que él: el menú se
+     adapta a la ventana en vez de ser siempre del mismo tamaño. */
+  width: min(240px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
+  max-height: min(440px, calc(100dvh - 80px));
   flex-direction: column;
   padding: 4px;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   color: var(--skin-toolbar-text);
@@ -833,7 +855,7 @@
   z-index: 25;
   display: flex;
   width: min(292px, calc(100vw - 32px));
-  max-height: min(430px, calc(100vh - 110px));
+  max-height: min(430px, calc(100dvh - 80px));
   flex-direction: column;
   padding: 4px;
   overflow-x: hidden;
@@ -1021,19 +1043,10 @@
     font-size: 11px;
   }
 
-  /* En una pantalla estrecha no hay hueco a la izquierda: la columna deja 24 px y
-     el asa necesita más. Se queda dentro, sobre el texto, con fondo propio —que
-     es lo que hacen los editores de móvil— y solo el `+`: el tirador de mover un
-     bloque con el dedo no cabe ni se acierta. */
-  .blockHandle {
-    padding: 2px;
-    background-color: var(--skin-toolbar-background);
-    border: var(--skin-toolbar-border);
-    border-radius: calc(var(--skin-button-radius) * 0.8);
-    box-shadow: var(--skin-toolbar-shadow);
-    transform: translateX(2px);
-  }
-
+  /* En una pantalla estrecha no hay hueco a la izquierda y el componente se
+     queda dentro, sobre el texto y con su chip —que es lo que hacen los
+     editores de móvil—; solo el `+`: el tirador de mover un bloque con el
+     dedo no cabe ni se acierta. */
   .handleGrip {
     display: none;
   }

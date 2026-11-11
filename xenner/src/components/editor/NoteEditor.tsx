@@ -25,7 +25,7 @@ import {
   importImageForEditor,
   updateAssetForEditor,
 } from "../../services/editorAssets.ts";
-import { leaveEditor, registerNoteFlush } from "../../services/editorSession.ts";
+import { leaveEditor, registerNoteFlush, registerNoteInsertToggle } from "../../services/editorSession.ts";
 import { notifyError, notifySuccess } from "../../services/toastService.ts";
 import styles from "../../styles/components/NoteEditor.module.css";
 import type { DrawingTool } from "../../types/drawing.ts";
@@ -72,7 +72,10 @@ type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 /** Dónde se coloca un menú, en coordenadas de la superficie. */
 interface Placement {
   left: number;
-  top: number;
+  /** Ancla por arriba, como siempre. */
+  top?: number;
+  /** Ancla por abajo: lo usa el dock, cuyo `+` abre el menú por encima de él. */
+  bottom?: number;
 }
 
 /** El menú de una tarjeta de adjunto, y sobre qué tarjeta. */
@@ -85,6 +88,8 @@ interface SlashState extends Placement {
   anchor: number;
   /** Lo escrito detrás de la `/`. */
   query: string;
+  /** La `/` siempre cuelga por arriba de donde salió. */
+  top: number;
 }
 
 /** Lo que un menú no puede hacer solo: elegir ficheros del sistema. */
@@ -125,6 +130,7 @@ export function NoteEditor(props: NoteEditorProps) {
    * quedaría vivo para siempre.
    */
   let soltarEntrega: (() => void) | null = null;
+  let soltarInsertToggle: (() => void) | null = null;
   /**
    * El handle del motor vivo, que es lo que hay que vaciar de golpe.
    *
@@ -374,26 +380,82 @@ export function NoteEditor(props: NoteEditorProps) {
     },
   };
 
-  function toggleInsertMenu(anchor: DOMRect): void {
+  /**
+   * La «línea siguiente» sobre la que va a caer lo que se elija.
+   *
+   * El `+` ofrece qué usar en la línea de abajo, no cambiar la que se está
+   * escribiendo: si la línea del cursor está vacía se reutiliza, y si no se abre
+   * un hueco debajo y el cursor pasa a él. Sin esto, elegir «Tabla» con el cursor
+   * en medio de un párrafo insertaba la tabla dentro del texto, y cambiar el
+   * estilo del bloque borraba lo que hubiera seleccionado.
+   *
+   * Devuelve el bloque de destino y si se acaba de crear, o `null` si no hay
+   * bloque al que anclarse (nota vacía).
+   */
+  function prepararLineaSiguiente(instance: Editor): { bloque: number; recienCreado: boolean } | null {
+    const { selection } = instance.state;
+    if (selection.$from.depth === 0) return null;
+    const blockPos = selection.$from.before(1);
+    const node = instance.state.doc.nodeAt(blockPos);
+    if (!node?.isBlock) return null;
+    // Una línea vacía ya es el sitio donde va a ir lo que se elija.
+    const vacio = node.type.name === "paragraph" && node.content.size === 0;
+    if (vacio) return { bloque: blockPos, recienCreado: false };
+    const despues = blockPos + node.nodeSize;
+    if (!instance.commands.insertContentAt(despues, { type: "paragraph" })) return null;
+    // El cursor pasa al hueco: es donde va a caer lo que se elija.
+    instance.commands.setTextSelection(despues + 1);
+    return { bloque: despues, recienCreado: true };
+  }
+
+  function toggleInsertMenu(anchor: DOMRect, fromDock = false): void {
     if (insertMenu()) {
       closeInsertMenu();
       return;
     }
     const instance = liveEditor();
     if (!instance) return;
+    // El dock no crea la línea siguiente ni se mueve el cursor: inserta en el
+    // sitio del cursor, que es lo que cualquiera espera de un `+` en el dock.
+    const linea = fromDock ? null : prepararLineaSiguiente(instance);
     const { selection } = instance.state;
     blockRangeAtOpen = { from: selection.from, to: selection.to };
     // Con más de un tipo en la selección no hay uno que poner de relieve.
     const tipos = blockTypesInSelection(instance.state.doc, selection.from, selection.to);
     setBlockTypeNow(tipos.size === 1 ? [...tipos][0] : null);
     const bounds = surface.getBoundingClientRect();
-    setInsertMenu({
-      // A la derecha del asa y a su altura: pegado al `+` que se ha pulsado, no
-      // encima del texto que se está escribiendo. Se mide el rectángulo real del
-      // asa porque calcular la posición a mano es justo lo que salía mal.
-      left: Math.max(8, Math.min(anchor.right - bounds.left + 8, bounds.width - 244)),
-      top: Math.max(0, anchor.top - bounds.top),
-    });
+    if (fromDock) {
+      // El dock vive pegado al borde de abajo: su `+` abre el menú por encima
+      // del propio dock, centrado bajo el botón y con el techo del viewport.
+      // Se ancla por el borde de abajo porque el menú mida lo que mida —la
+      // altura solo existe con él montado—, y lo de crecer hacia arriba es
+      // justo lo que hace falta aquí.
+      const centro = anchor.left + anchor.width / 2 - bounds.left;
+      setInsertMenu({
+        left: Math.max(8, Math.min(centro - 110, bounds.width - 244)),
+        bottom: Math.max(8, bounds.height - (anchor.top - bounds.top) + 8),
+      });
+    } else {
+      // Si se acaba de abrir un hueco, el menú se pega a él y no al bloque de
+      // arriba: es la línea a la que va a aplicar la elección. Si se reutiliza la
+      // línea vacía, se queda pegado al asa, que es lo que se ha pulsado.
+      const destino = linea?.recienCreado ? instance.view.nodeDOM(linea.bloque) : null;
+      const rect = destino instanceof HTMLElement ? destino.getBoundingClientRect() : null;
+      setInsertMenu(
+        rect
+          ? {
+              left: Math.max(8, Math.min(rect.left - bounds.left + 2, bounds.width - 244)),
+              top: Math.max(0, rect.top - bounds.top),
+            }
+          : {
+              // A la derecha del asa y a su altura: pegado al `+` que se ha pulsado, no
+              // encima del texto que se está escribiendo. Se mide el rectángulo real del
+              // asa porque calcular la posición a mano es justo lo que salía mal.
+              left: Math.max(8, Math.min(anchor.right - bounds.left + 8, bounds.width - 244)),
+              top: Math.max(0, anchor.top - bounds.top),
+            },
+      );
+    }
     const items = insertItems();
     setInsertKey(items.length ? itemKey(items[0]) : null);
   }
@@ -421,21 +483,19 @@ export function NoteEditor(props: NoteEditorProps) {
       gestures.insertWhiteboard("pen");
       return;
     }
-    if (item.kind !== "block") return;
-    const type = asBlockType(item.id);
-    if (!type) {
-      reportFailure("el menú pide un tipo que no existe", item.id);
-      return;
-    }
-    if (!rango) return;
+    // El resto —los tipos de bloque y las inserciones: código, tabla, fórmula,
+    // separador, tareas— hace lo mismo que el menú `/`: la elección cae donde
+    // lo dejó el `+` (en la línea siguiente, o donde estaba el cursor si viene
+    // del dock).
     const applied = instance.commands.command((commandProps) => {
-      if (!selectRange(commandProps, rango.from, rango.to)) return false;
-      if (!setBlockType(type, reportFailure)(commandProps)) return false;
-      // Sin esto la selección se queda puesta y lo siguiente que se escriba
-      // sustituye el texto entero: cambiar el tipo y seguir escribiendo borra lo
-      // que se acaba de formatear.
-      return leaveCaretBehind(reportFailure)(commandProps);
+      if (rango && !selectRange(commandProps, rango.from, rango.to)) return false;
+      return applyMenuItem(item, commandProps, gestures);
     });
+    // Con una selección no vacía, el siguiente carácter escrito se comería lo
+    // seleccionado: se deja el cursor detrás del bloque, como en la barra.
+    if (applied && rango && rango.from !== rango.to && item.kind === "block") {
+      instance.commands.command((commandProps) => leaveCaretBehind(reportFailure)(commandProps));
+    }
     if (applied) instance.view.focus();
   }
 
@@ -470,8 +530,10 @@ export function NoteEditor(props: NoteEditorProps) {
       if (!(target instanceof Element)) return;
       if (target.closest("[data-x='insert-menu']")) return;
       // El asa queda excepta y no por descuido: el gesto del `+` pasa por aquí,
-      // así que el menú se cerraría antes de abrirse y nunca se vería.
+      // así que el menú se cerraría antes de abrirse y nunca se vería. Lo mismo
+      // vale para el botón «+» del dock.
       if (target.closest("[data-x='block-handle']")) return;
+      if (target.closest("[data-x='dock-insert']")) return;
       closeInsertMenu();
     };
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -718,6 +780,12 @@ export function NoteEditor(props: NoteEditorProps) {
         soltarEntrega = registerNoteFlush(() => {
           if (entrega) entrega.flush();
         });
+        // El dock pide abrir el menú del `+` anclado a su botón: el menú es
+        // cosa del editor (su sitio, su resaltado, dónde cae la elección), así
+        // que el dock solo lo pide y el editor lo sirve.
+        soltarInsertToggle = registerNoteInsertToggle((anchor, fromDock) => {
+          toggleInsertMenu(anchor, fromDock);
+        });
         instance.on("transaction", onTransaction);
         instance.on("focus", () => setVersion((current) => current + 1));
         instance.on("blur", () => setVersion((current) => current + 1));
@@ -748,6 +816,8 @@ export function NoteEditor(props: NoteEditorProps) {
     // entrega tiene que llegar a la nota de la que aún estamos dentro.
     soltarEntrega?.();
     soltarEntrega = null;
+    soltarInsertToggle?.();
+    soltarInsertToggle = null;
     entrega = null;
     editor?.destroy();
     editor = null;
@@ -833,7 +903,7 @@ export function NoteEditor(props: NoteEditorProps) {
             <AttachmentMenu
               target={estado.target}
               x={estado.left}
-              y={estado.top}
+              y={estado.top ?? 0}
               onClose={() => setAttachmentMenu(null)}
             />
           )}

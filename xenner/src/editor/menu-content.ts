@@ -309,16 +309,6 @@ const MATH_ITEM: MenuItem = { kind: "math", label: "Fórmula", icon: EDITOR_ICON
 const DIVIDER_ITEM: MenuItem = { kind: "divider", label: "Separador", icon: EDITOR_ICONS.divider };
 
 /**
- * Lo que la barra de formato ofrece además de los estilos.
- *
- * La fila de botones de la píldora no cabe un botón más sin dos filas, así que estas
- * cuatro viven en el desplegable: son bloques enteros de Markdown —tarea, código,
- * tabla y fórmula— y quien elige «Estilo de bloque» es quien está decidiendo qué es
- * lo que va a escribir. El separador ya estaba allí por lo mismo.
- */
-export const STYLE_BAR_INSERT_ACTIONS: readonly MenuItem[] = [TASK_ITEM, CODE_ITEM, TABLE_ITEM, MATH_ITEM];
-
-/**
  * Markdown entero, como datos.
  *
  * El menú del `+` y el menú `/` ofrecen lo mismo: si una de las dos puertas dejara

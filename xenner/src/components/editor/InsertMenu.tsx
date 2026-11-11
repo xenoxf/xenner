@@ -6,8 +6,14 @@ import styles from "../../styles/components/NoteEditor.module.css";
 export interface InsertMenuProps {
   /** El contenido del menú, tal cual lo da el motor: datos y nada más. */
   groups: readonly MenuGroup[];
-  /** Dónde sale el menú, en coordenadas del contenedor del editor. */
-  placement: { left: number; top: number };
+  /**
+   * Dónde sale el menú, en coordenadas del contenedor del editor.
+   *
+   * Con `bottom` el menú se ancla por el borde de abajo —lo usa el dock, que
+   * vive pegado al borde inferior de la ventana: su `+` abre el menú por
+   * encima del propio dock. Sin `bottom` se ancla por `top`, como siempre.
+   */
+  placement: { left: number; top?: number; bottom?: number };
   /** Qué entrada está resaltada. Se mueve con las flechas sin llegar a abrirla. */
   activeKey: string | null;
   /** El tipo que ya tiene el bloque del cursor, para marcarlo en el menú. */
@@ -18,11 +24,16 @@ export interface InsertMenuProps {
 }
 
 /**
- * El menú del `+`: todo lo que se puede poner en la nota, no solo tipos de texto.
+ * El menú de insertar: todo lo que se puede poner en la nota, no solo tipos de
+ * texto.
  *
- * Sale pegado al asa, que es justo lo que se ha pulsado, y se ancla a la posición
- * **real** del asa en vez de medir el cursor: leer su rectángulo es la única forma
- * de no calcular mal dónde lo va a poner quien está escribiendo.
+ * Lo abren dos puertas, con el mismo contenido: el asa del bloque —que lo abre
+ * pegado al asa, que es justo lo que se ha pulsado, y aplica en la línea
+ * siguiente— y el «+» del dock —que lo abre por encima del propio dock,
+ * centrado bajo el botón, y aplica en el sitio del cursor—. En los dos casos
+ * se ancla a la posición **real** del botón que se ha pulsado, en vez de medir
+ * el cursor: leer su rectángulo es la única forma de no calcular mal dónde lo
+ * va a poner quien está escribiendo.
  *
  * Los botones llevan `preventDefault` en `pointerdown` porque viven fuera del
  * `contenteditable`: sin eso el botón se lleva el foco al pulsarlo y el editor
@@ -34,9 +45,13 @@ export function InsertMenu(props: InsertMenuProps) {
       class={styles.insertMenu}
       data-x="insert-menu"
       role="menu"
-      aria-label="Insertar en la nota"
+      aria-label="Insertar en la línea siguiente"
       tabIndex={-1}
-      style={{ left: `${props.placement.left}px`, top: `${props.placement.top}px` }}
+      style={
+        props.placement.bottom !== undefined
+          ? { left: `${props.placement.left}px`, bottom: `${props.placement.bottom}px` }
+          : { left: `${props.placement.left}px`, top: `${props.placement.top ?? 0}px` }
+      }
     >
       <For each={props.groups}>
         {(group) => (

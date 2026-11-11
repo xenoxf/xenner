@@ -301,36 +301,62 @@ function blockItem(id: EditorBlockType): MenuItem {
   return { kind: "block", id: found.id, label: found.label, icon: found.icon };
 }
 
+/** Las cuatro cosas de Markdown que son un bloque entero, cada una en un solo sitio. */
+const TASK_ITEM: MenuItem = { kind: "taskList", label: "Tareas", icon: EDITOR_ICONS.task };
+const CODE_ITEM: MenuItem = { kind: "codeBlock", label: "Código", icon: EDITOR_ICONS.code };
+const TABLE_ITEM: MenuItem = { kind: "table", label: "Tabla", icon: EDITOR_ICONS.table };
+const MATH_ITEM: MenuItem = { kind: "math", label: "Fórmula", icon: EDITOR_ICONS.math };
+const DIVIDER_ITEM: MenuItem = { kind: "divider", label: "Separador", icon: EDITOR_ICONS.divider };
+
 /**
- * El menú del `+`: todo lo que se puede poner en la nota.
+ * Lo que la barra de formato ofrece además de los estilos.
  *
- * No es solo de tipos de texto: es Markdown entero —títulos, listas, citas— y
- * las tres cosas que son de la app y no de Markdown: imagen, pizarra y archivo
- * adjunto. Está como datos y no en el componente para que se pueda probar en
- * Node, y para que el componente solo tenga que pintar y elegir a quién llamar.
+ * La fila de botones de la píldora no cabe un botón más sin dos filas, así que estas
+ * cuatro viven en el desplegable: son bloques enteros de Markdown —tarea, código,
+ * tabla y fórmula— y quien elige «Estilo de bloque» es quien está decidiendo qué es
+ * lo que va a escribir. El separador ya estaba allí por lo mismo.
  */
+export const STYLE_BAR_INSERT_ACTIONS: readonly MenuItem[] = [TASK_ITEM, CODE_ITEM, TABLE_ITEM, MATH_ITEM];
+
+/**
+ * Markdown entero, como datos.
+ *
+ * El menú del `+` y el menú `/` ofrecen lo mismo: si una de las dos puertas dejara
+ * opciones fuera, quien entra por la otra creería que son todas las que hay. Los
+ * iconos y los rótulos salen de los catálogos, así que un cambio se ve en los dos.
+ */
+const GROUP_TEXTO: MenuGroup = {
+  group: "Texto",
+  items: [
+    styleMenuItem("paragraph"),
+    styleMenuItem("heading1"),
+    styleMenuItem("heading2"),
+    styleMenuItem("heading3"),
+    styleMenuItem("heading4"),
+    styleMenuItem("heading5"),
+    styleMenuItem("heading6"),
+    styleMenuItem("quote"),
+    DIVIDER_ITEM,
+  ],
+};
+
+const GROUP_LISTAS: MenuGroup = {
+  group: "Listas",
+  items: [blockItem("bullet"), blockItem("ordered"), TASK_ITEM],
+};
+
 export const INSERT_MENU: readonly MenuGroup[] = [
-  {
-    group: "Texto",
-    items: [
-      blockItem("paragraph"),
-      blockItem("heading1"),
-      blockItem("heading2"),
-      blockItem("heading3"),
-    ],
-  },
-  {
-    // «Listas y citas», y no «Listas y texto»: el rótulo del grupo tiene que decir
-    // qué hay dentro, porque ahora mismo el grupo lleva una cita y dos listas.
-    group: "Listas y citas",
-    items: [blockItem("bullet"), blockItem("ordered"), blockItem("quote")],
-  },
+  GROUP_TEXTO,
+  GROUP_LISTAS,
   {
     group: "Insertar",
     items: [
       { kind: "image", label: "Imagen", icon: EDITOR_ICONS.image },
       { kind: "whiteboard", label: "Pizarra", icon: EDITOR_ICONS.whiteboard },
       { kind: "attachment", label: "Adjuntar archivo", icon: EDITOR_ICONS.attachment },
+      CODE_ITEM,
+      TABLE_ITEM,
+      MATH_ITEM,
     ],
   },
 ];
@@ -343,46 +369,26 @@ function styleMenuItem(id: StyleBlockId): MenuItem {
 }
 
 /**
- * El menú `/`: los mismos estilos que la barra, y lo que solo cabe en un bloque.
+ * El menú `/`: las mismas entradas que el menú del `+`, menos el archivo adjunto.
  *
- * Los seis títulos salen de `STYLE_BLOCKS`, que es el catálogo de la barra: un
- * rótulo o un dibujo repetido es un rótulo que se queda viejo en uno de los dos
- * sitios sin que nadie se entere.
+ * Las tres listas y los seis títulos salen de los mismos catálogos que usa la
+ * barra de formato: un rótulo o un dibujo repetido es un rótulo que se queda
+ * viejo en uno de los dos sitios sin que nadie se entere.
  *
  * Ojo con los títulos del 4 al 6: **no** son `EditorBlockType`, así que no valen
  * para `setBlockType`. Son un `heading` de Tiptap con otro `level`, que se pone
  * con su propio comando del editor.
  */
 export const SLASH_MENU: readonly MenuGroup[] = [
-  {
-    group: "Texto",
-    items: [
-      styleMenuItem("paragraph"),
-      styleMenuItem("heading1"),
-      styleMenuItem("heading2"),
-      styleMenuItem("heading3"),
-      styleMenuItem("heading4"),
-      styleMenuItem("heading5"),
-      styleMenuItem("heading6"),
-      styleMenuItem("quote"),
-      { kind: "divider", label: "Separador", icon: EDITOR_ICONS.divider },
-    ],
-  },
-  {
-    group: "Listas",
-    items: [
-      blockItem("bullet"),
-      blockItem("ordered"),
-      { kind: "taskList", label: "Tareas", icon: EDITOR_ICONS.task },
-    ],
-  },
+  GROUP_TEXTO,
+  GROUP_LISTAS,
   {
     group: "Insertar",
     items: [
       { kind: "image", label: "Imagen", icon: EDITOR_ICONS.image },
-      { kind: "codeBlock", label: "Código", icon: EDITOR_ICONS.code },
-      { kind: "table", label: "Tabla", icon: EDITOR_ICONS.table },
-      { kind: "math", label: "Fórmula", icon: EDITOR_ICONS.math },
+      CODE_ITEM,
+      TABLE_ITEM,
+      MATH_ITEM,
       { kind: "whiteboard", label: "Pizarra", icon: EDITOR_ICONS.whiteboard },
     ],
   },

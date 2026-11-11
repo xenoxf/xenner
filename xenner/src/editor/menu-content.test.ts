@@ -13,6 +13,7 @@ import {
   normalizeLinkHref,
   SLASH_MENU,
   STYLE_BLOCKS,
+  STYLE_BAR_INSERT_ACTIONS,
   stylesInSelection,
   TABLE_ACTION_GROUPS,
   type MenuActionKind,
@@ -82,30 +83,47 @@ function itemsOf(menu: readonly { items: readonly MenuItem[] }[]): MenuItem[] {
   return menu.flatMap((group) => group.items);
 }
 
-test("el menú del `+` tiene los siete tipos y las tres cosas de la app", () => {
+test("el menú del `+` cubre todo el Markdown y las tres cosas de la app", () => {
   // El `+` es el sitio de todo lo que se puede poner en la nota: el Markdown
-  // entero y las tres cosas que no son Markdown. Si pierde una entrada, esa
-  // cosa solo se puede llegar por el dock.
+  // entero —los seis títulos, las tres listas, la cita, el separador, el código,
+  // la tabla y la fórmula— y las tres cosas que no son Markdown. Si pierde una
+  // entrada, esa cosa solo se puede llegar por la `/` o el dock.
   const items = itemsOf(INSERT_MENU);
   const bloques = items.filter((item) => item.kind === "block");
-  const otros = items.filter((item) => item.kind !== "block");
   assert.deepEqual(
     bloques.map((item) => item.id).sort(),
-    ["bullet", "heading1", "heading2", "heading3", "ordered", "paragraph", "quote"] as string[],
+    [
+      "bullet",
+      "heading1",
+      "heading2",
+      "heading3",
+      "heading4",
+      "heading5",
+      "heading6",
+      "ordered",
+      "paragraph",
+      "quote",
+    ] as string[],
   );
   assert.deepEqual(
-    otros.map((item) => item.kind).sort(),
-    ["attachment", "image", "whiteboard"],
+    items.filter((item) => item.kind !== "block").map((item) => item.kind).sort(),
+    ["attachment", "codeBlock", "divider", "image", "math", "table", "taskList", "whiteboard"],
   );
 });
 
-test("el menú del `+` sale del catálogo de tipos, sin copiar iconos", () => {
-  // El icono de cada tipo vive en `EDITOR_BLOCKS`. Si el menú lo copiara, un
-  // cambio de dibujo se vería en un sitio y no en el otro.
-  const delMenu = itemsOf(INSERT_MENU)
-    .filter((item) => item.kind === "block")
-    .map((item) => item.icon);
-  assert.deepEqual(delMenu, EDITOR_BLOCKS.map((item) => item.icon));
+test("el menú del `+` sale de los catálogos, sin copiar iconos", () => {
+  // Cada bloque vive en un catálogo —`EDITOR_BLOCKS` para los siete tipos,
+  // `STYLE_BLOCKS` para los títulos de 4 a 6 y el separador—. Si el menú los
+  // copiara, un cambio de dibujo se vería en un sitio y no en el otro.
+  const delCatalogo = new Set([
+    ...EDITOR_BLOCKS.map((item) => item.icon),
+    ...STYLE_BLOCKS.map((item) => item.icon),
+    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.icon),
+  ]);
+  for (const item of itemsOf(INSERT_MENU)) {
+    if (item.kind !== "block" && item.kind !== "divider") continue;
+    assert.ok(delCatalogo.has(item.icon), `${item.label}: icono fuera del catálogo`);
+  }
 });
 
 test("el menú `/` cubre los seis títulos y las tres listas", () => {
@@ -157,9 +175,10 @@ test("cada entrada dice a qué comando llamar, sin funciones dentro", () => {
     }
   }
   // Los siete tipos del menú `+` son `EditorBlockType` de verdad: son los que
-  // `setBlockType` acepta, y un id que no existe sería un botón que no cambia
-  // nada.
+  // `setBlockType` acepta. Los títulos de 4 a 6 son `heading` con otro `level` y
+  // se ponen con su propio comando, así que se aceptan aparte.
   for (const item of itemsOf(INSERT_MENU).filter((entry) => entry.kind === "block")) {
+    if (/^heading[1-6]$/.test(String(item.id))) continue;
     assert.ok(
       EDITOR_BLOCK_TYPES.includes(item.id as EditorBlockType),
       `${item.label}: «${item.id}» no es un tipo de bloque del editor`,
@@ -174,6 +193,7 @@ test("todos los rótulos están en español y ninguno se queda vacío", () => {
     ...INSERT_MENU.map((group) => group.group),
     ...SLASH_MENU.map((group) => group.group),
     ...STYLE_BLOCKS.map((item) => item.label),
+    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.label),
     ...TABLE_ACTION_GROUPS.map((group) => group.group),
     ...TABLE_ACTION_GROUPS.flatMap((group) => group.items.map((item) => item.label)),
     ...Object.values(EDITOR_BUTTON_LABELS),
@@ -197,6 +217,7 @@ test("ningún rótulo enseña sintaxis de Markdown", () => {
     ...INSERT_MENU.map((group) => group.group),
     ...SLASH_MENU.map((group) => group.group),
     ...STYLE_BLOCKS.map((item) => item.label),
+    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.label),
     ...TABLE_ACTION_GROUPS.map((group) => group.group),
     ...TABLE_ACTION_GROUPS.flatMap((group) => group.items.map((item) => item.label)),
     ...Object.values(EDITOR_BUTTON_LABELS),
@@ -227,6 +248,7 @@ test("todos los iconos son SVG con `viewBox` y cerrados", () => {
   const iconos = [
     ...EDITOR_BLOCKS.map((item) => item.icon),
     ...STYLE_BLOCKS.map((item) => item.icon),
+    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.icon),
     ...TABLE_ACTION_GROUPS.flatMap((group) => group.items.map((item) => item.icon)),
     ...itemsOf(INSERT_MENU).map((item) => item.icon),
     ...itemsOf(SLASH_MENU).map((item) => item.icon),
@@ -256,6 +278,7 @@ test("el catálogo de tipos y el menú `+` no tienen dos copias del mismo dibujo
   const delCatalogo = new Set([
     ...EDITOR_BLOCKS.map((item) => item.icon),
     ...STYLE_BLOCKS.map((item) => item.icon),
+    ...STYLE_BAR_INSERT_ACTIONS.map((item) => item.icon),
   ]);
   for (const item of [...itemsOf(INSERT_MENU), ...itemsOf(SLASH_MENU)]) {
     if (item.kind === "block") {
@@ -313,6 +336,20 @@ test("la barra ofrece los seis títulos, los tres bloques y el separador", () =>
       `la barra no puede poner ${tipo}`,
     );
   }
+});
+
+test("la barra ofrece las cuatro cosas de Markdown que no caben como estilo", () => {
+  // Tarea, código, tabla y fórmula son un bloque entero, no un estilo de bloque:
+  // por eso viven en la sección «Insertar» del desplegable y no en la lista de
+  // estilos. Si una falta, esa cosa solo se puede llegar por la `/`.
+  assert.deepEqual(
+    STYLE_BAR_INSERT_ACTIONS.map((item) => item.kind),
+    ["taskList", "codeBlock", "table", "math"],
+  );
+  assert.deepEqual(
+    STYLE_BAR_INSERT_ACTIONS.map((item) => item.label),
+    ["Tareas", "Código", "Tabla", "Fórmula"],
+  );
 });
 
 test("el estilo del cursor es el que hay, con el nivel exacto del título", () => {

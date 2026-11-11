@@ -14,7 +14,9 @@ import {
   EDITOR_COLOR_ICONS,
   normalizeLinkHref,
   STYLE_BLOCKS,
+  STYLE_BAR_INSERT_ACTIONS,
   stylesInSelection,
+  type MenuItem,
   type StyleBlockId,
   type StyleBlockItem,
 } from "../../editor/menu-content.ts";
@@ -600,11 +602,50 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
     });
   }
 
+  /**
+   * Las entradas del desplegable, en orden: los estilos y lo que se puede insertar.
+   *
+   * El teclado recorre las dos listas como una sola, así que el índice de una
+   * entrada depende de dónde empiece la segunda: esto es ese sitio.
+   */
+  const PRIMER_INSERT_INDEX = STYLE_BLOCKS.length;
+  const TOTAL_ENTRADAS = STYLE_BLOCKS.length + STYLE_BAR_INSERT_ACTIONS.length;
+
+  /**
+   * Lo que la barra no sabe poner como estilo: las cuatro cosas de Markdown que
+   * son un bloque entero —tarea, código, tabla y fórmula—.
+   *
+   * No llevan rango: se insertan donde está el cursor, que es lo que quieren quien
+   * ha elegido «Tabla» con el cursor suelto en una línea vacía. Los comandos se
+   * encadenan con `focus()` porque con el teclado el foco se ha ido al botón, y sin
+   * eso el bloque caería en el sitio de antes.
+   */
+  function aplicarInsercion(accion: MenuItem): void {
+    const editor = props.editor;
+    setEstiloAbierto(false);
+    if (!editor || editor.isDestroyed) return;
+    switch (accion.kind) {
+      case "taskList":
+        editor.chain().focus().toggleTaskList().run();
+        return;
+      case "codeBlock":
+        editor.chain().focus().toggleCodeBlock().run();
+        return;
+      case "table":
+        editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+        return;
+      case "math":
+        editor.chain().focus().insertBlockMath({ latex: "x^2" }).run();
+        return;
+      default:
+        props.report("ese botón no existe", accion.kind);
+    }
+  }
+
   /** Recorre el desplegable con las flechas, dando el foco a la entrada. */
   function moverEstilo(paso: number): void {
     const siguiente =
-      (((estiloResaltado() + paso) % STYLE_BLOCKS.length) + STYLE_BLOCKS.length) %
-      STYLE_BLOCKS.length;
+      (((estiloResaltado() + paso) % TOTAL_ENTRADAS) + TOTAL_ENTRADAS) % TOTAL_ENTRADAS;
     setEstiloResaltado(siguiente);
     queueMicrotask(() => entradaDeEstilo(siguiente)?.focus());
   }
@@ -883,6 +924,32 @@ export function EditorStyleBar(props: EditorStyleBarProps) {
               </button>
             )}
           </For>
+
+          <div class={styles.styleMenuSeparator} role="separator" />
+          <section role="group" aria-label="Insertar">
+            <p class={styles.insertGroupTitle}>Insertar</p>
+            <div class={styles.insertGroupItems}>
+              <For each={STYLE_BAR_INSERT_ACTIONS}>
+                {(accion, indiceBase) => {
+                  const indice = () => PRIMER_INSERT_INDEX + indiceBase();
+                  return (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class={`${styles.insertItem}${
+                        indice() === estiloResaltado() ? ` ${styles.insertItemActive}` : ""
+                      }`}
+                      onPointerEnter={() => setEstiloResaltado(indice())}
+                      onClick={() => aplicarInsercion(accion)}
+                    >
+                      <span class={styles.insertItemIcon} innerHTML={accion.icon} />
+                      {accion.label}
+                    </button>
+                  );
+                }}
+              </For>
+            </div>
+          </section>
         </div>
       </Show>
     </div>

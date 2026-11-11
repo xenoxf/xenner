@@ -481,6 +481,13 @@
   font-size: 9px;
 }
 
+/* La raya que separa los estilos de lo que se inserta dentro del desplegable. */
+.styleMenuSeparator {
+  height: 1px;
+  margin: 3px 6px;
+  background-color: var(--skin-toolbar-border);
+}
+
 /* La raya que separa el selector de las marcas. */
 .barSeparator {
   width: 1px;

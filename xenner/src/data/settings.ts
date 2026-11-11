@@ -1,6 +1,6 @@
 import type { ThemeMode } from "../types/appearance";
 
-export type SettingsSection = "appearance" | "skins" | "create";
+export type SettingsSection = "appearance" | "skins" | "create" | "shortcuts";
 
 export interface SettingsNavigationItem {
   id: SettingsSection;
@@ -50,6 +50,13 @@ export const SETTINGS_SECTIONS: readonly SettingsNavigationItem[] = [
     hint: "Un aspecto propio",
     description: "Empieza de una paleta y guarda el tema con un nombre.",
     keywords: ["crear", "nuevo", "personalizado", "editor", "css"],
+  },
+  {
+    id: "shortcuts",
+    label: "Atajos",
+    hint: "Las teclas de la app",
+    description: "Qué combinación hace cada cosa, y cómo cambiarla.",
+    keywords: ["atajo", "tecla", "combinación", "teclado", "modificar", "reasignar"],
   },
 ];
 
@@ -133,6 +140,42 @@ export const SETTINGS_SEARCH: readonly SettingsSearchItem[] = [
     label: "Crear un tema",
     description: "Desde una paleta o desde CSS",
     keywords: ["crear", "nuevo", "personalizado", "css", "editor"],
+  },
+  {
+    section: "shortcuts",
+    label: "Atajos de teclado",
+    description: "Qué tecla hace cada cosa",
+    keywords: ["atajo", "tecla", "combinación", "teclado", "modificar", "reasignar"],
+  },
+  {
+    section: "shortcuts",
+    label: "Guardar con el teclado",
+    description: "La tecla para guardar ahora",
+    keywords: ["guardar", "atajo", "save", "salvar", "grabar"],
+  },
+  {
+    section: "shortcuts",
+    label: "Insertar una imagen con el teclado",
+    description: "Atajo para poner una imagen en la nota",
+    keywords: ["imagen", "foto", "insertar", "atajo", "tecla"],
+  },
+  {
+    section: "shortcuts",
+    label: "Insertar una pizarra con el teclado",
+    description: "Atajo para poner una pizarra en la nota",
+    keywords: ["pizarra", "lienzo", "dibujo", "insertar", "atajo", "tecla"],
+  },
+  {
+    section: "shortcuts",
+    label: "Ir a la línea siguiente con el teclado",
+    description: "Atajo para abrir la línea siguiente y elegir el bloque",
+    keywords: ["linea", "bloque", "tipo", "siguiente", "insertar", "atajo", "tecla"],
+  },
+  {
+    section: "shortcuts",
+    label: "Actualizar con el teclado",
+    description: "Atajo para actualizar la lista de notas o recargar la nota",
+    keywords: ["actualizar", "recargar", "refrescar", "atajo", "tecla"],
   },
 ];
 

@@ -12,11 +12,13 @@ import {
 import styles from "../../styles/components/SettingsModal.module.css";
 import type { Appearance } from "../../types/appearance";
 import type { SkinInfo } from "../../types/skin";
+import type { ShortcutActionId, ShortcutOverrides } from "../../data/shortcuts.ts";
 import {
   CheckIcon,
   CloseIcon,
   FolderPlusIcon,
   InfoIcon,
+  KeyboardIcon,
   MoonIcon,
   PlusIcon,
   SearchIcon,
@@ -27,6 +29,7 @@ import { FontSelect } from "./FontSelect";
 import { IconButton } from "../ui/IconButton";
 import { InfoHint } from "./InfoHint";
 import { ModalBackdrop } from "../ui/ModalBackdrop";
+import { ShortcutsSection } from "./ShortcutsSection";
 import { SkinCreator } from "./SkinCreator";
 import { exportSkin, importSkin } from "../../services/skinExport";
 
@@ -45,6 +48,12 @@ export interface SettingsModalProps {
   onSkinEdit(skin: SkinInfo): void;
   onSkinEditCancel(): void;
   onClose(): void;
+  /** Las diferencias con los valores de fábrica de los atajos. */
+  shortcutOverrides: ShortcutOverrides;
+  /** Asignar una combinación a una acción. */
+  onShortcutChange(id: ShortcutActionId, combo: string): void;
+  onShortcutReset(id: ShortcutActionId): void;
+  onShortcutsResetAll(): void;
 }
 
 interface AppearanceField {
@@ -267,6 +276,7 @@ export function SettingsModal(props: SettingsModalProps) {
                         <Show when={item.id === "appearance"}><MoonIcon /></Show>
                         <Show when={item.id === "skins"}><ShapesIcon /></Show>
                         <Show when={item.id === "create"}><PlusIcon /></Show>
+                        <Show when={item.id === "shortcuts"}><KeyboardIcon /></Show>
                       </span>
                       <span class={styles.sectionText}>
                         <strong>{item.label}</strong>
@@ -566,6 +576,15 @@ export function SettingsModal(props: SettingsModalProps) {
                   </ul>
                   <ConfigFolder variant="skins" />
                 </div>
+              </Show>
+
+              <Show when={section() === "shortcuts"}>
+                <ShortcutsSection
+                  overrides={props.shortcutOverrides}
+                  onChange={props.onShortcutChange}
+                  onReset={props.onShortcutReset}
+                  onResetAll={props.onShortcutsResetAll}
+                />
               </Show>
 
               <Show when={section() === "create"}>

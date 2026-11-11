@@ -311,6 +311,15 @@ export function SearchIcon(props: IconProps) {
   );
 }
 
+export function KeyboardIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <path d="M6.5 10h.01M10.5 10h.01M14.5 10h.01M18 10h.01M6.5 14h.01M18 14h.01M10 14h4" />
+    </svg>
+  );
+}
+
 export function ArrowLeftIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

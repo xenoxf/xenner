@@ -42,3 +42,19 @@ export function platformSupportsFolderPicker(): boolean {
 export function platformSupportsFileReveal(): boolean {
   return !isMobilePlatform();
 }
+/** Cacheado en `null` hasta la primera consulta. */
+let mac: boolean | null = null;
+
+/**
+ * ¿Estamos en macOS?
+ *
+ * Solo para **enseñar** y para leer qué tecla hizo de `Mod` al pulsar: en Mac es
+ * ⌘, en el resto Ctrl. No cambia ninguna decisión de composición ni de aspecto.
+ */
+export function isMacPlatform(): boolean {
+  if (mac !== null) return mac;
+  const platform = typeof navigator !== "undefined" ? navigator.platform ?? "" : "";
+  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent ?? "" : "";
+  mac = /Mac|iP(hone|[oa]d)/i.test(platform) || /Mac OS/i.test(userAgent);
+  return mac;
+}

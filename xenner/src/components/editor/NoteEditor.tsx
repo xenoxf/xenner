@@ -25,7 +25,9 @@ import {
   importImageForEditor,
   updateAssetForEditor,
 } from "../../services/editorAssets.ts";
+import { matchCombo } from "../../data/shortcuts.ts";
 import { leaveEditor, registerNoteFlush, registerNoteInsertToggle } from "../../services/editorSession.ts";
+import { isCapturingCombo, liveShortcuts } from "../../services/shortcuts.ts";
 import { notifyError, notifySuccess } from "../../services/toastService.ts";
 import styles from "../../styles/components/NoteEditor.module.css";
 import type { DrawingTool } from "../../types/drawing.ts";
@@ -381,6 +383,71 @@ export function NoteEditor(props: NoteEditorProps) {
   };
 
   /**
+   * Los atajos de insertar, escuchados aquí en vez de en el teclado ProseMirror.
+   *
+   * Lo que hay que hacer con ellos no toca el documento desde ProseMirror —un
+   * diálogo de archivos, un lienzo, un menú—, así que van al mismo sitio que el
+   * asa y el dock: fuera de la transacción. Dentro de un campo de un formulario
+   * (el título, el enlace) no actúan: escribir ahí es escribir.
+   *
+   * El mapa se lee en cada pulsación: reasignar un atajo en Ajustes surte efecto
+   * en la tecla siguiente, sin recrear el editor.
+   */
+  function onShellKeyDown(event: KeyboardEvent): void {
+    if (isCapturingCombo()) return;
+    // Si ProseMirror ya se ocupó de la tecla (devuelve `true` y el evento queda
+    // prevenido), aquí no se hace nada: dos acciones distintas no deben hacerse
+    // a la vez por compartir combinación.
+    if (event.defaultPrevented) return;
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest("input, textarea, select")) return;
+    const map = liveShortcuts();
+    if (matchCombo(map["insert.image"], event)) {
+      event.preventDefault();
+      gestures.requestImage();
+      return;
+    }
+    if (matchCombo(map["insert.attachment"], event)) {
+      event.preventDefault();
+      gestures.requestAttachment();
+      return;
+    }
+    if (matchCombo(map["insert.whiteboard"], event)) {
+      event.preventDefault();
+      gestures.insertWhiteboard("pen");
+      return;
+    }
+    // El menú del «+» de la línea siguiente, el mismo que abre el asa.
+    if (matchCombo(map["insert.menu"], event)) {
+      event.preventDefault();
+      toggleInsertMenu(null);
+      return;
+    }
+    const instance = liveEditor();
+    if (!instance) return;
+    if (matchCombo(map["insert.codeBlock"], event)) {
+      event.preventDefault();
+      instance.commands.toggleCodeBlock();
+      return;
+    }
+    if (matchCombo(map["insert.table"], event)) {
+      event.preventDefault();
+      instance.commands.insertTable({ rows: 3, cols: 3, withHeaderRow: true });
+      return;
+    }
+    if (matchCombo(map["insert.math"], event)) {
+      event.preventDefault();
+      instance.commands.insertBlockMath({ latex: "x^2" });
+      return;
+    }
+    if (matchCombo(map["insert.divider"], event)) {
+      event.preventDefault();
+      instance.commands.setHorizontalRule();
+      return;
+    }
+  }
+
+  /**
    * La «línea siguiente» sobre la que va a caer lo que se elija.
    *
    * El `+` ofrece qué usar en la línea de abajo, no cambiar la que se está
@@ -408,7 +475,7 @@ export function NoteEditor(props: NoteEditorProps) {
     return { bloque: despues, recienCreado: true };
   }
 
-  function toggleInsertMenu(anchor: DOMRect, fromDock = false): void {
+  function toggleInsertMenu(anchor: DOMRect | null, fromDock = false): void {
     if (insertMenu()) {
       closeInsertMenu();
       return;
@@ -424,7 +491,7 @@ export function NoteEditor(props: NoteEditorProps) {
     const tipos = blockTypesInSelection(instance.state.doc, selection.from, selection.to);
     setBlockTypeNow(tipos.size === 1 ? [...tipos][0] : null);
     const bounds = surface.getBoundingClientRect();
-    if (fromDock) {
+    if (fromDock && anchor) {
       // El dock vive pegado al borde de abajo: su `+` abre el menú por encima
       // del propio dock, centrado bajo el botón y con el techo del viewport.
       // Se ancla por el borde de abajo porque el menú mida lo que mida —la
@@ -440,20 +507,29 @@ export function NoteEditor(props: NoteEditorProps) {
       // arriba: es la línea a la que va a aplicar la elección. Si se reutiliza la
       // línea vacía, se queda pegado al asa, que es lo que se ha pulsado.
       const destino = linea?.recienCreado ? instance.view.nodeDOM(linea.bloque) : null;
-      const rect = destino instanceof HTMLElement ? destino.getBoundingClientRect() : null;
+      let rect = destino instanceof HTMLElement ? destino.getBoundingClientRect() : null;
+      if (!rect && !anchor && linea) {
+        // Teclado: no hay un asa que pulsar, así que el menú se pega al bloque de
+        // destino —la línea recién abierta, o la que se estaba escribiendo—.
+        const dom = instance.view.nodeDOM(linea.bloque);
+        rect = dom instanceof HTMLElement ? dom.getBoundingClientRect() : null;
+      }
       setInsertMenu(
         rect
           ? {
               left: Math.max(8, Math.min(rect.left - bounds.left + 2, bounds.width - 244)),
               top: Math.max(0, rect.top - bounds.top),
             }
-          : {
-              // A la derecha del asa y a su altura: pegado al `+` que se ha pulsado, no
-              // encima del texto que se está escribiendo. Se mide el rectángulo real del
-              // asa porque calcular la posición a mano es justo lo que salía mal.
-              left: Math.max(8, Math.min(anchor.right - bounds.left + 8, bounds.width - 244)),
-              top: Math.max(0, anchor.top - bounds.top),
-            },
+          : anchor
+            ? {
+                // A la derecha del asa y a su altura: pegado al `+` que se ha pulsado, no
+                // encima del texto que se está escribiendo. Se mide el rectángulo real del
+                // asa porque calcular la posición a mano es justo lo que salía mal.
+                left: Math.max(8, Math.min(anchor.right - bounds.left + 8, bounds.width - 244)),
+                top: Math.max(0, anchor.top - bounds.top),
+              }
+            : // Teclado sobre una nota vacía: arriba a la izquierda, que es donde empieza todo.
+              { left: 12, top: Math.max(0, bounds.height / 3) },
       );
     }
     const items = insertItems();
@@ -733,6 +809,7 @@ export function NoteEditor(props: NoteEditorProps) {
           reloadSource,
           importWhiteboardAsset,
           reportFailure,
+          getShortcuts: liveShortcuts,
           attachment: attachmentActions,
           // El motor entrega su handle al montar, y el dock es quien lo usa.
           onReady(instance) {
@@ -825,7 +902,7 @@ export function NoteEditor(props: NoteEditorProps) {
   });
 
   return (
-    <div class={styles.shell} data-x="editor">
+    <div class={styles.shell} data-x="editor" onKeyDown={onShellKeyDown}>
       {/* La barra de formato va **antes** de la superficie y se queda pegada al
           borde de arriba mientras se desplaza la nota: es fija porque el tipo de
           bloque y el formato tienen que estar a la vista en todo momento, que es

@@ -14,8 +14,12 @@ import {
   getWorkspace,
   getWorkspaceError,
   initializeWorkspace,
+  refreshWorkspaceTree,
+  reloadSelectedDocument,
   startWorkspaceWatcher,
 } from "../workspace/store";
+import { matchCombo } from "../data/shortcuts";
+import { isCapturingCombo, liveShortcuts } from "../services/shortcuts";
 import { useAppearanceController } from "./useAppearanceController";
 import { useExplorerController } from "./useExplorerController";
 import { useHistoryController } from "./useHistoryController";
@@ -125,47 +129,61 @@ export function useAppController() {
       await initializeWorkspace();
       explorer.loadLegacyNotes(getWorkspace()?.info.root);
     })();
-    const saveWithShortcut = (event: KeyboardEvent): void => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s" || saveShortcutBusy) return;
-      event.preventDefault();
-      void saveNow();
-    };
-    document.addEventListener("keydown", saveWithShortcut);
     /*
-     * La paleta: `Ctrl+K` para ir a una nota, `Ctrl+Mayús+P` para comandos. No
-     * se abre sobre un diálogo —una pregunta a medias no se tapa con otra
-     * ventana— ni sobre Ajustes o el historial, que ya son modales.
+     * Los atajos globales, leyendo el mapa vivo: si Ajustes reasigna uno, la
+     * siguiente pulsación ya lo respeta, sin recargar nada.
      */
-    const paletteWithShortcut = (event: KeyboardEvent): void => {
-      if (!(event.ctrlKey || event.metaKey)) return;
-      const key = event.key.toLowerCase();
-      if (key === "k" && !event.shiftKey && !event.altKey) {
+    const onGlobalShortcut = (event: KeyboardEvent): void => {
+      if (isCapturingCombo()) return;
+      if (event.defaultPrevented) return; // Ya lo manejó alguien más abajo (p. ej. el editor).
+      const map = liveShortcuts();
+      // Guardar ahora.
+      if (matchCombo(map["nota.save"], event)) {
+        if (saveShortcutBusy) return;
+        event.preventDefault();
+        void saveNow();
+        return;
+      }
+      // Recargar la nota del disco: el editor se sincroniza con lo que hay en el
+      // archivo, que es la respuesta a un «actualizar» de quien escribe.
+      if (matchCombo(map["nota.reload"], event)) {
+        if (isDialogPending() || settingsOpen()) return;
+        event.preventDefault();
+        void reloadSelectedDocument().then((ok) => {
+          if (ok) notifySuccess("Nota actualizada desde el disco");
+        });
+        return;
+      }
+      // Actualizar la lista de notas.
+      if (matchCombo(map["app.refresh"], event)) {
+        event.preventDefault();
+        void refreshWorkspaceTree();
+        return;
+      }
+      // La paleta: `Ctrl+K` para ir a una nota, `Ctrl+Mayús+P` para comandos. No
+      // se abre sobre un diálogo —una pregunta a medias no se tapa con otra
+      // ventana— ni sobre Ajustes o el historial, que ya son modales.
+      if (matchCombo(map["app.palette"], event)) {
         if (isDialogPending() || settingsOpen() || history.path() || paletteOpen()) return;
         event.preventDefault();
         openPalette("notes");
         return;
       }
-      if (key === "p" && event.shiftKey && !event.altKey) {
+      if (matchCombo(map["app.paletteCommands"], event)) {
         if (isDialogPending() || settingsOpen() || history.path() || paletteOpen()) return;
         event.preventDefault();
         openPalette("commands");
+        return;
+      }
+      // Mostrar u ocultar la lista de notas.
+      if (matchCombo(map["app.sidebar"], event)) {
+        event.preventDefault();
+        toggleSidebar();
+        return;
       }
     };
-    document.addEventListener("keydown", paletteWithShortcut);
-    /*
-     * Mostrar u ocultar la lista de notas. Es `Ctrl+E` y no `Ctrl+B`, que es lo
-     * que usan los editores de código, porque `Ctrl+B` aquí es negrita en el
-     * editor de Markdown: cambiarlo habría roto algo que ya funcionaba.
-     */
-    const toggleSidebarWithShortcut = (event: KeyboardEvent): void => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "e") return;
-      event.preventDefault();
-      toggleSidebar();
-    };
-    document.addEventListener("keydown", toggleSidebarWithShortcut);
-    onCleanup(() => document.removeEventListener("keydown", saveWithShortcut));
-    onCleanup(() => document.removeEventListener("keydown", paletteWithShortcut));
-    onCleanup(() => document.removeEventListener("keydown", toggleSidebarWithShortcut));
+    document.addEventListener("keydown", onGlobalShortcut);
+    onCleanup(() => document.removeEventListener("keydown", onGlobalShortcut));
     onCleanup(stopWatchingSystem);
     onCleanup(stopWatchingWorkspace);
   });

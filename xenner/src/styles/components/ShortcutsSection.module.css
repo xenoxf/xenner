@@ -1,0 +1,173 @@
+/*
+ * La sección «Atajos» de Ajustes: la lista de teclas, como en las demás
+ * secciones —grupos separados por una raya fina y filas sin fondo—, con un chip
+ * por tecla.
+ */
+
+.resetAll {
+  color: var(--skin-sidebar-textDim);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 2px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.resetAll:hover {
+  color: var(--skin-note-text);
+}
+
+/* Fila de una acción: el nombre a la izquierda y la tecla a la derecha. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.row + .row {
+  border-top: 1px solid var(--skin-sidebar-border);
+}
+
+.rowLabel {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--skin-note-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* El chip con la combinación, pulsando para cambiarla. */
+.combo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 88px;
+  justify-content: center;
+  padding: 5px 10px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-backgroundHover);
+  border: var(--skin-input-border);
+  border-radius: calc(var(--skin-button-radius) * 0.8);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.combo:hover {
+  border-color: var(--skin-input-focus);
+}
+
+.combo:focus-visible {
+  outline: 2px solid var(--skin-input-focus);
+  outline-offset: 2px;
+}
+
+/* Mientras se graba: se ve vivo, y a la vez apunta a que lo que se pulse es lo que queda. */
+.recording {
+  color: var(--skin-note-accent);
+  border-color: var(--skin-input-focus);
+  border-style: dashed;
+  animation: xenner-combo-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes xenner-combo-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--skin-input-focus) 35%, transparent);
+  }
+}
+
+/* Una tecla marcada como repetida: no rompe nada, pero se avisa. */
+.duplicate {
+  color: var(--skin-note-accent);
+  border-color: var(--skin-note-accent);
+}
+
+/* Volver a los valores de fábrica, por fila. */
+.resetRow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--skin-sidebar-textDim);
+  background: none;
+  border: 0;
+  border-radius: calc(var(--skin-button-radius) * 0.7);
+  cursor: pointer;
+}
+
+.resetRow:hover {
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-backgroundHover);
+}
+
+.resetRow svg {
+  width: 14px;
+  height: 14px;
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  color: var(--skin-note-text);
+  background-color: var(--skin-note-backgroundHover);
+  border: var(--skin-input-border);
+  border-left: 2px solid var(--skin-note-accent);
+  border-radius: calc(var(--skin-note-radius) * 0.5);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.notice strong {
+  font-weight: 650;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Los grupos de la sección, con su raya fina igual que en las demás. */
+.group + .group {
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--skin-sidebar-border);
+}
+
+.groupFirst {
+  margin-top: 0;
+}
+
+.groupTitle {
+  margin: 0 0 4px;
+  color: var(--skin-note-text);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.groupHint {
+  margin: 0 0 12px;
+  color: var(--skin-sidebar-textDim);
+  font-size: 12px;
+  line-height: 1.55;
+}

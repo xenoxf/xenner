@@ -1,11 +1,11 @@
 import { Extension } from "@tiptap/core";
 import type { CommandProps } from "@tiptap/core";
-import { keydownHandler } from "@tiptap/pm/keymap";
 import type { Node } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { Command, EditorState, Transaction } from "@tiptap/pm/state";
 
 import type { EditorBlockType } from "../types/editor.ts";
+import { SHORTCUT_ACTIONS, defaultShortcutMap, matchCombo, type ShortcutActionId, type ShortcutMap } from "../data/shortcuts.ts";
 import { setBlockType } from "./commands.ts";
 import type { ReportFailure } from "./commands.ts";
 
@@ -48,10 +48,15 @@ export interface EditorAtajo {
   label: string;
 }
 
-/** Un atajo del editor y el rótulo con el que se enseña. */
+/**
+ * Un atajo del editor y a qué acción del catálogo corresponde.
+ *
+ * La combinación **no** se escribe aquí: vive en `data/shortcuts.ts`, junto
+ * con el resto, para que Ajustes pueda reasignarla. Aquí solo está lo que no
+ * puede faltar en ningún sitio: el identificador del catálogo y cómo hacerlo.
+ */
 interface AtajoDeBloque {
-  shortcut: string;
-  label: string;
+  id: ShortcutActionId;
   /** El atajo en sí, ya con su `report` puesto. */
   crear(report?: ReportFailure): Atajo;
 }
@@ -290,18 +295,18 @@ function codigoEnLinea(report?: ReportFailure): Atajo {
  * pueden quedarse descolgados.
  */
 const ATAJOS_DE_BLOQUE: readonly AtajoDeBloque[] = [
-  { shortcut: "Mod-Alt-0", label: "Párrafo normal", crear: (r) => bloqueDe("paragraph", r) },
-  { shortcut: "Mod-Alt-1", label: "Título 1", crear: (r) => bloqueDe("heading1", r) },
-  { shortcut: "Mod-Alt-2", label: "Título 2", crear: (r) => bloqueDe("heading2", r) },
-  { shortcut: "Mod-Alt-3", label: "Título 3", crear: (r) => bloqueDe("heading3", r) },
-  { shortcut: "Mod-Alt-4", label: "Título 4", crear: (r) => tituloDeNivel(4, r) },
-  { shortcut: "Mod-Alt-5", label: "Título 5", crear: (r) => tituloDeNivel(5, r) },
-  { shortcut: "Mod-Alt-6", label: "Título 6", crear: (r) => tituloDeNivel(6, r) },
-  { shortcut: "Mod-Shift-7", label: "Lista con viñetas", crear: (r) => bloqueDe("bullet", r) },
-  { shortcut: "Mod-Shift-8", label: "Lista numerada", crear: (r) => bloqueDe("ordered", r) },
-  { shortcut: "Mod-Shift-9", label: "Lista de tareas", crear: (r) => listaDeTareas(r) },
-  { shortcut: "Mod-Shift-.", label: "Cita", crear: (r) => bloqueDe("quote", r) },
-  { shortcut: "Mod-Alt-c", label: "Código en línea", crear: (r) => codigoEnLinea(r) },
+  { id: "bloque.paragraph", crear: (r) => bloqueDe("paragraph", r) },
+  { id: "bloque.heading1", crear: (r) => bloqueDe("heading1", r) },
+  { id: "bloque.heading2", crear: (r) => bloqueDe("heading2", r) },
+  { id: "bloque.heading3", crear: (r) => bloqueDe("heading3", r) },
+  { id: "bloque.heading4", crear: (r) => tituloDeNivel(4, r) },
+  { id: "bloque.heading5", crear: (r) => tituloDeNivel(5, r) },
+  { id: "bloque.heading6", crear: (r) => tituloDeNivel(6, r) },
+  { id: "bloque.bullet", crear: (r) => bloqueDe("bullet", r) },
+  { id: "bloque.ordered", crear: (r) => bloqueDe("ordered", r) },
+  { id: "bloque.taskList", crear: (r) => listaDeTareas(r) },
+  { id: "bloque.quote", crear: (r) => bloqueDe("quote", r) },
+  { id: "bloque.codeInline", crear: (r) => codigoEnLinea(r) },
 ];
 
 /**
@@ -344,9 +349,20 @@ export const TECLAS_DE_OTROS: readonly { shortcut: string; deQuien: string }[] =
  * datos puros, sin editor detrás, y el rótulo de un atajo solo sirve si está
  * escrito en el idioma en el que se está escribiendo la nota.
  */
-export const EDITOR_SHORTCUTS: readonly EditorAtajo[] = ATAJOS_DE_BLOQUE.map(
-  ({ shortcut, label }) => ({ shortcut, label }),
-);
+const ETIQUETA_POR_ID = new Map(SHORTCUT_ACTIONS.map((accion) => [accion.id, accion.label]));
+const DEFECTO = defaultShortcutMap();
+
+/**
+ * La lista que enseña la interfaz, con los valores por defecto.
+ *
+ * Sale del catálogo (`data/shortcuts.ts`): un rótulo sin atajo o un atajo sin
+ * rótulo no pueden quedarse descolgados, y los que el usuario reasigne no
+ * cambian esta lista —lo que enseña Ajustes es el mapa vivo, no los defaults—.
+ */
+export const EDITOR_SHORTCUTS: readonly EditorAtajo[] = ATAJOS_DE_BLOQUE.map(({ id }) => ({
+  shortcut: DEFECTO[id],
+  label: ETIQUETA_POR_ID.get(id) ?? id,
+}));
 
 /**
  * El mapa de atajos, como lo resuelve `prosemirror-keymap`.
@@ -354,15 +370,23 @@ export const EDITOR_SHORTCUTS: readonly EditorAtajo[] = ATAJOS_DE_BLOQUE.map(
  * Se exporta para poder probarlo: un atajo es un cambio de documento, y el
  * cambio se mide, no se lee.
  */
-export function atajosDeBloque(report?: ReportFailure): Record<string, Command> {
+export function atajosDeBloque(
+  report?: ReportFailure,
+  map: ShortcutMap = defaultShortcutMap(),
+): Record<string, Command> {
   return Object.fromEntries(
-    ATAJOS_DE_BLOQUE.map(({ shortcut, crear }) => [shortcut, conDespachar(crear(report))]),
+    ATAJOS_DE_BLOQUE.map(({ id, crear }) => [map[id], conDespachar(crear(report))]),
   );
 }
 
 interface KeyboardNoteOptions {
   /** Quién se entera cuando un atajo no se puede aplicar. */
   report?: ReportFailure;
+  /**
+   * El mapa vivo de combinaciones, para que Ajustes cambie un atajo sin
+   * recrear el editor. Sin él se usan los valores por defecto.
+   */
+  getShortcuts?(): ShortcutMap;
 }
 
 /**
@@ -386,10 +410,25 @@ export const KeyboardNote = Extension.create<KeyboardNoteOptions>({
 
   addProseMirrorPlugins() {
     const report = this.options.report;
+    const getShortcuts = this.options.getShortcuts;
+    // Las acciones se crean una vez y se guardan: crear conjunto en cada
+    // pulsación es tirar trabajo a la basura en la tecla que más se repite.
+    const atajos = ATAJOS_DE_BLOQUE.map(({ id, crear }) => ({ id, accion: crear(report) }));
     return [
       new Plugin({
         key: new PluginKey("noteKeyboard"),
-        props: { handleKeyDown: keydownHandler(atajosDeBloque(report)) },
+        props: {
+          handleKeyDown: (view, event) => {
+            const mapa = getShortcuts?.() ?? DEFECTO;
+            for (const { id, accion } of atajos) {
+              const combo = mapa[id];
+              if (combo && matchCombo(combo, event)) {
+                return accion(view.state, (tr) => view.dispatch(tr));
+              }
+            }
+            return false;
+          },
+        },
       }),
     ];
   },

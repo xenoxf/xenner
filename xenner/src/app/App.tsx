@@ -11,7 +11,16 @@ import { NoteHistoryPanel } from "../components/editor/NoteHistoryPanel";
 import { SettingsModal } from "../components/settings/SettingsModal";
 import { MobileShell } from "../components/mobile/MobileShell";
 import { DialogHost } from "../components/ui/DialogHost";
-import { isMobilePlatform } from "../services/platform";
+import { isMacPlatform, isMobilePlatform } from "../services/platform";
+import { formatCombo } from "../data/shortcuts";
+import {
+  readShortcutOverrides,
+  resetAllShortcuts,
+  resetShortcut,
+  saveShortcut,
+  liveShortcuts,
+} from "../services/shortcuts";
+import type { ShortcutActionId } from "../data/shortcuts";
 import {
   chooseWorkspace,
   closeWorkspaceError,
@@ -58,6 +67,22 @@ function Overlays(props: {
   editingSkin: SkinInfo | null;
   onSkinEdit(skin: SkinInfo | null): void;
 }): JSX.Element {
+  // Las diferencias con los valores de fábrica. `readShortcutOverrides()` está
+  // cacheado, así que llamarlo al montar y tras cada cambio es barato.
+  const [shortcutOverrides, setShortcutOverrides] = createSignal(readShortcutOverrides());
+  const changeShortcut = (id: ShortcutActionId, combo: string): void => {
+    saveShortcut(id, combo);
+    setShortcutOverrides({ ...readShortcutOverrides() });
+  };
+  const resetShortcutOne = (id: ShortcutActionId): void => {
+    resetShortcut(id);
+    setShortcutOverrides({ ...readShortcutOverrides() });
+  };
+  const resetShortcutsAll = (): void => {
+    resetAllShortcuts();
+    setShortcutOverrides({});
+  };
+
   const { appearance, history } = props.controller;
   const { controller } = props;
   const explorer = controller.explorer;
@@ -175,13 +200,13 @@ function Overlays(props: {
       {
         id: "save",
         label: "Guardar ahora",
-        shortcut: "Ctrl+S",
+        shortcut: formatCombo(liveShortcuts()["nota.save"], isMacPlatform()),
         run: () => void controller.saveNow(),
       },
       {
         id: "toggle-sidebar",
         label: controller.sidebarOpen() ? "Ocultar la lista de notas" : "Mostrar la lista de notas",
-        shortcut: "Ctrl+E",
+        shortcut: formatCombo(liveShortcuts()["app.sidebar"], isMacPlatform()),
         run: () => controller.toggleSidebar(),
       },
       {
@@ -249,6 +274,10 @@ function Overlays(props: {
           loading={appearance.skinLoading()}
           appearance={appearance.appearance()}
           editingSkin={props.editingSkin}
+          shortcutOverrides={shortcutOverrides()}
+          onShortcutChange={changeShortcut}
+          onShortcutReset={resetShortcutOne}
+          onShortcutsResetAll={resetShortcutsAll}
           onAppearanceChange={appearance.updateAppearance}
           onSkinChange={(id) => void appearance.changeSkin(id)}
           onSkinCreated={appearance.skinCreated}

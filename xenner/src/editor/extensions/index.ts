@@ -8,6 +8,7 @@ import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
 
+import type { ShortcutMap } from "../../data/shortcuts.ts";
 import { KeyboardNote } from "../keyboard.ts";
 import { PasteNote } from "../paste.ts";
 import { NoteAttachment } from "./note-attachment.ts";
@@ -51,6 +52,11 @@ export interface EditorExtensionOptions {
    * pasa, avisan por consola, que es mejor que tragárselo.
    */
   reportFailure?(what: string, error: unknown): void;
+  /**
+   * El mapa vivo de combinaciones. Lo inyecta la interfaz —Ajustes puede
+   * reasignar cualquier atajo—; sin él, el editor usa los valores por defecto.
+   */
+  getShortcuts?(): ShortcutMap;
 }
 
 /**
@@ -111,7 +117,7 @@ export function createEditorExtensions(options: EditorExtensionOptions): Extensi
      * «alternar título» —la segunda pulsación lo quitaba—, y aquí se quiere
      * ponerlo siempre. Con el orden dado, el de aquí gana.
      */
-    KeyboardNote.configure({ report: options.reportFailure }),
+    KeyboardNote.configure({ report: options.reportFailure, getShortcuts: options.getShortcuts }),
     PasteNote.configure({ report: options.reportFailure }),
   ];
 }
